@@ -67,11 +67,14 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "backend/tests/**" = ["S", "PLR", "N802"]
 "backend/garminizer/db/migrations/**" = ["E501"]
+"backend/garminizer/models/**" = ["RUF012"]  # SQLAlchemy's __table_args__ idiom
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 files = ["backend/garminizer", "backend/tests", "scripts/claude_hook.py"]
+mypy_path = "backend"
+explicit_package_bases = true
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
 

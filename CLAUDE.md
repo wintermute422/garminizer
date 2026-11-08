@@ -44,6 +44,7 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `scripts/gitleaks.sh` | gitleaks v8.30.1 (native or pinned Docker image) with `.gitleaks.toml` |
 | `.githooks/pre-commit` | blocks `.env*`, `data/`, FIT/dump/key files, git-ignored files, unmanifested screenshots; ruff + prettier on staged files; secret scan + gitleaks staged |
 | `.githooks/pre-push` | branches `feat/ fix/ docs/ chore/ ci/` only (main only for bootstrap), fast-forward only, no deletions, new `v*` tags only; scans the pushed range |
+| `scripts/bootstrap_remote.sh` | one-time: create the private GitHub repo and push `main`; refuses once origin has `main` |
 
 ## Git workflow
 - Repo-local identity `wintermute422` + GitHub noreply e-mail (never the personal address).
@@ -74,3 +75,7 @@ progress.md's "Next step".
 - Never put a blocked command string literally into a shell command (even inside a JSON test
   payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
 - Project hooks in `.claude/settings.json` take effect immediately in the running session.
+- In gitleaks/secret-scan regexes use `[ \t]*`, never `\s*`, around `=`: `\s` spans the newline and
+  turns an empty `KEY=` line plus the next line into a false "secret".
+- Test values that look like personal data (private IPs, e-mails) are assembled at runtime in tests
+  so the tracked file itself stays clean for secret_scan.
