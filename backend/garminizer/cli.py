@@ -10,8 +10,25 @@ from garminizer.db import migrate
 app = typer.Typer(help="Garminizer: your Garmin data, in your own database.", no_args_is_help=True)
 db_app = typer.Typer(help="Database schema management.", no_args_is_help=True)
 demo_app = typer.Typer(help="Synthetic demo data.", no_args_is_help=True)
+analytics_app = typer.Typer(
+    help="Derived tables (best efforts, load, tracks).", no_args_is_help=True
+)
 app.add_typer(db_app, name="db")
 app.add_typer(demo_app, name="demo")
+app.add_typer(analytics_app, name="analytics")
+
+
+@analytics_app.command("refresh")
+def analytics_refresh(
+    force: bool = typer.Option(False, help="Reprocess every activity, not only pending ones."),
+) -> None:
+    """Compute best efforts, zones, splits, tracks, tiles and the daily load series."""
+    from garminizer.analytics import pipeline  # noqa: PLC0415 - keep CLI start-up light
+    from garminizer.db import session_scope  # noqa: PLC0415
+
+    with session_scope() as session:
+        report = pipeline.run(session, force=force)
+    typer.echo(f"analytics: {report.activities} activities, {report.daily_rows} days of load")
 
 
 @demo_app.command("seed")

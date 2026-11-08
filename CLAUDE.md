@@ -70,8 +70,18 @@ Read CLAUDE.md, `plan.md`, `progress.md`, then `git status` and `git log -5`; co
 progress.md's "Next step".
 
 ## Lessons (append a rule whenever a mistake is caught)
-- Add imports in the same Edit as their first use: the post-edit hook lints/type-checks after
-  every single edit and reports the half-finished state.
+- Add imports and definitions *before* (or in the same Edit as) their first use: the post-edit
+  hook lints/type-checks after every single edit and reports the half-finished state.
+- Edits made through shell scripts/sed bypass the post-edit hook: run `ruff format` / `ruff check`
+  on the touched files right after (check.sh catches it otherwise).
+- Python scripts that rewrite files on Windows must use `write_text(..., newline="
+")`; the
+  default writes CRLF.
+- Long multi-line Python heredocs inside one Bash call can get mangled; put the script in the
+  scratchpad and run it with `python -I script.py <args>`.
+- Calibrate synthetic data against known physiology before building on it (check pace/HR,
+  sleep-stage shares, race times vs predictions) — the first demo run had 30 % deep sleep and
+  marathon HR of 183 bpm.
 - Never put a blocked command string literally into a shell command (even inside a JSON test
   payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
 - Project hooks in `.claude/settings.json` take effect immediately in the running session.

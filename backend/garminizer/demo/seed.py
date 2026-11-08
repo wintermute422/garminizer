@@ -19,6 +19,7 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.orm import Session
 
 from garminizer import models as m
+from garminizer.analytics import pipeline
 from garminizer.analytics.curves import best_distance_times
 from garminizer.analytics.physio import normalized_power, trimp_banister
 from garminizer.analytics.series import elevation_gain_loss
@@ -466,6 +467,10 @@ def seed_demo(
             session.execute(insert(table), values)
         report.rows[table.__tablename__] = len(values)
     _write_profile(session, sim.states, sim.act_rows, sim.best_runs, rng, report)
+    session.flush()
+    derived = pipeline.run(session, force=True, today=end)
+    report.rows.update(derived.rows)
+    report.rows["daily_load"] = derived.daily_rows
     session.add(
         m.SyncRun(
             kind="demo",

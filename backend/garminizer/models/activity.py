@@ -86,6 +86,15 @@ class Activity(Base):
     has_samples: Mapped[bool] = mapped_column(
         server_default="false", comment="True when per-second samples were ingested"
     )
+    aerobic_decoupling_pct: Mapped[Real | None] = mapped_column(
+        comment="Pa:HR drift first vs second half (computed by Garminizer)"
+    )
+    efficiency_factor: Mapped[Real | None] = mapped_column(
+        comment="Output per heartbeat: (m/min or W) / bpm (computed by Garminizer)"
+    )
+    analytics_version: Mapped[Small] = mapped_column(
+        server_default="0", comment="Version of the analytics that processed this activity"
+    )
     updated_at: Mapped[TsTz | None]
 
 

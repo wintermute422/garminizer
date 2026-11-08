@@ -9,6 +9,13 @@ from garminizer.models.activity import (
     ActivityWeather,
     ActivityZone,
 )
+from garminizer.models.analytics import (
+    ActivityBestDistance,
+    ActivityBestEffort,
+    ActivityTile,
+    ActivityTrack,
+    DailyLoad,
+)
 from garminizer.models.body import Badge, BloodPressure, BodyComposition, Goal, PersonalRecord
 from garminizer.models.core import ActivityGear, AppSetting, Athlete, Device, Gear, RawPayload
 from garminizer.models.performance import (
@@ -35,11 +42,15 @@ from garminizer.models.wellness import (
 
 __all__ = [
     "Activity",
+    "ActivityBestDistance",
+    "ActivityBestEffort",
     "ActivityFile",
     "ActivityGear",
     "ActivityLap",
     "ActivitySample",
     "ActivitySplit",
+    "ActivityTile",
+    "ActivityTrack",
     "ActivityWeather",
     "ActivityZone",
     "AppSetting",
@@ -48,6 +59,7 @@ __all__ = [
     "BloodPressure",
     "BodyBatterySample",
     "BodyComposition",
+    "DailyLoad",
     "DailySummary",
     "Device",
     "EnduranceScore",
