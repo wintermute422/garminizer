@@ -239,17 +239,17 @@ def _body_battery(lay: _Layers, stress: FloatArray, hrv: FloatArray, start: floa
     """Charges in sleep (faster with good HRV), drains with stress and exercise."""
     out = np.empty(len(stress))
     cur = start
-    charge = (0.075 + 0.0016 * (hrv - 55)).tolist()
+    charge = (0.17 + 0.003 * (hrv - 55)).tolist()
     asleep, in_act = lay.asleep.tolist(), lay.in_act.tolist()
     stress_l, frac = stress.tolist(), lay.hr_frac.tolist()
     for i in range(len(stress_l)):
         if asleep[i]:
-            cur += max(charge[i], 0.02) * (1.04 - cur / 100)
+            cur += max(charge[i], 0.05) * (1.05 - cur / 100)
         elif in_act[i]:
             cur -= 0.03 + 0.28 * frac[i] ** 3
         else:
             s = stress_l[i]
-            cur += 0.012 if s < 20 else -(0.012 + 0.00095 * s)
+            cur += 0.012 if s < 20 else -(0.016 + 0.0013 * s)
         cur = min(max(cur, 5.0), 100.0)
         out[i] = cur
     return out

@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "api",
-      "runtimeExecutable": ".venv/Scripts/garminizer.exe",
-      "runtimeArgs": ["serve"],
-      "port": 8420
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["scripts/dev_api.sh"],
+      "port": 8425
     },
     {
       "name": "web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["-C", "web", "dev"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["scripts/dev_web.sh"],
       "port": 5180
     }
   ]

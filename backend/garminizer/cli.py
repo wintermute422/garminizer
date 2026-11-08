@@ -59,10 +59,18 @@ def demo_seed(
 
     from sqlalchemy import select  # noqa: PLC0415
 
+    from garminizer.config import get_settings  # noqa: PLC0415
     from garminizer.db import session_scope  # noqa: PLC0415
     from garminizer.demo.seed import RealDataError, seed_demo  # noqa: PLC0415
     from garminizer.models import Athlete  # noqa: PLC0415
 
+    if any(get_settings().token_dir.glob("*")):
+        typer.echo(
+            "refused: Garmin tokens exist here, so this is your real-data installation. Run the "
+            "demo with DATABASE_URL pointing at a separate database, or use compose.demo.yml.",
+            err=True,
+        )
+        raise typer.Exit(2)
     migrate.upgrade()
     if if_empty:
         with session_scope() as session:

@@ -49,6 +49,9 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `scripts/devdb.sh` | dev/test Postgres 17 (`garminizer-dev`, 127.0.0.1:55432): up/down/status/reset/psql |
 | `scripts/gen_api_types.sh` | OpenAPI → `web/src/api/schema.d.ts`; `--check` fails when stale (check.sh) |
 | `scripts/e2e.sh` | A9/A10: production build + FastAPI on 8421 + deterministic `garminizer_e2e` demo DB; Playwright on every page × desktop/mobile × dark/light: charts drawn with data, maps loaded, no console errors, no horizontal overflow, axe serious/critical = 0; screenshots → `artifacts/screenshots/` |
+| `scripts/dev_api.sh`, `scripts/dev_web.sh` | development API (8425, dev DB) and Vite (5180) — never the real DB |
+| `scripts/init_env.py [--tz Zone]` | creates `.env` from `.env.example` with random secrets; never prints them; refuses to overwrite |
+| `scripts/screenshots.sh` | README screenshots from the demo e2e DB only (refuses non-demo), writes MANIFEST.sha256 |
 | `scripts/e2e_dev.sh API_PORT WEB_PORT "page x"` | same checks against Vite dev on private ports (parallel page work, no shared build) |
 
 ## Git workflow
@@ -104,6 +107,11 @@ progress.md's "Next step".
   content, so a 590 px-wide page passed until a self-test injected a 2000 px element.
 - Brief parallel agents with exact formatter paths (`prettier --write src/pages/<mine>`); a
   broad `prettier --write src/pages` touched other agents' directories.
+- Git Bash rewrites container paths like `/data/...` in docker arguments into Windows paths;
+  set `MSYS_NO_PATHCONV=1` for docker commands with in-container paths.
+- Once `.env` exists, `DATABASE_URL` points at the user's REAL database (port 55433). Dev work
+  uses `scripts/dev_api.sh` / `scripts/dev_web.sh` (dev DB on 55432, API on 8425) and explicit
+  `DATABASE_URL=` prefixes; `garminizer demo seed` refuses once Garmin tokens exist.
 - Never put a blocked command string literally into a shell command (even inside a JSON test
   payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
 - Project hooks in `.claude/settings.json` take effect immediately in the running session.
