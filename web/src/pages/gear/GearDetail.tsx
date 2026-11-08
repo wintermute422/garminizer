@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { SportBadge } from "@/components/SportIcon";
-import { Card, EmptyState, ErrorState, ScrollArea, Skeleton } from "@/components/ui";
+import { Card, EmptyState, ErrorState, ShowAllButton, Skeleton } from "@/components/ui";
 import {
   axisTooltip,
   GRID,
@@ -121,6 +121,8 @@ function LifetimeChart({
   );
 }
 
+const GEAR_ACTIVITIES = 8;
+
 export function GearDetail({ uuid, color }: { uuid: string; color: (uuid: string) => string }) {
   const units = useUnits();
   const q = api.useQuery(
@@ -129,6 +131,7 @@ export function GearDetail({ uuid, color }: { uuid: string; color: (uuid: string
     { params: { path: { uuid } } },
     { placeholderData: (prev) => prev },
   );
+  const [all, setAll] = useState(false);
   if (q.error) return <ErrorState error={q.error} />;
   if (!q.data) return <Skeleton height={560} />;
   const { item, activities } = q.data;
@@ -144,12 +147,9 @@ export function GearDetail({ uuid, color }: { uuid: string; color: (uuid: string
       {activities.length === 0 ? (
         <EmptyState title="Not used in any activity yet" />
       ) : (
-        <ScrollArea
-          label={`Activities with ${name}`}
-          className="relative -mx-2 max-h-[360px] overflow-y-auto"
-        >
-          <ul className="flex flex-col">
-            {activities.map((a) => (
+        <>
+          <ul className="-mx-2 flex flex-col">
+            {(all ? activities : activities.slice(0, GEAR_ACTIVITIES)).map((a) => (
               <li key={a.activity_id}>
                 <Link
                   to="/activities/$activityId"
@@ -175,7 +175,15 @@ export function GearDetail({ uuid, color }: { uuid: string; color: (uuid: string
               </li>
             ))}
           </ul>
-        </ScrollArea>
+          {activities.length > GEAR_ACTIVITIES && (
+            <ShowAllButton
+              total={activities.length}
+              noun="activities"
+              expanded={all}
+              onToggle={() => setAll((v) => !v)}
+            />
+          )}
+        </>
       )}
     </Card>
   );

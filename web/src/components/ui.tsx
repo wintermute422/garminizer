@@ -317,6 +317,33 @@ export function Skeleton({ className, height = 120 }: { className?: string; heig
   );
 }
 
+/**
+ * "Show all N …" / "Show fewer" under a list cut to its first rows. Long lists use this rather
+ * than an inner scroll area: an inner scroll has no visible cue and traps scrolling on phones.
+ */
+export function ShowAllButton({
+  total,
+  noun,
+  expanded,
+  onToggle,
+}: {
+  total: number;
+  noun: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      className="mt-2 w-full rounded-xl border border-line py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+    >
+      {expanded ? "Show fewer" : `Show all ${total} ${noun}`}
+    </button>
+  );
+}
+
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line px-6 py-10 text-center">

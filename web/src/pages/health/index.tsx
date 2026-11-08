@@ -21,7 +21,8 @@ import {
   StatusPill,
   type DeltaDirection,
 } from "@/components/ui";
-import { DASH, fmtDate, fmtNumber, fmtShortDate, titleCase } from "@/lib/format";
+import { DASH, fmtDate, fmtHours, fmtNumber, fmtShortDate, titleCase } from "@/lib/format";
+import { STRESS_LEVELS } from "@/lib/tokens";
 import { useMode, useUnits } from "@/lib/preferences";
 import { addDays, useRange } from "@/lib/range";
 import { DayView } from "./DayView";
@@ -286,6 +287,8 @@ function has(rows: Day[], get: (d: Day) => unknown): boolean {
   return rows.some((r) => get(r) !== null && get(r) !== undefined);
 }
 
+const STRESS_KEYS = ["rest", "low", "medium", "high"] as const;
+
 export default function HealthPage() {
   const range = useRange("90d");
   const mode = useMode();
@@ -315,6 +318,15 @@ export default function HealthPage() {
   const [picked, setPicked] = useState<string | null>(null);
 
   const rows = useMemo(() => daily.data ?? [], [daily.data]);
+  // Average time per stress level; the thin "high" slivers in the stack need it in text.
+  const stressAvg = useMemo(
+    () =>
+      STRESS_KEYS.map((k) => {
+        const v = rows.map((r) => r[`stress_${k}_s`]).filter((x): x is number => x != null);
+        return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+      }),
+    [rows],
+  );
   const ext = useMemo(
     () => dayExtent(range.query.start, range.query.end),
     [range.query.start, range.query.end],
@@ -453,11 +465,26 @@ export default function HealthPage() {
                     />
                   )}
                   {charts.stressWeekly && (
-                    <Chart
-                      option={charts.stressWeekly}
-                      height={220}
-                      ariaLabel="Weekly average hours per day in rest, low, medium and high stress"
-                    />
+                    <div>
+                      <Chart
+                        option={charts.stressWeekly}
+                        height={220}
+                        ariaLabel="Weekly average hours per day in rest, low, medium and high stress"
+                      />
+                      <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-2">
+                        <span className="text-ink-3">Average day:</span>
+                        {STRESS_KEYS.map((k, i) => (
+                          <span key={k} className="inline-flex items-center gap-1.5 tabular">
+                            <span
+                              className="inline-block size-2.5 rounded-[3px]"
+                              style={{ background: STRESS_LEVELS[mode][i] }}
+                              aria-hidden
+                            />
+                            {titleCase(k)} {fmtHours(stressAvg[i])}
+                          </span>
+                        ))}
+                      </p>
+                    </div>
                   )}
                 </div>
               ) : (

@@ -1,9 +1,16 @@
 import { keepPreviousData } from "@tanstack/react-query";
 import { Dumbbell, Percent, Ruler, Scale } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
-import { Card, EmptyState, ErrorState, PageHeader, ScrollArea, StatusPill } from "@/components/ui";
+import {
+  Card,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  ShowAllButton,
+  StatusPill,
+} from "@/components/ui";
 import {
   axisTooltip,
   dayPoint,
@@ -397,11 +404,15 @@ function HowToRecord({ kind }: { kind: "weight" | "pressure" }) {
   );
 }
 
+const PRESSURE_ROWS = 6;
+
 function PressureTable({ readings }: { readings: Placed<Pressure>[] }) {
+  const [all, setAll] = useState(false);
+  const newest = [...readings].reverse();
   return (
-    <ScrollArea label="Blood pressure readings" className="max-h-[296px] overflow-y-auto">
+    <>
       <table className="w-full text-sm tabular">
-        <thead className="sticky top-0 bg-surface text-xs text-ink-3">
+        <thead className="text-xs text-ink-3">
           <tr>
             <th scope="col" className="py-1.5 pr-3 text-left font-medium">
               Date
@@ -415,7 +426,7 @@ function PressureTable({ readings }: { readings: Placed<Pressure>[] }) {
           </tr>
         </thead>
         <tbody>
-          {[...readings].reverse().map((r) => (
+          {(all ? newest : newest.slice(0, PRESSURE_ROWS)).map((r) => (
             <tr key={r.item.measured_at} className="border-t border-line">
               <td className="py-2 pr-3 whitespace-nowrap">
                 <span className="block text-ink">
@@ -448,7 +459,15 @@ function PressureTable({ readings }: { readings: Placed<Pressure>[] }) {
           ))}
         </tbody>
       </table>
-    </ScrollArea>
+      {newest.length > PRESSURE_ROWS && (
+        <ShowAllButton
+          total={newest.length}
+          noun="readings"
+          expanded={all}
+          onToggle={() => setAll((v) => !v)}
+        />
+      )}
+    </>
   );
 }
 

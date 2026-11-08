@@ -23,6 +23,7 @@ import {
   ErrorState,
   LegendItem,
   Segmented,
+  ShowAllButton,
   Skeleton,
   StatTile,
 } from "@/components/ui";
@@ -535,14 +536,12 @@ function SplitsTable({ d }: { d: Detail }) {
         </tbody>
       </table>
       {splits.length > SPLITS_COLLAPSED && (
-        <button
-          type="button"
-          onClick={() => setAll((v) => !v)}
-          aria-expanded={all}
-          className="mt-2 w-full rounded-xl border border-line py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
-        >
-          {all ? "Show fewer" : `Show all ${splits.length} splits`}
-        </button>
+        <ShowAllButton
+          total={splits.length}
+          noun="splits"
+          expanded={all}
+          onToggle={() => setAll((v) => !v)}
+        />
       )}
       <p className="mt-2 text-xs text-ink-3">
         Longer bar = faster · the thin line marks your average {pace ? "pace" : "speed"}
@@ -610,14 +609,12 @@ function LapsTable({ d }: { d: Detail }) {
         </table>
       </div>
       {d.laps.length > LAPS_COLLAPSED && (
-        <button
-          type="button"
-          onClick={() => setAll((v) => !v)}
-          aria-expanded={all}
-          className="mt-2 w-full rounded-xl border border-line py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
-        >
-          {all ? "Show fewer" : `Show all ${d.laps.length} laps`}
-        </button>
+        <ShowAllButton
+          total={d.laps.length}
+          noun="laps"
+          expanded={all}
+          onToggle={() => setAll((v) => !v)}
+        />
       )}
     </Card>
   );
