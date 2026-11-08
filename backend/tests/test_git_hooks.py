@@ -37,7 +37,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def test_env_file_is_blocked(repo: Path) -> None:
-    (repo / ".env").write_text("APP_PASSWORD=change-me\n")
+    (repo / ".env").write_bytes(b"APP_PASSWORD=change-me\n")
     _git(repo, "add", "--force", ".env")
     proc = _git(repo, "commit", "-m", "test")
     assert proc.returncode != 0
@@ -45,7 +45,7 @@ def test_env_file_is_blocked(repo: Path) -> None:
 
 
 def test_ignored_file_is_blocked(repo: Path) -> None:
-    (repo / "plan.md").write_text("local facts\n")
+    (repo / "plan.md").write_bytes(b"local facts\n")
     _git(repo, "add", "--force", "plan.md")
     proc = _git(repo, "commit", "-m", "test")
     assert proc.returncode != 0
@@ -54,8 +54,21 @@ def test_ignored_file_is_blocked(repo: Path) -> None:
 
 def test_private_ip_is_blocked(repo: Path) -> None:
     private_ip = ".".join(["192", "168", "1", "20"])  # assembled so this file stays clean
-    (repo / "config.txt").write_text(f"host = {private_ip}\n")
+    (repo / "config.txt").write_bytes(f"host = {private_ip}\n".encode())  # LF, not CRLF
     _git(repo, "add", "config.txt")
     proc = _git(repo, "commit", "-m", "test")
     assert proc.returncode != 0
     assert "private-ipv4" in proc.stderr
+
+
+def test_non_utf8_and_crlf_are_blocked(repo: Path) -> None:
+    (repo / "notes.md").write_bytes("dash — here\n".encode("cp1252"))
+    _git(repo, "add", "notes.md")
+    proc = _git(repo, "commit", "-m", "test")
+    assert proc.returncode != 0
+    assert "not UTF-8" in proc.stderr
+    (repo / "notes.md").write_bytes(b"line one\r\nline two\r\n")
+    _git(repo, "add", "notes.md")
+    proc = _git(repo, "commit", "-m", "test")
+    assert proc.returncode != 0
+    assert "CRLF" in proc.stderr

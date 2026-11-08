@@ -32,11 +32,15 @@ if [ -n "$shots" ]; then
   done <<<"$shots"
 fi
 
-# 4. Lint + format of staged Python files.
+# 4. Text files must be UTF-8 with LF endings (Windows tools default to cp1252/CRLF).
+# shellcheck source=scripts/pyenv.sh
+. scripts/pyenv.sh
+printf '%s\n' "$staged" | tr '\n' '\0' | xargs -0 "$PY" scripts/check_utf8.py >/dev/null \
+  || fail "non-UTF-8 or CRLF files staged (see above)"
+
+# 5. Lint + format of staged Python files.
 py_files="$(printf '%s\n' "$staged" | grep -E '\.py$' || true)"
 if [ -n "$py_files" ]; then
-  # shellcheck source=scripts/pyenv.sh
-  . scripts/pyenv.sh
   if "$PY" -m ruff --version >/dev/null 2>&1; then
     # shellcheck disable=SC2086
     "$PY" -m ruff check $py_files || fail "ruff check failed"
@@ -47,17 +51,17 @@ if [ -n "$py_files" ]; then
   fi
 fi
 
-# 5. Prettier check of staged web files.
+# 6. Prettier check of staged web files.
 web_files="$(printf '%s\n' "$staged" | grep -E '^web/.*\.(ts|tsx|css|json|html)$' | sed 's|^web/||' || true)"
 if [ -n "$web_files" ] && [ -d web/node_modules ]; then
   # shellcheck disable=SC2086
   (cd web && pnpm exec prettier --check $web_files) || fail "prettier --check failed (run: pnpm -C web format)"
 fi
 
-# 6. Exact secret values + generic personal-data patterns in the staged diff.
+# 7. Exact secret values + generic personal-data patterns in the staged diff.
 bash scripts/secret_scan.sh --staged || fail "secret_scan found matches (see above)"
 
-# 7. gitleaks on the staged changes.
+# 8. gitleaks on the staged changes.
 log="$(mktemp)"
 bash scripts/gitleaks.sh staged >/dev/null 2>"$log" \
   || { cat "$log" >&2; rm -f "$log"; fail "gitleaks found leaks or could not run"; }

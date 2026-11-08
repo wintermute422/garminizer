@@ -52,6 +52,8 @@ else
   skip "API types" "no scripts/gen_api_types.sh yet"
 fi
 
+stage "UTF-8 / LF"
+"$PY" scripts/check_utf8.py
 stage "secret scan (working tree)"
 bash scripts/secret_scan.sh --tree
 stage "gitleaks (history)"
