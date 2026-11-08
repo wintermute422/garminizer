@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Blocks secrets, local config, real data and ignored files from being committed.
+# Enable with: git config core.hooksPath .githooks
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+fail() { echo "pre-commit: BLOCKED - $*" >&2; exit 1; }
+
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+[ -n "$staged" ] || exit 0
+
+# 1. Forbidden file names (examples are allowed).
+bad="$(printf '%s\n' "$staged" | grep -E -i '(^|/)\.env(\..*)?$|(^|/)data/|\.(fit|dump|sql\.gz|db|sqlite3?|pem|key|p12)$|(^|/)id_(rsa|ed25519)|garmin_tokens\.json$' \
+  | grep -v -E '(^|/)\.env\.example$' || true)"
+[ -z "$bad" ] || fail "forbidden files staged:
+$bad"
+
+# 2. Files that .gitignore says must not be tracked (catches `git add -f`).
+ignored="$(printf '%s\n' "$staged" | git check-ignore --no-index --stdin || true)"
+[ -z "$ignored" ] || fail "git-ignored files staged (was git add -f used?):
+$ignored"
+
+# 3. Committed screenshots must come from the demo pipeline (manifest written by scripts/screenshots.sh).
+shots="$(printf '%s\n' "$staged" | grep -E '^docs/screenshots/.*\.(png|jpg|webp)$' || true)"
+if [ -n "$shots" ]; then
+  [ -f docs/screenshots/MANIFEST.sha256 ] || fail "docs/screenshots changed without MANIFEST.sha256 (use scripts/screenshots.sh)"
+  while read -r s; do
+    sum="$(sha256sum "$s" | cut -d' ' -f1)"
+    grep -q "^$sum  $(basename "$s")$" docs/screenshots/MANIFEST.sha256 \
+      || fail "$s is not in docs/screenshots/MANIFEST.sha256 (only demo screenshots may be committed)"
+  done <<<"$shots"
+fi
+
+# 4. Lint + format of staged Python files.
+py_files="$(printf '%s\n' "$staged" | grep -E '\.py$' || true)"
+if [ -n "$py_files" ]; then
+  # shellcheck source=scripts/pyenv.sh
+  . scripts/pyenv.sh
+  if "$PY" -m ruff --version >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    "$PY" -m ruff check $py_files || fail "ruff check failed"
+    # shellcheck disable=SC2086
+    "$PY" -m ruff format --check $py_files || fail "ruff format --check failed (run: ruff format)"
+  else
+    fail "ruff not installed (pip install -e '.[dev]')"
+  fi
+fi
+
+# 5. Prettier check of staged web files.
+web_files="$(printf '%s\n' "$staged" | grep -E '^web/.*\.(ts|tsx|css|json|html)$' | sed 's|^web/||' || true)"
+if [ -n "$web_files" ] && [ -d web/node_modules ]; then
+  # shellcheck disable=SC2086
+  (cd web && pnpm exec prettier --check $web_files) || fail "prettier --check failed (run: pnpm -C web format)"
+fi
+
+# 6. Exact secret values + generic personal-data patterns in the staged diff.
+bash scripts/secret_scan.sh --staged || fail "secret_scan found matches (see above)"
+
+# 7. gitleaks on the staged changes.
+log="$(mktemp)"
+bash scripts/gitleaks.sh staged >/dev/null 2>"$log" \
+  || { cat "$log" >&2; rm -f "$log"; fail "gitleaks found leaks or could not run"; }
+rm -f "$log"
+
+echo "pre-commit: OK"

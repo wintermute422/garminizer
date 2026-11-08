@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(**/.env)",
+      "Edit(./.env)",
+      "Read(./data/**)",
+      "Edit(./data/**)",
+      "Read(**/data/tokens/**)",
+      "Read(**/data/backups/**)",
+      "Read(**/data/private_values.txt)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude_hook.sh\" pre-bash"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude_hook.sh\" post-edit"
+          }
+        ]
+      }
+    ]
+  }
+}

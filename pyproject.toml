@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "garminizer"
+version = "0.1.0"
+description = "Self-hosted Garmin Connect data warehouse with beautiful dashboards"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [{ name = "Garminizer contributors" }]
+keywords = ["garmin", "garmin-connect", "fitness", "dashboard", "postgresql", "self-hosted"]
+classifiers = [
+  "Programming Language :: Python :: 3.12",
+  "Framework :: FastAPI",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "garminconnect>=0.3.20,<0.4",
+  "curl_cffi>=0.7",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "sqlalchemy>=2.0.36",
+  "psycopg[binary]>=3.2",
+  "alembic>=1.14",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "typer>=0.15",
+  "apscheduler>=3.11,<4",
+  "numpy>=2.1",
+  "fitdecode>=0.10",
+  "itsdangerous>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.8",
+  "mypy>=1.13",
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "httpx>=0.28",
+  "uv>=0.5",
+]
+
+[project.scripts]
+garminizer = "garminizer.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/garminizer"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["backend", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "N", "C4", "PTH", "PL", "S"]
+ignore = [
+  "PLR0913",  # many-args functions are common in parsers/handlers
+  "PLR2004",  # magic values: physiological constants read better inline
+  "S101",     # assert is fine in tests
+  "S603",     # subprocess with list args is intended (scripts, backup)
+  "S607",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/**" = ["S", "PLR", "N802"]
+"backend/garminizer/db/migrations/**" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["backend/garminizer", "backend/tests", "scripts/claude_hook.py"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["garminconnect.*", "fitdecode.*", "apscheduler.*", "curl_cffi.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+addopts = "-q --strict-markers"
+markers = [
+  "db: needs the dev Postgres (scripts/devdb.sh up)",
+]

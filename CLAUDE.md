@@ -1,0 +1,76 @@
+# Garminizer — instructions for Claude
+
+Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unofficial API via
+`garminconnect`) → PostgreSQL 17 → FastAPI → React/ECharts/MapLibre SPA. Runs locally in Docker
+(`db`, `app`, `worker`). Public open-source repo: everything tracked must be generic.
+
+## Golden rules (privacy and safety)
+- **No real personal data in any tracked file, fixture, log, screenshot or commit message**: no
+  names, e-mails, Garmin profile ids, GPS coordinates of real activities, hostnames, IPs, home paths,
+  tokens. Fixtures are synthetic, or produced from real responses by the fixture anonymizer.
+- **Never open or print `.env` or anything under `data/`** (tokens, backups, private scan values).
+  Enforced by `permissions.deny` and the pre-bash hook. Credentials are typed by the user (app
+  "Connect Garmin" screen or `garminizer login`), never by Claude.
+- **The Garmin account is read-only.** Only whitelisted read methods are reachable through
+  `garminizer.garmin.client`; a test enumerates the surface.
+- **Committed screenshots come only from the demo DB** via `scripts/screenshots.sh`, which refuses a
+  non-demo DB and writes `docs/screenshots/MANIFEST.sha256` (checked by pre-commit).
+- **Never delete the database volume** (`docker volume rm`, `compose down -v` are blocked). Reset dev
+  data with SQL or `scripts/devdb.sh reset`, which only touches the `garminizer-dev` project.
+- If a secret ever lands in a commit: stop, report, tell the user to rotate it first.
+
+## Layout
+- `backend/garminizer/` Python package (config, db + migrations, models, garmin, sync, analytics,
+  api, demo, worker, cli). `backend/tests/` pytest.
+- `web/` React 19 + TS + Vite SPA (`src/api` generated types, `src/pages/<page>/` one dir per page).
+- `scripts/` harness and dev scripts. `.githooks/` git hooks. `docs/` user docs.
+- Git-ignored harness state: `plan.md`, `checks.md`, `progress.md` (repo root).
+
+## Commands
+- `bash scripts/check.sh` — the single gate (must pass before every commit).
+- `.venv/Scripts/python.exe -m pytest` (Windows) / `.venv/bin/python -m pytest`.
+- `bash scripts/claude_hook.sh selftest` — pre-bash rules against known good/bad commands.
+- `bash scripts/secret_scan.sh --tree|--staged|--history`, `bash scripts/gitleaks.sh history`.
+
+## Hooks and scripts
+| Where | Enforces |
+|---|---|
+| `.claude/settings.json` PreToolUse (Bash/PowerShell) → `scripts/claude_hook.sh pre-bash` | blocks force push, push to main, `git add -A/./-f`, `--no-verify`, rebase/filter-branch, Docker volume deletion, reading `.env`/tokens/backups. Exit 2 passes through the wrapper unchanged (tested). |
+| `.claude/settings.json` PostToolUse (Edit/Write) → `scripts/claude_hook.sh post-edit` | `.py`: ruff --fix, ruff format, then ruff + mypy problems fed back. `web/**`: prettier --write, eslint. |
+| `.claude/settings.json` `permissions.deny` | Read/Edit of `.env`, `data/**` |
+| `scripts/claude_hook.sh` / `scripts/pyenv.sh` | picks the venv interpreter (skips the Windows Store `python3` stub), execs it |
+| `scripts/check.sh` | ruff, format, mypy strict, hook selftest, dev DB up, pytest, web lint/format/tsc/vitest/build, API types check, secret scan, gitleaks history |
+| `scripts/secret_scan.sh` | exact values from `.env` + `data/private_values.txt` + local user name; generic rules (private IPv4, home/Windows user paths, private keys, JWTs, e-mails). Prints file:line + rule only |
+| `scripts/gitleaks.sh` | gitleaks v8.30.1 (native or pinned Docker image) with `.gitleaks.toml` |
+| `.githooks/pre-commit` | blocks `.env*`, `data/`, FIT/dump/key files, git-ignored files, unmanifested screenshots; ruff + prettier on staged files; secret scan + gitleaks staged |
+| `.githooks/pre-push` | branches `feat/ fix/ docs/ chore/ ci/` only (main only for bootstrap), fast-forward only, no deletions, new `v*` tags only; scans the pushed range |
+
+## Git workflow
+- Repo-local identity `wintermute422` + GitHub noreply e-mail (never the personal address).
+- Work on `feat/v1`, one commit per plan step, conventional commits. One PR to `main`; merge only
+  with green CI **and** explicit user approval. Repo stays private until the user approves going public.
+- Hooks are installed per clone with `git config core.hooksPath .githooks`.
+
+## Verification rules
+- Every step proves itself with real signals (tests, builds, screenshots, actual output) and gets a
+  row in `checks.md`: `step | requirement | verdict | evidence` (pass / fail / unresolved).
+- A failed check goes back with reason + evidence, scope "fix this step only", max 3 attempts, then
+  it is reported as fail. Never relax a check, threshold or test to get a pass.
+- Run checks against the saved/committed version, not against memory.
+
+## Windows dev notes
+- Interpreter: `.venv/Scripts/python.exe`. `python3` on PATH is the Microsoft Store stub (exit 49).
+- Shell scripts run in Git Bash; PowerShell 5.1 has no `&&`.
+- Ports: app 8420, Vite 5180, dev Postgres 55432 (127.0.0.1). 5173 and 54321–54324 belong to
+  another project.
+
+## Resuming a session
+Read CLAUDE.md, `plan.md`, `progress.md`, then `git status` and `git log -5`; continue at
+progress.md's "Next step".
+
+## Lessons (append a rule whenever a mistake is caught)
+- Add imports in the same Edit as their first use: the post-edit hook lints/type-checks after
+  every single edit and reports the half-finished state.
+- Never put a blocked command string literally into a shell command (even inside a JSON test
+  payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
+- Project hooks in `.claude/settings.json` take effect immediately in the running session.

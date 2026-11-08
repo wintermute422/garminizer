@@ -1,0 +1,52 @@
+# --- secrets & local config (never commit) ---
+.env
+.env.*
+!.env.example
+
+# --- runtime data: Garmin tokens, backups, FIT files, private scan values ---
+data/
+*.fit
+*.FIT
+*.dump
+*.sql.gz
+
+# --- harness working files (may hold local facts) ---
+/plan.md
+/checks.md
+/progress.md
+
+# --- python ---
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# --- node / web ---
+node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+web/blob-report/
+web/playwright/.cache/
+*.tsbuildinfo
+
+# --- e2e / screenshot scratch output (committed screenshots live in docs/screenshots) ---
+artifacts/
+
+# --- editors / OS ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# --- claude local overrides ---
+.claude/settings.local.json
