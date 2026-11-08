@@ -13,6 +13,7 @@ const SHOTS: { name: string; path: string; scrollTo?: string }[] = [
   { name: "training", path: "/training?preset=365d" },
   { name: "health", path: "/health?preset=90d" },
   { name: "sleep", path: "/sleep?preset=90d" },
+  { name: "nutrition", path: "/nutrition?preset=90d" },
   { name: "records", path: "/records?preset=all" },
   { name: "map", path: "/map?preset=all" },
   { name: "insights", path: "/insights?preset=365d" },

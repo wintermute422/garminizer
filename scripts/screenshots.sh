@@ -28,5 +28,6 @@ mkdir -p docs/screenshots
 rm -f docs/screenshots/*.png
 README_SHOTS=1 bash scripts/e2e.sh -g "readme " --project=desktop-dark --project=desktop-light
 
-(cd docs/screenshots && sha256sum -- *.png > MANIFEST.sha256)
+# Text-mode format ("hash  name") on every OS: Git Bash's sha256sum writes "hash *name".
+(cd docs/screenshots && sha256sum -- *.png | sed 's/ \*/  /' > MANIFEST.sha256)
 echo "screenshots: $(ls docs/screenshots/*.png | wc -l) images, manifest written"

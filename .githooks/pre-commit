@@ -27,7 +27,7 @@ if [ -n "$shots" ]; then
   [ -f docs/screenshots/MANIFEST.sha256 ] || fail "docs/screenshots changed without MANIFEST.sha256 (use scripts/screenshots.sh)"
   while read -r s; do
     sum="$(sha256sum "$s" | cut -d' ' -f1)"
-    grep -q "^$sum  $(basename "$s")$" docs/screenshots/MANIFEST.sha256 \
+    grep -q -E "^$sum [ *]$(basename "$s")$" docs/screenshots/MANIFEST.sha256 \
       || fail "$s is not in docs/screenshots/MANIFEST.sha256 (only demo screenshots may be committed)"
   done <<<"$shots"
 fi

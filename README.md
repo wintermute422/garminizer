@@ -54,6 +54,7 @@ Dark and light themes, metric and imperial units, works on phones, every view sh
 | ![Health & recovery](docs/screenshots/health-light.png) | ![Sleep](docs/screenshots/sleep-dark.png) |
 | ![Records](docs/screenshots/records-light.png) | ![Map](docs/screenshots/map-dark.png) |
 | ![Insights](docs/screenshots/insights-dark.png) | ![Calendar](docs/screenshots/calendar-light.png) |
+| ![Nutrition](docs/screenshots/nutrition-light.png) | ![Year in review](docs/screenshots/year-dark.png) |
 
 ## Quick start
 Requirements: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS)

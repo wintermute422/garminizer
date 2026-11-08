@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 import subprocess
 from pathlib import Path
@@ -88,6 +89,24 @@ def test_repository_owner_is_exempt_but_other_values_are_not(repo: Path) -> None
     proc = _git(repo, "commit", "-m", "test")
     assert proc.returncode != 0
     assert "exact value" in proc.stderr
+
+
+def test_screenshots_need_the_manifest(repo: Path) -> None:
+    shots = repo / "docs" / "screenshots"
+    shots.mkdir(parents=True)
+    (shots / "page-dark.png").write_bytes(b"\x89PNG not really\n")
+    (shots / "MANIFEST.sha256").write_bytes(b"")
+    _git(repo, "add", "docs")
+    proc = _git(repo, "commit", "-m", "unlisted screenshot")
+    assert proc.returncode != 0
+    assert "MANIFEST" in proc.stderr
+    digest = hashlib.sha256((shots / "page-dark.png").read_bytes()).hexdigest()
+    for line in (f"{digest}  page-dark.png\n", f"{digest} *page-dark.png\n"):  # text / binary
+        (shots / "MANIFEST.sha256").write_text(line, encoding="utf-8", newline="\n")
+        _git(repo, "add", "docs")
+        proc = _git(repo, "commit", "-m", "listed screenshot")
+        assert proc.returncode == 0, proc.stderr
+        _git(repo, "reset", "-q", "--soft", "HEAD~1")
 
 
 def test_non_utf8_and_crlf_are_blocked(repo: Path) -> None:
