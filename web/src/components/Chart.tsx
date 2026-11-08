@@ -145,9 +145,9 @@ export function Chart({
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<ChartInstance | null>(null);
   const mode = useMode();
-  const latest = useRef({ option, onEvents, onReady });
+  const latest = useRef({ option, onEvents, onReady, ariaLabel });
   useEffect(() => {
-    latest.current = { option, onEvents, onReady };
+    latest.current = { option, onEvents, onReady, ariaLabel };
   });
 
   useEffect(() => {
@@ -156,7 +156,7 @@ export function Chart({
     const inst = echarts.init(node, `gz-${mode}`, { renderer: "canvas" });
     chart.current = inst;
     inst.on("finished", () => node.setAttribute("data-chart-ready", "true"));
-    inst.setOption({ aria: { enabled: true }, ...latest.current.option }, true);
+    inst.setOption(withAria(latest.current.option, latest.current.ariaLabel), true);
     for (const [name, fn] of Object.entries(latest.current.onEvents ?? {})) {
       inst.on(name, (p: unknown) => fn(p, inst));
     }
@@ -175,7 +175,7 @@ export function Chart({
   }, [mode, group]);
 
   useEffect(() => {
-    chart.current?.setOption({ aria: { enabled: true }, ...option }, true);
+    chart.current?.setOption(withAria(option, latest.current.ariaLabel), true);
   }, [option]);
 
   return (
@@ -189,6 +189,11 @@ export function Chart({
       style={{ height, width: "100%" }}
     />
   );
+}
+
+/** ECharts' aria module replaces the container label; feed it ours as the description. */
+function withAria(option: ChartOption, label: string): ChartOption {
+  return { aria: { enabled: true, label: { description: label } }, ...option };
 }
 
 /** Number of data points across all series/datasets (e2e asserts charts are not empty). */

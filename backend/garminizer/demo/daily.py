@@ -319,16 +319,28 @@ def build_daily_rows(
         if rng.random() < 4 / 7:
             rows[m.BodyComposition].append(_weigh_in(st, night, i, len(states), rng))
         if i % 14 == int(rng.integers(0, 3)):
+            sys_bp, dia_bp = int(rng.normal(118, 6)), int(rng.normal(76, 5))
             rows[m.BloodPressure].append(
                 {
                     "measured_at": night.wake_utc + timedelta(minutes=30),
-                    "systolic": int(rng.normal(118, 5)),
-                    "diastolic": int(rng.normal(76, 4)),
+                    "systolic": sys_bp,
+                    "diastolic": dia_bp,
                     "pulse": round(st.rhr + 8),
-                    "category": "NORMAL",
+                    "category": bp_category(sys_bp, dia_bp),
                 }
             )
     return rows
+
+
+def bp_category(systolic: int, diastolic: int) -> str:
+    """AHA blood pressure category."""
+    if systolic >= 140 or diastolic >= 90:
+        return "STAGE_2_HIGH"
+    if systolic >= 130 or diastolic >= 80:
+        return "STAGE_1_HIGH"
+    if systolic >= 120:
+        return "ELEVATED"
+    return "NORMAL"
 
 
 def _weigh_in(

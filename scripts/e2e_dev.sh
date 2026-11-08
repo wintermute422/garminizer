@@ -26,7 +26,7 @@ API=$!
 (cd web && GARMINIZER_API="http://127.0.0.1:$API_PORT" pnpm exec vite --host 127.0.0.1 --port "$WEB_PORT" --strictPort \
   >"../artifacts/e2e-web-$WEB_PORT.log" 2>&1) &
 WEB=$!
-trap 'kill $API $WEB 2>/dev/null || true; pkill -f "vite --port $WEB_PORT" 2>/dev/null || true' EXIT
+trap 'kill $API $WEB 2>/dev/null || true; pkill -f -- "--port $WEB_PORT --strictPort" 2>/dev/null || true' EXIT
 for _ in $(seq 1 120); do
   curl -sf "http://127.0.0.1:$API_PORT/api/health" >/dev/null &&
     curl -sf "http://127.0.0.1:$WEB_PORT/" >/dev/null && break

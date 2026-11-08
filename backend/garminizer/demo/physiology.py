@@ -289,6 +289,11 @@ def build_timeline(
     office = workday & (local_hours >= 9) & (local_hours < 18)
     awake_stress = np.where(office, 34.0, 22.0) + 25 * after + 6 * np.sin(local_hours / 3)
     awake_stress += rng.normal(0, 9, minutes) - 0.25 * (hrv - 60) + 6 * walk
+    # Occasional stressful blocks (deadlines, meetings, commutes): 30-120 min of elevated stress.
+    starts = np.flatnonzero(office & (rng.random(minutes) < 1 / 600))
+    for s0 in starts:
+        span = int(rng.integers(30, 120))
+        awake_stress[s0 : s0 + span] += float(rng.uniform(20, 45))
     stress = np.where(lay.asleep, np.clip(14 + rng.normal(0, 5, minutes), 2, 40), awake_stress)
     stress = np.where(lay.in_act, -2.0, np.clip(np.round(stress), 0, 99))
 
