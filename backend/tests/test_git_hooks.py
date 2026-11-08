@@ -61,6 +61,35 @@ def test_private_ip_is_blocked(repo: Path) -> None:
     assert "private-ipv4" in proc.stderr
 
 
+def _private_values(repo: Path, *values: str) -> None:
+    (repo / "data").mkdir(exist_ok=True)
+    (repo / "data" / "private_values.txt").write_text("\n".join(values) + "\n", encoding="utf-8")
+
+
+def test_private_value_is_blocked(repo: Path) -> None:
+    _private_values(repo, "Synthetic Person Name")
+    (repo / "notes.md").write_bytes(b"written by Synthetic Person Name\n")
+    _git(repo, "add", "notes.md")
+    proc = _git(repo, "commit", "-m", "test")
+    assert proc.returncode != 0
+    assert "exact value" in proc.stderr
+    assert "Synthetic Person Name" not in proc.stderr + proc.stdout  # values are never printed
+
+
+def test_repository_owner_is_exempt_but_other_values_are_not(repo: Path) -> None:
+    _private_values(repo, "synthetic-handle-42", "Synthetic Person Name")
+    _git(repo, "remote", "add", "origin", "https://github.com/Synthetic-Handle-42/garminizer.git")
+    (repo / "README.md").write_bytes(b"git clone https://github.com/synthetic-handle-42/x\n")
+    _git(repo, "add", "README.md")
+    proc = _git(repo, "commit", "-m", "readme")
+    assert proc.returncode == 0, proc.stderr
+    (repo / "notes.md").write_bytes(b"written by Synthetic Person Name\n")
+    _git(repo, "add", "notes.md")
+    proc = _git(repo, "commit", "-m", "test")
+    assert proc.returncode != 0
+    assert "exact value" in proc.stderr
+
+
 def test_non_utf8_and_crlf_are_blocked(repo: Path) -> None:
     (repo / "notes.md").write_bytes("dash — here\n".encode("cp1252"))
     _git(repo, "add", "notes.md")

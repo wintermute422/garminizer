@@ -136,7 +136,8 @@ GROUP BY 1 ORDER BY 1 DESC LIMIT 12;
 [Architecture](docs/architecture.md) · [Data model](docs/data-model.md) ·
 [Metrics](docs/metrics.md) · [Configuration & operations](docs/configuration.md) ·
 [Claude Desktop meal logging](docs/claude-desktop.md) ·
-[FAQ](docs/faq.md) · [Development harness](docs/development.md) · [Contributing](CONTRIBUTING.md)
+[FAQ](docs/faq.md) · [Development harness](docs/development.md) ·
+[Reusable harness template](docs/harness/README.md) · [Contributing](CONTRIBUTING.md)
 
 ## Development
 ```bash

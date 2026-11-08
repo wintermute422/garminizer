@@ -40,7 +40,7 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `.claude/settings.json` `permissions.deny` | Read/Edit of `.env`, `data/**` |
 | `scripts/claude_hook.sh` / `scripts/pyenv.sh` | picks the venv interpreter (skips the Windows Store `python3` stub), execs it |
 | `scripts/check.sh` | ruff, format, mypy strict, hook selftest, dev DB up, pytest, web lint/format/tsc/vitest/build, API types check, secret scan, gitleaks history |
-| `scripts/secret_scan.sh` | exact values from `.env` + `data/private_values.txt` + local user name; generic rules (private IPv4, home/Windows user paths, private keys, JWTs, e-mails). Prints file:line + rule only |
+| `scripts/secret_scan.sh` | exact values from `.env` + `data/private_values.txt` + local user name; generic rules (private IPv4, home/Windows user paths, private keys, JWTs, e-mails). Prints file:line + rule only. Values equal to (or part of) the GitHub owner of `origin` are dropped: public in every repo URL (user-approved 2026-11-08; tested both ways in `test_git_hooks.py`) |
 | `scripts/gitleaks.sh` | gitleaks v8.30.1 (native or pinned Docker image) with `.gitleaks.toml` |
 | `.githooks/pre-commit` | blocks `.env*`, `data/`, FIT/dump/key files, git-ignored files, unmanifested screenshots; ruff + prettier on staged files; secret scan + gitleaks staged |
 | `.githooks/pre-push` | branches `feat/ fix/ docs/ chore/ ci/` only (main only for bootstrap), fast-forward only, no deletions, new `v*` tags only; scans the pushed range |
@@ -127,3 +127,8 @@ progress.md's "Next step".
 - A Vite dev server picks up other agents' edits mid-test (HMR → "createRoot() … already" and
   "removeChild" console errors). When several agents edit the tree, verify on a frozen
   `vite build --outDir artifacts/dist-<port>` served via `WEB_DIST`, not on the dev server.
+- Under `set -euo pipefail` a failing command inside `$(a | b)` aborts the whole script (e.g.
+  `git remote get-url origin` in a repo without a remote). Guard it with `{ a || true; } | b`;
+  the hook tests in throwaway repos (no remote) caught this.
+- A user's Garmin display name can equal their GitHub handle: the scan then flags the repo's own
+  URLs. Ask the user before exempting anything from the secret scan.
