@@ -157,8 +157,9 @@ export function Chart({
     chart.current = inst;
     inst.on("finished", () => node.setAttribute("data-chart-ready", "true"));
     inst.setOption(withAria(latest.current.option, latest.current.ariaLabel), true);
-    for (const [name, fn] of Object.entries(latest.current.onEvents ?? {})) {
-      inst.on(name, (p: unknown) => fn(p, inst));
+    // Handlers are looked up on every event, so callers may pass inline functions.
+    for (const name of Object.keys(latest.current.onEvents ?? {})) {
+      inst.on(name, (p: unknown) => latest.current.onEvents?.[name]?.(p, inst));
     }
     if (group) {
       inst.group = group;

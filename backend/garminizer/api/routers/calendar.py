@@ -71,20 +71,25 @@ def weeks_in_row(days: list[date], end: date) -> int:
 
 
 @router.get("", response_model=CalendarOverview)
-def calendar(session: SessionDep, rng: RangeDep) -> CalendarOverview:
+def calendar(session: SessionDep, rng: RangeDep, sport: SportDep) -> CalendarOverview:
+    params = rng.params()
+    sport_sql = ""
+    if sport:
+        sport_sql = " AND sport_group = :sport"
+        params["sport"] = sport
     data = rows(
         session,
-        """
+        f"""
         SELECT start_time_local::date AS day, count(*) AS activities,
                coalesce(sum(duration_s), 0)::float8 AS duration_s,
                coalesce(sum(distance_m), 0)::float8 AS distance_m,
                coalesce(sum(training_load), 0)::float8 AS training_load,
                array_agg(DISTINCT sport_group ORDER BY sport_group) AS sport_groups
         FROM garmin.activity
-        WHERE start_time_local >= :start AND start_time_local < :end_excl
+        WHERE start_time_local >= :start AND start_time_local < :end_excl{sport_sql}
         GROUP BY 1 ORDER BY 1
-        """,
-        **rng.params(),
+        """,  # noqa: S608 - fixed fragment
+        **params,
     )
     days = [CalendarDay(**r) for r in data]
     active = [d.day for d in days]

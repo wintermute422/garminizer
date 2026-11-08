@@ -1,3 +1,4 @@
+import type { PresetKey } from "@/lib/range";
 import {
   Award,
   CalendarDays,
@@ -22,6 +23,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Pages that react to the global date range / sport filter show the filter bar. */
   filters?: "range" | "range+sport";
+  /** Default range preset when the URL has none (must match the page's useRange fallback). */
+  defaultPreset?: PresetKey;
 }
 
 export const NAV: { section: string; items: NavItem[] }[] = [
@@ -36,7 +39,13 @@ export const NAV: { section: string; items: NavItem[] }[] = [
       { to: "/training", label: "Training load", icon: TrendingUp, filters: "range+sport" },
       { to: "/performance", label: "Performance", icon: Gauge, filters: "range" },
       { to: "/records", label: "Records", icon: Trophy, filters: "range+sport" },
-      { to: "/calendar", label: "Calendar", icon: CalendarDays, filters: "range+sport" },
+      {
+        to: "/calendar",
+        label: "Calendar",
+        icon: CalendarDays,
+        filters: "range+sport",
+        defaultPreset: "365d",
+      },
       { to: "/map", label: "Map", icon: Map, filters: "range+sport" },
       { to: "/gear", label: "Gear", icon: Package },
     ],
@@ -46,7 +55,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { to: "/health", label: "Health & recovery", icon: HeartPulse, filters: "range" },
       { to: "/sleep", label: "Sleep", icon: Moon, filters: "range" },
-      { to: "/body", label: "Body", icon: Scale, filters: "range" },
+      { to: "/body", label: "Body", icon: Scale, filters: "range", defaultPreset: "365d" },
     ],
   },
   {

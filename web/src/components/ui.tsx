@@ -301,7 +301,7 @@ export function ScrollArea({
   children: ReactNode;
 }) {
   return (
-    <div role="region" aria-label={label} tabIndex={0} className={className}>
+    <div role="region" aria-label={label} tabIndex={0} className={clsx("relative", className)}>
       {children}
     </div>
   );

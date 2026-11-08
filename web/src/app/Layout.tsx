@@ -198,7 +198,10 @@ export function Layout() {
             </button>
             <div className="min-w-0 flex-1">
               {item?.filters ? (
-                <FilterBar withSport={item.filters === "range+sport"} />
+                <FilterBar
+                  withSport={item.filters === "range+sport"}
+                  fallback={item.defaultPreset}
+                />
               ) : (
                 <span className="text-sm font-medium text-ink-2 lg:hidden">Garminizer</span>
               )}

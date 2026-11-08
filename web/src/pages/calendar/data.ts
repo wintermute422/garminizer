@@ -1,49 +1,8 @@
-/**
- * Calendar data helpers. `/api/calendar` has no sport filter, so with a sport selected the
- * per-day totals are rebuilt from that sport's activities (paged through `/api/activities`)
- * and the streaks are recomputed with the same rules as the backend.
- */
-import { fetchClient, type Schemas } from "@/api/client";
+/** Calendar data helpers (streak rules mirror the backend's). */
+import type { Schemas } from "@/api/client";
 import { addDays } from "@/lib/range";
 
 export type DayTotals = Schemas["CalendarDay"];
-
-const PAGE = 1000;
-
-/** Per-day totals of one sport's activities in [start, end]. */
-export async function fetchSportDays(
-  start: string,
-  end: string,
-  sport: string,
-): Promise<DayTotals[]> {
-  const byDay = new Map<string, DayTotals>();
-  for (let offset = 0; ; offset += PAGE) {
-    const { data, error } = await fetchClient.GET("/api/activities", {
-      params: {
-        query: { start, end, sport, sort: "start_time", order: "asc", limit: PAGE, offset },
-      },
-    });
-    if (error || !data) throw error ?? new Error("Could not load activities");
-    for (const a of data.items) {
-      const day = a.start_time_local.slice(0, 10);
-      const t = byDay.get(day) ?? {
-        day,
-        activities: 0,
-        duration_s: 0,
-        distance_m: 0,
-        training_load: 0,
-        sport_groups: [a.sport_group],
-      };
-      t.activities += 1;
-      t.duration_s += a.duration_s ?? 0;
-      t.distance_m += a.distance_m ?? 0;
-      t.training_load += a.training_load ?? 0;
-      byDay.set(day, t);
-    }
-    if (offset + data.items.length >= data.total || data.items.length === 0) break;
-  }
-  return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
-}
 
 /** Current (ending at `end`, or the day before when `end` is still empty) and longest run. */
 export function dayStreaks(

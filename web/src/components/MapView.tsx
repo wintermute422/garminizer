@@ -38,13 +38,33 @@ maplibregl.setWorkerUrl(workerUrl);
 const FALLBACK_LIGHT = "https://tiles.openfreemap.org/styles/positron";
 const FALLBACK_DARK = "https://tiles.openfreemap.org/styles/dark";
 
+const OWNED = "__gz_layers";
+
+/** Sync the map with the declared layers: add new, update data/paint/layout, remove stale. */
 function applyLayers(map: maplibregl.Map, layers: MapLayer[]) {
+  const owned =
+    ((map as unknown as Record<string, unknown>)[OWNED] as Set<string> | undefined) ??
+    new Set<string>();
+  const wanted = new Set(layers.map((l) => l.id));
+  for (const id of owned) {
+    if (!wanted.has(id)) {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+      owned.delete(id);
+    }
+  }
   for (const layer of layers) {
     const source = map.getSource(layer.id) as maplibregl.GeoJSONSource | undefined;
-    if (source) {
+    if (source && map.getLayer(layer.id)) {
       source.setData(layer.data);
+      type PaintKey = Parameters<maplibregl.Map["setPaintProperty"]>[1];
+      type LayoutKey = Parameters<maplibregl.Map["setLayoutProperty"]>[1];
+      for (const [k, v] of Object.entries(layer.paint ?? {}))
+        map.setPaintProperty(layer.id, k as PaintKey, v as never);
+      for (const [k, v] of Object.entries(layer.layout ?? {}))
+        map.setLayoutProperty(layer.id, k as LayoutKey, v as never);
     } else {
-      map.addSource(layer.id, { type: "geojson", data: layer.data });
+      if (!source) map.addSource(layer.id, { type: "geojson", data: layer.data });
       map.addLayer({
         id: layer.id,
         type: layer.type,
@@ -53,7 +73,9 @@ function applyLayers(map: maplibregl.Map, layers: MapLayer[]) {
         ...(layer.layout ? { layout: layer.layout } : {}),
       } as maplibregl.LayerSpecification);
     }
+    owned.add(layer.id);
   }
+  (map as unknown as Record<string, unknown>)[OWNED] = owned;
 }
 
 export function MapView({
@@ -94,7 +116,10 @@ export function MapView({
     });
     if (interactive)
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    m.on("style.load", () => applyLayers(m, latest.current.layers));
+    m.on("style.load", () => {
+      (m as unknown as Record<string, unknown>)[OWNED] = new Set<string>();
+      applyLayers(m, latest.current.layers);
+    });
     m.on("load", () => {
       el.current?.setAttribute("data-map-ready", "true");
       latest.current.onReady?.(m);

@@ -3,7 +3,6 @@
  * duration or distance per day), a weekday × hour punchcard and monthly totals. Honours the
  * global range and sport filter.
  */
-import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { CalendarCheck2, CalendarDays, Flame, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -44,14 +43,7 @@ import { useMode, useUnits } from "@/lib/preferences";
 import { addDays, type GlobalSearch, useRange } from "@/lib/range";
 import { sportColor, sportLabel } from "@/lib/sports";
 import { CATEGORICAL, CHROME, type Mode } from "@/lib/tokens";
-import {
-  type DayTotals,
-  daysBetween,
-  dayStreaks,
-  fetchSportDays,
-  monthTotals,
-  weeksInRow,
-} from "./data";
+import { type DayTotals, daysBetween, dayStreaks, monthTotals, weeksInRow } from "./data";
 import {
   calendarHeatmapOption,
   cellSize,
@@ -523,25 +515,19 @@ export default function CalendarPage() {
   const cal = api.useQuery(
     "get",
     "/api/calendar",
-    { params: { query: { start, end } } },
-    { enabled: range.ready && !sport },
+    { params: { query: { start, end, ...(sport ? { sport } : {}) } } },
+    { enabled: range.ready },
   );
-  const sportDays = useQuery({
-    queryKey: ["calendar-sport-days", start, end, sport],
-    queryFn: () => fetchSportDays(start, end, sport!),
-    enabled: range.ready && !!sport,
-  });
-  const days = sport ? sportDays.data : cal.data?.days;
-  const error = sport ? sportDays.error : cal.error;
-  const streaks =
-    !sport && cal.data
-      ? {
-          current: cal.data.streak.current,
-          longest: cal.data.streak.longest,
-          longestStart: cal.data.streak.longest_start,
-          weeks: cal.data.active_weeks_in_row,
-        }
-      : null;
+  const days = cal.data?.days;
+  const error = cal.error;
+  const streaks = cal.data
+    ? {
+        current: cal.data.streak.current,
+        longest: cal.data.streak.longest,
+        longestStart: cal.data.streak.longest_start,
+        weeks: cal.data.active_weeks_in_row,
+      }
+    : null;
 
   return (
     <>

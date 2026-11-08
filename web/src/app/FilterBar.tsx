@@ -6,8 +6,14 @@ import { useMode } from "@/lib/preferences";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
 
 /** Global filters in one row above the charts: date range presets (+ custom) and sport. */
-export function FilterBar({ withSport }: { withSport: boolean }) {
-  const range = useRange();
+export function FilterBar({
+  withSport,
+  fallback = "90d",
+}: {
+  withSport: boolean;
+  fallback?: PresetKey;
+}) {
+  const range = useRange(fallback);
   const meta = api.useQuery("get", "/api/meta");
   const mode = useMode();
   const [custom, setCustom] = useState(false);
