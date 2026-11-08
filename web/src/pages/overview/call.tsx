@@ -2,7 +2,7 @@
 import { AlertTriangle, CircleAlert, CircleCheck } from "lucide-react";
 import { createElement } from "react";
 import { STATUS } from "@/lib/tokens";
-import type { TodaysCall } from "./status";
+import type { TodaysCall } from "@/lib/status";
 
 const ICON = { go: CircleCheck, steady: AlertTriangle, easy: CircleAlert } as const;
 

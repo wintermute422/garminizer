@@ -8,6 +8,8 @@ import { CorrelationMatrix } from "./CorrelationMatrix";
 import { InsightCards, type Pair } from "./InsightCards";
 import { lagText, metricView, phrase } from "./metrics";
 import { ScatterControls, ScatterView } from "./ScatterExplorer";
+import { StrongestLinks } from "./StrongestLinks";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { WeekdayPatterns, type WeekdayKey } from "./WeekdayPatterns";
 
 const MATRIX_LAGS = [
@@ -25,6 +27,8 @@ function scrollToScatter() {
 
 export default function InsightsPage() {
   const range = useRange("90d");
+  // A readable matrix needs room for ~20 columns; narrower screens get a ranked list.
+  const wide = useMediaQuery("(min-width: 1280px)");
   const units = useUnits();
   const [pair, setPair] = useState<Pair>({ x: "sleep_score", y: "readiness", lag: 0 });
   const [matrixLag, setMatrixLag] = useState<LagValue>("0");
@@ -97,14 +101,16 @@ export default function InsightsPage() {
         <Card
           title="How your metrics move together"
           subtitle={
-            matrixLag === "0"
-              ? "Pearson r between daily metrics on the same day. Click a cell to explore the pair."
-              : `Row metric on day d against the column metric ${lagText(Number(matrixLag))}. Click a cell to explore the pair.`
+            !wide
+              ? `The strongest links between your daily metrics${matrixLag === "0" ? "" : ` (first metric on day d, second ${lagText(Number(matrixLag))})`}. Tap one to explore it.`
+              : matrixLag === "0"
+                ? "Pearson r between daily metrics on the same day. Click a cell to explore the pair."
+                : `Column metric on day d against the row metric ${lagText(Number(matrixLag))}. Click a cell to explore the pair.`
           }
           actions={
             <Segmented
               size="sm"
-              label="Lag between row and column metric"
+              label="Lag between the two metrics"
               value={matrixLag}
               onChange={setMatrixLag}
               options={MATRIX_LAGS}
@@ -114,14 +120,16 @@ export default function InsightsPage() {
           {corrQ.error ? (
             <ErrorState error={corrQ.error} />
           ) : !corrQ.data || !metrics ? (
-            <Skeleton height={640} />
-          ) : (
+            <Skeleton height={wide ? 640 : 480} />
+          ) : wide ? (
             <CorrelationMatrix
               data={corrQ.data}
               labelOf={labelOf}
               selected={pair}
               onSelect={selectCell}
             />
+          ) : (
+            <StrongestLinks data={corrQ.data} labelOf={labelOf} onSelect={selectCell} />
           )}
         </Card>
 

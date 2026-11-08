@@ -28,7 +28,7 @@ import {
 import { useMode, useUnits } from "@/lib/preferences";
 import { addDays, isoDay } from "@/lib/range";
 import { MEASURE_COLORS, STATUS, ZONE_RAMP, type Mode } from "@/lib/tokens";
-import { acwrState, loadBalanceState, trainingState } from "./status";
+import { acwrState, loadBalanceState, trainingState } from "@/lib/status";
 import { BigValue, MiniStat } from "./widgets";
 
 type Overview = Schemas["OverviewToday"];

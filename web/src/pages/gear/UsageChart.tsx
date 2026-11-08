@@ -11,7 +11,7 @@ import {
   tooltipTitle,
   valueYAxis,
 } from "@/lib/charts";
-import { distanceUnit, distanceValue, fmtNumber } from "@/lib/format";
+import { distanceUnit, distanceValue, fmtDate, fmtMonth, fmtNumber } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { CHROME } from "@/lib/tokens";
 import { gearName, slotColor, type Gear } from "./gear";
@@ -37,10 +37,7 @@ function monthRange(first: string, last: string): string[] {
 }
 
 const monthLabel = (k: string, long = false) =>
-  new Date(`${k}-01T12:00:00`).toLocaleDateString(
-    undefined,
-    long ? { month: "long", year: "numeric" } : { month: "short", year: "2-digit" },
-  );
+  long ? fmtDate(`${k}-01`, { month: "long", year: "numeric" }) : fmtMonth(`${k}-01`);
 
 export function UsageChart({
   items,
@@ -101,12 +98,17 @@ export function UsageChart({
     });
     const unit = distanceUnit(units);
     const series = stacks.map((st, si) => {
-      const dim = selected !== null && selected !== st.id && stacks.some((s) => s.id === selected);
+      // The selected item is outlined in ink; the others keep full colour (contrast ≥ 3:1).
+      const isSel = selected === st.id;
       const base = bars(st.name, [], st.color, mode, { stack: "gear" });
       return {
         ...base,
         id: st.id,
-        itemStyle: { ...(base.itemStyle as object), opacity: dim ? 0.4 : 1 },
+        z: isSel ? 3 : 2,
+        itemStyle: {
+          ...(base.itemStyle as object),
+          ...(isSel ? { borderColor: CHROME[mode].text, borderWidth: 1.5 } : {}),
+        },
         data: months.map((m, mi) => {
           const v = st.byMonth.get(m);
           if (!v) return null;
@@ -141,7 +143,6 @@ export function UsageChart({
   }, [stacks, selected, mode, units, typeName]);
 
   if (!option) return <EmptyState title={`No ${typeName.toLowerCase()} usage recorded`} />;
-  const dimmed = selected !== null && stacks.some((st) => st.id === selected);
   return (
     <div>
       {/* HTML legend: wraps on phones, and its entries select the item like the bars do. */}
@@ -160,8 +161,8 @@ export function UsageChart({
                   aria-pressed={isSel}
                   onClick={() => onSelect(st.id)}
                   className={clsx(
-                    "rounded-lg px-1.5 py-0.5 hover:bg-surface-2",
-                    dimmed && !isSel && "opacity-60",
+                    "rounded-lg border px-1.5 py-0.5 hover:bg-surface-2",
+                    isSel ? "border-line-strong bg-surface-2" : "border-transparent",
                   )}
                 >
                   <LegendItem color={st.color} label={st.name} />

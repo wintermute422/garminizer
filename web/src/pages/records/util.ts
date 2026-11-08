@@ -41,6 +41,15 @@ export function monthOfDoy(doy: number): string {
   return new Date(2001, 0, doy).toLocaleDateString(undefined, { month: "short" });
 }
 
+/** "Oct 31, 2026" for a day of a given year. */
+export function doyDate(year: number, doy: number): string {
+  return new Date(year, 0, doy).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function doyLabel(doy: number): string {
   return new Date(2001, 0, doy).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
@@ -185,11 +194,19 @@ export function niceDuration(
     lo -= lo * 0.02;
     hi += hi * 0.02;
   }
-  const steps = [1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 900, 1800, 3600];
+  const steps = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 600, 900, 1800, 3600];
   const interval = steps.find((s) => s >= (hi - lo) / 4) ?? 3600;
   return {
     min: Math.max(0, Math.floor(lo / interval) * interval),
     max: Math.ceil(hi / interval) * interval,
     interval,
   };
+}
+
+/** A change in time: "+18 s" under a minute, "+1:23" from a minute up, "no change" at 0. */
+export function fmtTimeDelta(s: number): string {
+  const r = Math.round(s);
+  if (r === 0) return "no change";
+  const a = Math.abs(r);
+  return `${r > 0 ? "+" : "−"}${a < 60 ? `${a} s` : fmtDuration(a)}`;
 }

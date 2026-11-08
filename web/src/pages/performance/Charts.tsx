@@ -18,14 +18,15 @@ import {
 import { DASH, fmtDate, fmtDuration, fmtNumber, fmtPace, fmtPercent, smooth } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor } from "@/lib/sports";
-import { CATEGORICAL, CHROME, DIVERGING, NEUTRAL, wash } from "@/lib/tokens";
+import { CATEGORICAL, CHROME, DIVERGING, NEUTRAL, wash, type Mode } from "@/lib/tokens";
 import {
   dayMs,
   ENDURANCE_CLASSES,
   firstLast,
   RACES,
   sentenceCase,
-  signedDuration,
+  fmtTimeDelta,
+  halo,
   niceAxis,
   type RaceField,
   withGaps,
@@ -33,6 +34,12 @@ import {
 
 type Series = Schemas["PerformanceSeries"];
 type Efficiency = Schemas["PerformanceEfficiencyPoint"];
+
+/** Reference line whose label sits on a surface-coloured halo (legible over data). */
+function haloLine(value: number, label: string, mode: Mode, axis: "y" | "x" = "y") {
+  const base = refLine(value, label, mode, axis);
+  return { ...base, label: { ...(base.label as object), ...halo(mode) } };
+}
 
 const longDay = (iso: string) =>
   fmtDate(iso, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
@@ -145,7 +152,7 @@ export function EnduranceCard({ data }: { data: Series["endurance"] }) {
         { yAxis: Math.min(b.max, hi) },
       ]);
     return {
-      grid: { ...GRID, right: 16 },
+      grid: { ...GRID, right: 88 },
       tooltip: axisTooltip((p) => {
         const i = (p as { dataIndex: number }[])[0]?.dataIndex ?? -1;
         const d = points[i];
@@ -171,9 +178,13 @@ export function EnduranceCard({ data }: { data: Series["endurance"] }) {
             silent: true,
             label: {
               show: true,
-              position: "insideTopRight",
+              // Outside the plot, in the right margin, so class names never sit on the line.
+              position: "right",
+              distance: 6,
               color: c.muted,
               fontSize: 11,
+              width: 76,
+              overflow: "break",
             },
             data: bands,
           },
@@ -246,7 +257,7 @@ export function RaceCard({
             points.map((d) => [dayMs(d.day), d[race.field]]),
             color,
           ),
-          ...(pr !== null ? { markLine: refLine(pr, `Your best ${fmtDuration(pr)}`, mode) } : {}),
+          ...(pr !== null ? { markLine: haloLine(pr, `Your best ${fmtDuration(pr)}`, mode) } : {}),
         },
       ],
     };
@@ -328,7 +339,7 @@ function RaceTile({
         <div className="mt-1.5">
           <Delta
             value={change.last - change.first}
-            text={signedDuration(change.last - change.first)}
+            text={fmtTimeDelta(change.last - change.first)}
             direction="down-good"
           />
         </div>
@@ -408,7 +419,7 @@ export function FitnessAgeCard({ data, age }: { data: Series["fitness_age"]; age
             color,
             { area: false },
           ),
-          ...(age !== null ? { markLine: refLine(age, `Your age ${age}`, mode) } : {}),
+          ...(age !== null ? { markLine: haloLine(age, `Your age ${age}`, mode) } : {}),
         },
       ],
     };
@@ -471,7 +482,7 @@ export function EfficiencyCard({ data }: { data: Efficiency[] }) {
         return (
           tooltipTitle(d.name ?? "Run") +
           `<div style="color:${c.muted};margin:-2px 0 6px">${fmtDate(d.day)}</div>` +
-          tooltipRow(wash(color, 0.5), "Efficiency factor", fmtNumber(d.efficiency_factor, 2)) +
+          tooltipRow(NEUTRAL[mode], "Efficiency factor", fmtNumber(d.efficiency_factor, 2)) +
           tooltipRow("transparent", "Pace", fmtPace(d.avg_speed_mps, units)) +
           tooltipRow("transparent", "Avg heart rate", d.avg_hr ? `${d.avg_hr} bpm` : DASH) +
           (d.aerobic_decoupling_pct !== null
@@ -487,7 +498,7 @@ export function EfficiencyCard({ data }: { data: Efficiency[] }) {
           name: "Each run",
           symbolSize: 7,
           cursor: "pointer",
-          itemStyle: { color, opacity: 0.35 },
+          itemStyle: { color: NEUTRAL[mode], opacity: 0.75 },
           data: data.map((d) => [dayMs(d.day), d.efficiency_factor, d.activity_id]),
         },
         line(
@@ -544,7 +555,7 @@ export function EfficiencyCard({ data }: { data: Efficiency[] }) {
       series: [
         {
           ...series(`Under ${DECOUPLING_GUIDE} %`, true, div.negative),
-          markLine: refLine(DECOUPLING_GUIDE, `${DECOUPLING_GUIDE} %`, mode, "x"),
+          markLine: haloLine(DECOUPLING_GUIDE, `${DECOUPLING_GUIDE} %`, mode, "x"),
         },
         series(`${DECOUPLING_GUIDE} % or more`, false, div.positive),
       ],
@@ -565,7 +576,7 @@ export function EfficiencyCard({ data }: { data: Efficiency[] }) {
         <div className="grid gap-6 lg:grid-cols-5">
           <div className="min-w-0 lg:col-span-3">
             <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1.5">
-              <LegendItem color={wash(color, 0.45)} label={`Each run · ${data.length}`} />
+              <LegendItem color={NEUTRAL[mode]} label={`Each run · ${data.length}`} />
               <LegendItem shape="line" color={color} label={`${runs}-run average`} />
             </div>
             <Chart

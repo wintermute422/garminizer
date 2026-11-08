@@ -26,8 +26,11 @@ import {
 import type { UnitSystem } from "@/lib/format";
 import { CHROME, STATUS, ZONE_RAMP, wash, type Mode } from "@/lib/tokens";
 import {
+  cased,
   DAY_MS,
   dotSize,
+  dotStyle,
+  legendItems,
   dayAxis,
   measureColors,
   rangeBars,
@@ -109,7 +112,13 @@ export function restingHrOption(rows: Day[], mode: Mode, ext: Extent): ChartOpti
   const daily = rows.filter((r) => r.resting_hr != null).map((r) => dayPoint(r.day, r.resting_hr));
   return {
     grid: { ...GRID_WITH_LEGEND, right: 34 },
-    legend: legend(),
+    legend: {
+      ...legend(),
+      data: legendItems([
+        ["Daily", "dot"],
+        ["7-day mean", "line"],
+      ]),
+    },
     tooltip: axisTooltip((p) => {
       const r = rowAt(p, byTime);
       if (!r) return "";
@@ -126,16 +135,19 @@ export function restingHrOption(rows: Day[], mode: Mode, ext: Extent): ChartOpti
     series: [
       {
         ...scatter("Daily", daily, col.hr, dotSize(rows.length)),
-        itemStyle: { color: col.hr, opacity: 0.38, borderWidth: 0 },
+        itemStyle: dotStyle(col.hr, mode),
       },
-      {
-        ...line(
-          "7-day mean",
-          rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
-          col.hr,
-        ),
-        endLabel: endLabel(mode, n0),
-      },
+      ...cased(
+        {
+          ...line(
+            "7-day mean",
+            rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
+            col.hr,
+          ),
+          endLabel: endLabel(mode, n0),
+        },
+        mode,
+      ),
     ],
   };
 }
@@ -167,7 +179,14 @@ export function hrvOption(rows: Day[], mode: Mode, ext: Extent): ChartOption {
   });
   return {
     grid: { ...GRID_WITH_LEGEND, right: 34 },
-    legend: { ...legend(), data: ["Nightly", "Weekly average", "Balanced range"] },
+    legend: {
+      ...legend(),
+      data: legendItems([
+        ["Nightly", "dot"],
+        ["Weekly average", "line"],
+        ["Balanced range", "area"],
+      ]),
+    },
     tooltip: axisTooltip((p) => {
       const r = rowAt(p, byTime);
       if (!r) return "";
@@ -215,18 +234,20 @@ export function hrvOption(rows: Day[], mode: Mode, ext: Extent): ChartOption {
           col.hrv,
           dotSize(rows.length),
         ),
-        itemStyle: { color: col.hrv, opacity: 0.55, borderWidth: 0 },
-        z: 3,
+        itemStyle: dotStyle(col.hrv, mode),
+        z: 2,
       },
-      {
-        ...line(
-          "Weekly average",
-          rows.map((r) => dayPoint(r.day, r.hrv_weekly_avg_ms)),
-          col.hrv,
-        ),
-        endLabel: endLabel(mode, n0),
-        z: 4,
-      },
+      ...cased(
+        {
+          ...line(
+            "Weekly average",
+            rows.map((r) => dayPoint(r.day, r.hrv_weekly_avg_ms)),
+            col.hrv,
+          ),
+          endLabel: endLabel(mode, n0),
+        },
+        mode,
+      ),
     ],
   };
 }
@@ -249,7 +270,7 @@ export function readinessOption(rows: Readiness[], mode: Mode, ext: Extent): Cha
     tooltipMuted(label, v == null ? DASH : `${v}`, mode);
   return {
     grid: GRID_WITH_LEGEND,
-    legend: { ...legend(), data: groups.map((g) => g.label) },
+    legend: { ...legend(), data: legendItems(groups.map((g) => [g.label, "dot"])) },
     tooltip: axisTooltip((p) => {
       const r = rowAt(p, byTime);
       if (!r) return "";
@@ -336,7 +357,13 @@ export function stressDailyOption(rows: Day[], mode: Mode, ext: Extent): ChartOp
   );
   return {
     grid: { ...GRID_WITH_LEGEND, right: 34 },
-    legend: legend(),
+    legend: {
+      ...legend(),
+      data: legendItems([
+        ["Daily average", "dot"],
+        ["7-day mean", "line"],
+      ]),
+    },
     tooltip: axisTooltip((p) => {
       const r = rowAt(p, byTime);
       if (!r) return "";
@@ -358,16 +385,19 @@ export function stressDailyOption(rows: Day[], mode: Mode, ext: Extent): ChartOp
           col.stress,
           dotSize(rows.length),
         ),
-        itemStyle: { color: col.stress, opacity: 0.38, borderWidth: 0 },
+        itemStyle: dotStyle(col.stress, mode),
       },
-      {
-        ...line(
-          "7-day mean",
-          rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
-          col.stress,
-        ),
-        endLabel: endLabel(mode, n0),
-      },
+      ...cased(
+        {
+          ...line(
+            "7-day mean",
+            rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
+            col.stress,
+          ),
+          endLabel: endLabel(mode, n0),
+        },
+        mode,
+      ),
     ],
   };
 }

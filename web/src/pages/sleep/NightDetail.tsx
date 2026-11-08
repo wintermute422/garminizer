@@ -6,6 +6,7 @@ import { Card, EmptyState, ErrorState, Skeleton, StatusPill } from "@/components
 import { axisTooltip, line, tooltipRow } from "@/lib/charts";
 import { DASH, fmtDate, fmtHours, fmtNumber, signed, titleCase } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
+import { addDays } from "@/lib/range";
 import { CHROME, SLEEP_STAGES, type Mode } from "@/lib/tokens";
 import { FactRow, Stepper } from "../health/kit";
 import {
@@ -73,7 +74,7 @@ function hypnogramOption(
   return {
     useUTC: true,
     title: smallTitle("Sleep stages", mode),
-    grid: { ...GRID, top: 24, bottom: 6 },
+    grid: { ...GRID, top: 32, bottom: 6 },
     tooltip: axisTooltip((p) => {
       const arr = (Array.isArray(p) ? p : [p]) as { axisValue?: number; value?: unknown }[];
       const v = arr[0]?.value;
@@ -135,6 +136,33 @@ function hypnogramOption(
   };
 }
 
+/**
+ * Samples that belong to the night: inside [bed, wake) and not during an activity (a run that
+ * starts as the watch still scores sleep would otherwise spike HR at the right edge). The two
+ * minutes before an activity are dropped too: a sample summarises the minutes after its stamp.
+ */
+function sleepSamples(
+  points: Schemas["SleepPoint"][],
+  night: Night,
+  busy: [number, number][],
+): Schemas["SleepPoint"][] {
+  const t0 = night.start_utc ? Date.parse(night.start_utc) : -Infinity;
+  const t1 = night.end_utc ? Date.parse(night.end_utc) : Infinity;
+  return points.filter((p) => {
+    const t = Date.parse(p.ts);
+    return t >= t0 && t < t1 && !busy.some(([a, b]) => t >= a - 2 * 60_000 && t <= b);
+  });
+}
+
+/** SpO₂ axis that never runs past 100 %: steps of 5 (or 10 for wide ranges) down from 100. */
+function spo2Axis(points: Schemas["SleepPoint"][]): Record<string, unknown> {
+  const v = points.map((p) => p.value).filter((x): x is number => x != null);
+  const lo = v.length ? Math.min(...v) : 90;
+  const span = 100 - Math.floor(lo) + 1;
+  const interval = span <= 12 ? 5 : 10;
+  return { min: 100 - interval * Math.ceil(span / interval), max: 100, interval };
+}
+
 interface Trace {
   key: string;
   label: string;
@@ -155,7 +183,8 @@ function traceOption(
   return {
     useUTC: true,
     title: smallTitle(`${t.label} (${t.unit})`, mode),
-    grid: { ...GRID, top: 24, bottom: last ? 24 : 6 },
+    // Top padding keeps the panel title clear of the first tick label.
+    grid: { ...GRID, top: 32, bottom: last ? 24 : 6 },
     tooltip: axisTooltip((p) => {
       const arr = p as { value: [number, number | null] }[];
       const v = arr[0]?.value;
@@ -172,6 +201,7 @@ function traceOption(
       scale: true,
       splitNumber: 2,
       axisLabel: { formatter: (v: number) => fmtNumber(v) },
+      ...(t.key === "spo2" ? spo2Axis(t.points) : {}),
     },
     series: [
       {
@@ -336,22 +366,38 @@ export function NightDetail({
   const prev = idx > 0 ? nights[idx - 1]!.day : null;
   const next = idx >= 0 && idx < nights.length - 1 ? nights[idx + 1]!.day : null;
   const col = measureColors(mode);
+  // Activities around this night (local days before and of waking), to mask their samples.
+  const acts = api.useQuery("get", "/api/activities", {
+    params: { query: { start: addDays(day, -1), end: day, limit: 20 } },
+  });
 
   const charts = useMemo(() => {
     const d = q.data;
     if (!d) return null;
     const ext = extentOf(d, wall);
     if (!ext) return null;
+    const busy: [number, number][] = (acts.data?.items ?? []).map((a) => {
+      const t = Date.parse(a.start_time_utc);
+      return [t, t + (a.duration_s ?? 0) * 1000];
+    });
+    const own = (points: Schemas["SleepPoint"][]) => sleepSamples(points, d.night, busy);
     const traces: Trace[] = [
-      { key: "hr", label: "Heart rate", unit: "bpm", color: col.hr, digits: 0, points: d.hr },
-      { key: "spo2", label: "Blood oxygen", unit: "%", color: col.spo2, digits: 0, points: d.spo2 },
+      { key: "hr", label: "Heart rate", unit: "bpm", color: col.hr, digits: 0, points: own(d.hr) },
+      {
+        key: "spo2",
+        label: "Blood oxygen",
+        unit: "%",
+        color: col.spo2,
+        digits: 0,
+        points: own(d.spo2),
+      },
       {
         key: "resp",
         label: "Respiration",
         unit: "brpm",
         color: col.respiration,
         digits: 1,
-        points: d.respiration,
+        points: own(d.respiration),
       },
       {
         key: "bb",
@@ -359,7 +405,7 @@ export function NightDetail({
         unit: "0–100",
         color: col.bodyBattery,
         digits: 0,
-        points: d.body_battery,
+        points: own(d.body_battery),
       },
     ].filter((t) => t.points.some((p) => p.value != null));
     return {
@@ -369,7 +415,7 @@ export function NightDetail({
         option: traceOption(t, wall, ext, mode, i === traces.length - 1),
       })),
     };
-  }, [q.data, wall, mode, col.hr, col.spo2, col.respiration, col.bodyBattery]);
+  }, [q.data, acts.data, wall, mode, col.hr, col.spo2, col.respiration, col.bodyBattery]);
 
   return (
     <Card
@@ -422,7 +468,7 @@ export function NightDetail({
             {charts?.hypnogram ? (
               <Chart
                 option={charts.hypnogram}
-                height={168}
+                height={176}
                 group="sleep-night"
                 ariaLabel="Hypnogram: sleep stage over the night"
               />
@@ -433,7 +479,7 @@ export function NightDetail({
               <Chart
                 key={t.key}
                 option={option}
-                height={i === charts.traces.length - 1 ? 128 : 104}
+                height={i === charts.traces.length - 1 ? 136 : 112}
                 group="sleep-night"
                 ariaLabel={`${t.label} during the night`}
               />

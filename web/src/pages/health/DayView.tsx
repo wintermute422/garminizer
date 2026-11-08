@@ -35,6 +35,23 @@ interface Panel {
   max?: number;
 }
 
+/** Data-driven heart-rate axis on round tens with at least a 40 bpm span (never 0–200). */
+function hrBounds(values: (number | null)[]): { min?: number; max?: number } {
+  const v = values.filter((x): x is number => x !== null);
+  if (!v.length) return {};
+  let min = Math.floor((Math.min(...v) - 5) / 10) * 10;
+  let max = Math.ceil((Math.max(...v) + 5) / 10) * 10;
+  if (max - min < 40) {
+    const pad = Math.ceil((40 - (max - min)) / 20) * 10;
+    min -= pad;
+    max += pad;
+  }
+  min = Math.max(0, min);
+  // Three equal steps on round tens, so the top tick sits on the axis end.
+  const step = Math.ceil((max - min) / 30) * 10;
+  return { min, max: min + 3 * step };
+}
+
 function panels(d: Intraday, mode: Mode): Panel[] {
   const col = measureColors(mode);
   const wall = wallClock(d.time_zone);
@@ -49,6 +66,7 @@ function panels(d: Intraday, mode: Mode): Panel[] {
       color: col.hr,
       kind: "line",
       data: pts(d.hr),
+      ...hrBounds(d.hr.map((p) => p.value)),
     });
   if (d.stress.some((p) => p.value != null))
     out.push({
@@ -134,7 +152,8 @@ function panelOption(
   return {
     useUTC: true,
     title: smallTitle(`${p.label} (${p.unit})`, mode),
-    grid: { left: 40, right: 12, top: 24, bottom: last ? 24 : 6, outerBoundsMode: "none" },
+    // Top padding keeps the panel title clear of the first tick label.
+    grid: { left: 40, right: 12, top: 32, bottom: last ? 24 : 6, outerBoundsMode: "none" },
     tooltip: axisTooltip((params) => {
       const arr = params as { value: [number, number | null] }[];
       const v = arr[0]?.value;
@@ -157,6 +176,9 @@ function panelOption(
       scale: p.min === undefined,
       min: p.min,
       max: p.max,
+      ...(p.key === "hr" && p.min !== undefined && p.max !== undefined
+        ? { interval: (p.max - p.min) / 3 }
+        : {}),
       splitNumber: 2,
     }),
     series: [
@@ -248,7 +270,7 @@ export function DayView({
               <Chart
                 key={p.key}
                 option={options[i]!}
-                height={i === list.length - 1 ? 132 : 112}
+                height={i === list.length - 1 ? 140 : 120}
                 group="health-day"
                 ariaLabel={`${p.label} through the day`}
               />

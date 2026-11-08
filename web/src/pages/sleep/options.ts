@@ -16,8 +16,11 @@ import {
 import { DASH, fmtClockFromNoon, fmtDate, fmtHours, fmtNumber, smooth } from "@/lib/format";
 import { CHROME, SLEEP_STAGES, ZONE_RAMP, type Mode } from "@/lib/tokens";
 import {
+  cased,
   DAY_MS,
   dotSize,
+  dotStyle,
+  legendItems,
   dayAxis,
   dayOfPoint,
   measureColors,
@@ -25,7 +28,7 @@ import {
   roundVisibleTops,
   smallTitle,
   tooltipMuted,
-  washHex,
+  outlineFill,
 } from "../health/util";
 
 type Night = Schemas["SleepNight"];
@@ -189,15 +192,21 @@ export function scoreOption(rows: Night[], mode: Mode, ext: Extent): ChartOption
   const lo = Math.min(...scores, 60);
   return {
     grid: { ...GRID_WITH_LEGEND, right: 64 },
-    legend: legend(),
+    legend: {
+      ...legend(),
+      data: legendItems([
+        ["Nightly", "dot"],
+        ["7-night mean", "line"],
+      ]),
+    },
     tooltip: axisTooltip((p) => {
       const r = rowAt(p, map);
       if (!r) return "";
       const i = rows.indexOf(r);
       return (
         tooltipTitle(nightTitle(r.day)) +
-        tooltipRow(col.score, "Score", r.score == null ? DASH : `${r.score}`) +
-        tooltipRow(col.score, "7-night mean", mean7[i] == null ? DASH : fmtNumber(mean7[i], 1)) +
+        tooltipRow(col.sleep, "Score", r.score == null ? DASH : `${r.score}`) +
+        tooltipRow(col.sleep, "7-night mean", mean7[i] == null ? DASH : fmtNumber(mean7[i], 1)) +
         tooltipMuted("Quality", r.score_quality ? titleWord(r.score_quality) : DASH, mode) +
         tooltipMuted(
           "Duration · deep · REM",
@@ -223,10 +232,10 @@ export function scoreOption(rows: Night[], mode: Mode, ext: Extent): ChartOption
         ...scatter(
           "Nightly",
           rows.filter((r) => r.score != null).map((r) => dayPoint(r.day, r.score)),
-          col.score,
+          col.sleep,
           dotSize(rows.length),
         ),
-        itemStyle: { color: col.score, opacity: 0.45, borderWidth: 0 },
+        itemStyle: dotStyle(col.sleep, mode),
         markLine: {
           silent: true,
           symbol: "none",
@@ -235,10 +244,13 @@ export function scoreOption(rows: Night[], mode: Mode, ext: Extent): ChartOption
           data: QUALITY_LINES.map((q) => ({ yAxis: q.value, name: q.label })),
         },
       },
-      line(
-        "7-night mean",
-        rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
-        col.score,
+      ...cased(
+        line(
+          "7-night mean",
+          rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
+          col.sleep,
+        ),
+        mode,
       ),
     ],
   };
@@ -363,7 +375,7 @@ function groupItems(values: (number | null)[], mode: Mode): Obj[] {
       i === 0
         ? { color: col.weekday, borderRadius: [4, 4, 0, 0] }
         : {
-            color: washHex(col.weekend, 0.28),
+            color: outlineFill(col.weekend, mode),
             borderColor: col.weekend,
             borderWidth: 1.5,
             borderRadius: [4, 4, 0, 0],

@@ -23,7 +23,7 @@ import { createElement } from "react";
 import type { Schemas } from "@/api/client";
 import { EmptyState } from "@/components/ui";
 import { fmtHours, fmtNumber, signed } from "@/lib/format";
-import { fmtR } from "./metrics";
+import { fmtR, linkText } from "./metrics";
 
 type InsightCard = Schemas["InsightCard"];
 export interface Pair {
@@ -56,13 +56,14 @@ const PAIRS: Record<string, Pair> = {
 const DIGITS: Record<string, number> = { load: 1, "ml/kg/min": 1 };
 const SINGULAR: Record<string, string> = { days: "day", activities: "activity" };
 
-function valueParts(c: InsightCard): { value: string; unit: string } {
+function valueParts(c: InsightCard): { value: string; unit: string; words?: boolean } {
   if (c.value === null) return { value: "–", unit: "" };
   switch (c.unit) {
     case "s":
       return { value: fmtHours(c.value), unit: "" };
     case "r":
-      return { value: fmtR(c.value), unit: "r" };
+      // Lead with the meaning; r is the supporting number.
+      return { value: linkText(c.value), unit: `r ${fmtR(c.value)}`, words: true };
     case "load":
       return { value: fmtNumber(c.value, 1), unit: c.metric === "ctl" ? "CTL" : "load" };
     default: {
@@ -86,11 +87,7 @@ type Tone = "good" | "bad" | "neutral";
 
 function trendChip(c: InsightCard): { icon: LucideIcon; text: string; tone: Tone } | null {
   const tone: Tone = c.sentiment;
-  if (c.unit === "r") {
-    if (c.trend === "up") return { icon: ArrowUpRight, text: "positive link", tone: "neutral" };
-    if (c.trend === "down") return { icon: ArrowDownRight, text: "negative link", tone: "neutral" };
-    return { icon: Minus, text: "no clear link", tone: "neutral" };
-  }
+  if (c.unit === "r") return null; // the hero already says it in words
   const delta = deltaText(c);
   if (c.trend !== "flat") {
     return {
@@ -140,7 +137,7 @@ function Finding({
   onExplore: (p: Pair) => void;
   className?: string;
 }) {
-  const { value, unit } = valueParts(c);
+  const { value, unit, words } = valueParts(c);
   const chip = trendChip(c);
   const pair = PAIRS[c.id];
   return (
@@ -160,10 +157,15 @@ function Finding({
         <Sentiment sentiment={c.sentiment} />
       </header>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-[30px] leading-none font-semibold tracking-tight text-ink">
+        <span
+          className={clsx(
+            "leading-none font-semibold tracking-tight text-ink",
+            words ? "text-[22px]" : "text-[30px]",
+          )}
+        >
           {value}
         </span>
-        {unit && <span className="text-sm text-ink-3">{unit}</span>}
+        {unit && <span className="text-sm text-ink-3 tabular">{unit}</span>}
         {chip && (
           <span
             className={clsx(

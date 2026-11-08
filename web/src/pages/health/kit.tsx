@@ -4,7 +4,9 @@
  */
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { Skeleton } from "@/components/ui";
+import { Delta, Skeleton, type DeltaDirection } from "@/components/ui";
+import { fmtDelta } from "@/lib/format";
+import { shown } from "./util";
 
 /** Sparkline that stretches to its container: de-emphasised line, accented last point. */
 export function Spark({
@@ -195,5 +197,31 @@ export function DeltaHint({ title, children }: { title: string; children: ReactN
     <span title={title} className="inline-flex">
       {children}
     </span>
+  );
+}
+
+/**
+ * Change vs the previous period: arrow + signed value, or a neutral "no change" when the value
+ * rounds to zero at the displayed precision.
+ */
+export function Change({
+  value,
+  digits,
+  unit = "",
+  direction,
+  title,
+}: {
+  value: number | null;
+  digits: number;
+  unit?: string;
+  direction: DeltaDirection;
+  title: string;
+}) {
+  const v = shown(value, digits);
+  if (v == null) return null;
+  return (
+    <DeltaHint title={title}>
+      <Delta value={v} text={fmtDelta(v, digits, unit)} direction={direction} />
+    </DeltaHint>
   );
 }

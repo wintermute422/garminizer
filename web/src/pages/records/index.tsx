@@ -2,9 +2,9 @@ import { api, type Schemas } from "@/api/client";
 import { Delta, ErrorState, PageHeader, Skeleton, StatTile } from "@/components/ui";
 import {
   distanceUnit,
-  fmtDate,
   fmtDistance,
   fmtDuration,
+  fmtMonth,
   fmtPace,
   fmtSpeed,
   signed,
@@ -14,7 +14,7 @@ import { useRange } from "@/lib/range";
 import { sportLabel, usesPace } from "@/lib/sports";
 import { CumulativeCard, CurveCard } from "./Curves";
 import { DistancesCard, PersonalCard, TopCard } from "./Lists";
-import { doyLabel } from "./util";
+import { doyDate } from "./util";
 
 type Distance = Schemas["RecordsDistance"];
 type Cumulative = Schemas["RecordsCumulative"];
@@ -58,7 +58,7 @@ function Tiles({
               <Delta value={pct} text={`${signed(pct, 0, " %")} vs ${prev.year}`} />
             ) : undefined
           }
-          sub={`by ${doyLabel(last.day_of_year)}`}
+          sub={`by ${doyDate(current.year, last.day_of_year)}`}
         />
       )}
       {bests.map((r) => (
@@ -66,7 +66,7 @@ function Tiles({
           key={r.distance_m}
           label={`Best ${/^\d/.test(r.label) ? r.label : r.label.toLowerCase()}`}
           value={fmtDuration(r.best!.seconds)}
-          sub={`${pace(r)} · ${fmtDate(r.best!.day, { month: "short", year: "numeric" })}`}
+          sub={`${pace(r)} · ${fmtMonth(r.best!.day)}`}
         />
       ))}
       {/* Sports without standard-distance bests: fill the row with distance totals instead. */}
@@ -118,9 +118,7 @@ export default function RecordsPage() {
     <>
       <PageHeader
         title="Records"
-        description={`All-time bests for ${sportLabel(sport).toLowerCase()}${
-          range.sport ? "" : " (pick another sport above)"
-        }. Records span your whole history, so the date range does not apply here.`}
+        description={`All-time bests, year-over-year totals and Garmin's personal records for ${sportLabel(sport).toLowerCase()}`}
       />
       <div className="flex flex-col gap-5">
         {distances.isPending || cumulative.isPending ? (

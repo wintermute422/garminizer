@@ -23,7 +23,7 @@ import {
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor, sportLabel, usesPace } from "@/lib/sports";
 import { CHROME } from "@/lib/tokens";
-import { dayMs, niceDuration, prInfo } from "./util";
+import { dayMs, fmtTimeDelta, niceDuration, prInfo } from "./util";
 
 type Distance = Schemas["RecordsDistance"];
 type Activity = Schemas["ActivitySummary"];
@@ -31,10 +31,6 @@ type Activity = Schemas["ActivitySummary"];
 function paceText(distance: number, seconds: number, sport: string, units: UnitSystem): string {
   const mps = distance / seconds;
   return usesPace(sport) ? fmtPace(mps, units, sport === "swim") : fmtSpeed(mps, units);
-}
-
-function gap(seconds: number): string {
-  return `+${fmtDuration(Math.max(0, seconds))}`;
 }
 
 function ActivityLink({ id, children }: { id: number; children: ReactNode }) {
@@ -85,11 +81,7 @@ function Progression({
           tooltipRow(color, row.label, fmtDuration(pt.seconds)) +
           tooltipRow("transparent", "Pace", paceText(row.distance_m, pt.seconds, sport, units)) +
           (before && i < prog.length
-            ? tooltipRow(
-                "transparent",
-                "Improvement",
-                `−${fmtDuration(before.seconds - pt.seconds)}`,
-              )
+            ? tooltipRow("transparent", "Improvement", fmtTimeDelta(pt.seconds - before.seconds))
             : "")
         );
       }),
@@ -158,7 +150,7 @@ export function DistancesCard({
       <div className="grid gap-5 xl:grid-cols-5">
         <ScrollArea
           label="Best times table"
-          className="relative -mx-4 overflow-x-auto sm:-mx-5 xl:col-span-3 xl:mx-0"
+          className="relative -mx-5 hidden overflow-x-auto sm:block xl:col-span-3 xl:mx-0"
         >
           <table className="w-full min-w-[560px] text-sm">
             <thead>
@@ -212,10 +204,8 @@ export function DistancesCard({
                     <td className="px-3 py-1.5 text-right whitespace-nowrap text-ink-2">
                       {paceText(r.distance_m, best.seconds, sport, units)}
                     </td>
-                    <td className="max-w-[180px] truncate px-3 py-1.5 text-xs whitespace-nowrap">
-                      <ActivityLink id={best.activity_id}>
-                        {fmtDate(best.day, { day: "numeric", month: "short", year: "2-digit" })}
-                      </ActivityLink>
+                    <td className="max-w-[220px] truncate px-3 py-1.5 text-xs whitespace-nowrap">
+                      <ActivityLink id={best.activity_id}>{fmtDate(best.day)}</ActivityLink>
                       {best.name && <span className="ml-1.5 text-ink-3">{best.name}</span>}
                     </td>
                     <td className="px-3 py-1.5 text-right whitespace-nowrap">
@@ -229,7 +219,7 @@ export function DistancesCard({
                           <span className="text-ink-2">
                             {fmtDuration(ty.seconds)}{" "}
                             <span className="text-xs text-ink-3">
-                              {gap(ty.seconds - best.seconds)}
+                              {fmtTimeDelta(ty.seconds - best.seconds)}
                             </span>
                           </span>
                         )
@@ -255,6 +245,60 @@ export function DistancesCard({
             </tbody>
           </table>
         </ScrollArea>
+        {/* Phones: two-line rows instead of a wide table. */}
+        <ul className="-mx-4 flex flex-col divide-y divide-line sm:hidden">
+          {withBest.map((r) => {
+            const best = r.best!;
+            const ty = r.best_this_year;
+            const active = r.distance_m === current?.distance_m;
+            const tie =
+              ty && (ty.activity_id === best.activity_id || ty.seconds - best.seconds < 0.5);
+            return (
+              <li key={r.distance_m} className={clsx("px-4 py-2.5", active && "bg-surface-2")}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setSelected(r.distance_m)}
+                    className={clsx(
+                      "-ml-1.5 rounded-lg px-1.5 py-0.5 text-left text-sm font-medium",
+                      active ? "text-ink" : "text-ink-2",
+                    )}
+                  >
+                    {r.label}
+                  </button>
+                  <span className="text-sm font-semibold text-ink tabular">
+                    {fmtDuration(best.seconds)}
+                  </span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-xs text-ink-3 tabular">
+                  <span>
+                    {paceText(r.distance_m, best.seconds, sport, units)} ·{" "}
+                    <ActivityLink id={best.activity_id}>{fmtDate(best.day)}</ActivityLink>
+                  </span>
+                  <span>
+                    {year}:{" "}
+                    {ty ? (
+                      tie ? (
+                        <span className="inline-flex items-center gap-1 text-ink-2">
+                          <Trophy size={12} aria-hidden />
+                          {fmtDuration(ty.seconds)}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-ink-2">{fmtDuration(ty.seconds)}</span>{" "}
+                          {fmtTimeDelta(ty.seconds - best.seconds)}
+                        </>
+                      )
+                    ) : (
+                      DASH
+                    )}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
         {current && (
           <div className="min-w-0 xl:col-span-2">
             <p className="text-xs font-medium text-ink-2">

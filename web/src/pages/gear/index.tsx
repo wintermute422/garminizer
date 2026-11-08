@@ -245,7 +245,7 @@ export default function GearPage() {
           <UsageChart
             items={items.filter((g) => g.gear_type === type)}
             slots={slots}
-            selected={picked !== null ? selected.uuid : null}
+            selected={selected.uuid}
             onSelect={select}
             typeName={typeLabel(type)}
           />

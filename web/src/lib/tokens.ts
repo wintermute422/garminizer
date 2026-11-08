@@ -30,10 +30,10 @@ export const BLUE: Record<number, string> = {
   700: "#0d366b",
 };
 
-/** Ordinal ramp for 5 HR zones (zone 1 → 5); the step nearest the surface still clears 2:1. */
+/** Ordinal ramp for 5 HR zones (zone 1 → 5); every step clears 3:1 against its card. */
 export const ZONE_RAMP: Record<Mode, readonly string[]> = {
-  light: [BLUE[250]!, BLUE[400]!, BLUE[500]!, BLUE[600]!, BLUE[700]!],
-  dark: [BLUE[650]!, BLUE[500]!, BLUE[350]!, BLUE[250]!, BLUE[100]!],
+  light: [BLUE[400]!, BLUE[500]!, BLUE[550]!, BLUE[650]!, BLUE[700]!],
+  dark: [BLUE[500]!, BLUE[400]!, BLUE[300]!, BLUE[200]!, BLUE[100]!],
 };
 
 /**

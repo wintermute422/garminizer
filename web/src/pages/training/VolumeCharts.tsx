@@ -9,6 +9,7 @@ import {
   GRID,
   itemTooltip,
   refLine,
+  roundStackTops,
   tooltipRow,
   tooltipTitle,
   valueYAxis,
@@ -25,8 +26,8 @@ import {
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
-import { BLUE, CHROME, NEUTRAL, ZONE_RAMP, type Mode } from "@/lib/tokens";
-import { periodLabel, periodTitle, stackTops } from "./util";
+import { BLUE, CHROME, NEUTRAL, type Mode } from "@/lib/tokens";
+import { halo, jitter, periodLabel, periodTitle, zoneRamp } from "./util";
 
 type Period = "week" | "month";
 type VolumeMetric = "distance" | "time" | "load";
@@ -100,17 +101,14 @@ export function VolumeCard({ query, ready }: { query: Query; ready: boolean }) {
 
   const option = useMemo<ChartOption>(() => {
     const { periods, stacks, totals } = built;
-    const tops = stackTops(stacks.map((s) => s.values));
     const c = CHROME[mode];
+    const avgLine = refLine(avg, `avg ${fmt(avg)}`, mode);
     const series = stacks.map((s, i) => ({
       type: "bar",
       name: sportLabel(s.sport),
       stack: "volume",
       barMaxWidth: 24,
-      data: s.values.map((v, j) => ({
-        value: v || null,
-        itemStyle: tops[i]?.[j] ? { borderRadius: [4, 4, 0, 0] } : undefined,
-      })),
+      data: s.values.map((v) => v || null),
       itemStyle: {
         color: sportColor(s.sport, mode),
         borderColor: c.surface,
@@ -119,7 +117,12 @@ export function VolumeCard({ query, ready }: { query: Query; ready: boolean }) {
       },
       emphasis: { focus: "series" },
       ...(i === stacks.length - 1 && avg > 0
-        ? { markLine: refLine(avg, `avg ${fmt(avg)}`, mode) }
+        ? {
+            markLine: {
+              ...avgLine,
+              label: { ...(avgLine.label as object), position: "insideStartTop", ...halo(mode) },
+            },
+          }
         : {}),
     }));
     return {
@@ -149,7 +152,7 @@ export function VolumeCard({ query, ready }: { query: Query; ready: boolean }) {
         metric === "distance" ? distanceUnit(units) : metric === "time" ? "hours" : "load",
         (v) => fmtNumber(v),
       ),
-      series,
+      series: roundStackTops(series, mode),
     };
   }, [built, mode, period, metric, units, avg, fmt]);
 
@@ -245,7 +248,7 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
         return share ? (s / r.total_s) * 100 : s / 3600;
       }),
     );
-    const tops = stackTops(values);
+    const ramp = zoneRamp(mode);
     const c = CHROME[mode];
     return {
       grid: GRID,
@@ -258,7 +261,7 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
           ZONES.map((n, i) => {
             const s = r[`zone_${n}_s` as `zone_${typeof n}_s`];
             return tooltipRow(
-              ZONE_RAMP[mode][i]!,
+              ramp[i]!,
               `Zone ${n} · ${ZONE_NAMES[i]}`,
               `${fmtHours(s)} · ${fmtPercent((s / r.total_s) * 100)}`,
             );
@@ -275,23 +278,22 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
         axisLabel: { hideOverlap: true },
       },
       yAxis: valueYAxis(share ? "%" : "hours", (v) => fmtNumber(v), share ? { max: 100 } : {}),
-      series: ZONES.map((n, i) => ({
-        type: "bar",
-        name: `Zone ${n}`,
-        stack: "zones",
-        barMaxWidth: 24,
-        data: values[i]!.map((v, j) => ({
-          value: v || null,
-          itemStyle: tops[i]?.[j] ? { borderRadius: [4, 4, 0, 0] } : undefined,
+      series: roundStackTops(
+        ZONES.map((n, i) => ({
+          type: "bar",
+          name: `Zone ${n}`,
+          stack: "zones",
+          barMaxWidth: 24,
+          data: values[i]!.map((v) => v || null),
+          itemStyle: {
+            color: ramp[i],
+            borderColor: c.surface,
+            borderWidth: rows.length > 60 ? 0 : 1,
+            borderRadius: 0,
+          },
         })),
-        itemStyle: {
-          color: ZONE_RAMP[mode][i],
-          borderColor: c.surface,
-          borderWidth: rows.length > 60 ? 0 : 1,
-          borderRadius: 0,
-        },
-        emphasis: { focus: "series" },
-      })),
+        mode,
+      ),
     };
   }, [rows, scale, mode, period]);
 
@@ -339,7 +341,7 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
               {ZONES.map((n, i) => (
                 <LegendItem
                   key={n}
-                  color={ZONE_RAMP[mode][i]!}
+                  color={zoneRamp(mode)[i]!}
                   label={`Z${n} ${ZONE_NAMES[i]!.toLowerCase()}`}
                 />
               ))}
@@ -356,9 +358,9 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
   );
 }
 
-/** Garmin's primary-benefit labels in increasing intensity (ordinal ramp order). */
 const TE_TICKS = [0, 1, 2, 3, 4, 5];
 
+/** Garmin's primary-benefit labels in increasing intensity (ordinal ramp order). */
 const BENEFIT_ORDER = [
   "RECOVERY",
   "AEROBIC_BASE",
@@ -370,7 +372,8 @@ const BENEFIT_ORDER = [
 ];
 const BENEFIT_RAMP: Record<Mode, number[]> = {
   light: [250, 300, 350, 450, 500, 600, 650],
-  dark: [600, 550, 500, 400, 350, 250, 200],
+  // Dark steps start at the first blue that clears 3:1 on the card.
+  dark: [500, 450, 400, 350, 300, 200, 100],
 };
 
 function benefitRank(label: string): number {
@@ -407,25 +410,33 @@ export function EffectsCard({ query, ready }: { query: Query; ready: boolean }) 
     const counts = new Map<string, number>();
     for (const a of acts) counts.set(a.sport_group, (counts.get(a.sport_group) ?? 0) + 1);
     const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
-    // At most three colours on screen: the two most frequent sports keep theirs, the rest fold.
-    const shown = (ranked.length <= 3 ? ranked : ranked.slice(0, 2)).sort(bySlot);
+    // At most three sport colours on screen (all pairs must stay distinguishable): the three
+    // most frequent coloured sports keep theirs; the rest, and neutral-coloured ones such as
+    // walking, fold into a labelled grey "Other".
+    const coloured = ranked.filter((s) => sportColor(s, mode) !== NEUTRAL[mode]);
+    const shown = coloured.slice(0, 3).sort(bySlot);
+    const rest = ranked.filter((s) => !shown.includes(s));
+    const restNames = rest.map((s) => sportLabel(s).toLowerCase());
     return [
+      ...(rest.length
+        ? [
+            {
+              name:
+                rest.length === 1
+                  ? sportLabel(rest[0]!)
+                  : `Other (${restNames.slice(0, 3).join(", ")}${rest.length > 3 ? ", …" : ""})`,
+              color: NEUTRAL[mode],
+              items: acts.filter((a) => rest.includes(a.sport_group)),
+              z: 2,
+            },
+          ]
+        : []),
       ...shown.map((s) => ({
         name: sportLabel(s),
         color: sportColor(s, mode),
         items: acts.filter((a) => a.sport_group === s),
         z: 3,
       })),
-      ...(ranked.length > 3
-        ? [
-            {
-              name: "Other sports",
-              color: NEUTRAL[mode],
-              items: acts.filter((a) => !shown.includes(a.sport_group)),
-              z: 2,
-            },
-          ]
-        : []),
     ];
   }, [acts, mode]);
 
@@ -441,8 +452,9 @@ export function EffectsCard({ query, ready }: { query: Query; ready: boolean }) 
         return (
           tooltipTitle(a.name ?? sportLabel(a.sport_group)) +
           `<div style="color:${c.muted};margin:-2px 0 6px">${fmtDate(a.day)} · ${teLabel(a.training_effect_label)}</div>` +
-          tooltipRow((p as { color: string }).color, "Aerobic", fmtNumber(a.aerobic_te, 1)) +
-          tooltipRow((p as { color: string }).color, "Anaerobic", fmtNumber(a.anaerobic_te, 1)) +
+          tooltipRow(sportColor(a.sport_group, mode), "Sport", sportLabel(a.sport_group)) +
+          tooltipRow("transparent", "Aerobic TE", fmtNumber(a.aerobic_te, 1)) +
+          tooltipRow("transparent", "Anaerobic TE", fmtNumber(a.anaerobic_te, 1)) +
           (a.training_load !== null
             ? tooltipRow("transparent", "Load", fmtNumber(a.training_load))
             : "")
@@ -473,9 +485,15 @@ export function EffectsCard({ query, ready }: { query: Query; ready: boolean }) 
         symbolSize: 9,
         cursor: "pointer",
         z: g.z,
-        itemStyle: { color: g.color, opacity: 0.65, borderColor: c.surface, borderWidth: 1 },
+        itemStyle: { color: g.color, opacity: 0.6, borderColor: c.surface, borderWidth: 0.5 },
         emphasis: { itemStyle: { opacity: 1 } },
-        data: g.items.map((a) => [a.aerobic_te, a.anaerobic_te, a.activity_id]),
+        // Training effect comes in 0.1 steps, so many activities share a point: a small,
+        // stable jitter (≤ 0.12) spreads them without moving a dot to another tenth.
+        data: g.items.map((a) => [
+          a.aerobic_te! + jitter(a.activity_id, 1, 0.12),
+          Math.max(-0.2, a.anaerobic_te! + jitter(a.activity_id, 2, 0.12)),
+          a.activity_id,
+        ]),
       })),
     };
   }, [acts, groups, mode]);
@@ -539,13 +557,15 @@ export function EffectsCard({ query, ready }: { query: Query; ready: boolean }) 
           <div className="grid gap-5 lg:grid-cols-5">
             <div className="lg:col-span-3">
               <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1.5">
-                {groups.map((g) => (
-                  <LegendItem
-                    key={g.name}
-                    color={g.color}
-                    label={`${g.name} · ${g.items.length}`}
-                  />
-                ))}
+                {[...groups.filter((g) => g.z === 3), ...groups.filter((g) => g.z !== 3)].map(
+                  (g) => (
+                    <LegendItem
+                      key={g.name}
+                      color={g.color}
+                      label={`${g.name} · ${g.items.length}`}
+                    />
+                  ),
+                )}
               </div>
               <Chart
                 option={scatterOption}

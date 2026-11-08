@@ -1,5 +1,12 @@
 /** Load-side charts of the training page: PMC (fitness/fatigue/form), ACWR, status, load focus. */
-import { AlertTriangle, CircleAlert, CircleCheck, CircleMinus } from "lucide-react";
+import {
+  AlertTriangle,
+  CircleAlert,
+  CircleCheck,
+  CircleMinus,
+  OctagonAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { createElement, useMemo } from "react";
 import type { Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
@@ -14,19 +21,31 @@ import {
   tooltipTitle,
   valueYAxis,
 } from "@/lib/charts";
-import { fmtDate, fmtNumber, fmtShortDate, signed, titleCase } from "@/lib/format";
+import { fmtDate, fmtNumber, signed } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { CATEGORICAL, CHROME, DIVERGING, NEUTRAL, wash, ZONE_RAMP, type Mode } from "@/lib/tokens";
+import {
+  CATEGORICAL,
+  CHROME,
+  DIVERGING,
+  MEASURE_COLORS,
+  NEUTRAL,
+  STATUS,
+  wash,
+  ZONE_RAMP,
+  type Mode,
+  type Status,
+} from "@/lib/tokens";
+import { loadBalanceState, trainingState } from "@/lib/status";
 import {
   acwrZone,
-  CLASS_ORDER,
-  classColor,
-  classStatus,
   dayExtent,
   dayMs,
-  statusInfo,
+  halo,
+  statusIconSvg,
   statusKey,
-  type StatusClass,
+  statusLabel,
+  statusRank,
+  statusSwatch,
 } from "./util";
 
 type LoadPoint = Schemas["TrainingLoadPoint"];
@@ -72,6 +91,12 @@ function niceBounds(lo: number, hi: number): { min: number; max: number; interva
   };
 }
 
+/** Reference line whose label sits on a surface-coloured halo (legible over data). */
+function haloLine(value: number, label: string, mode: Mode, axis: "y" | "x" = "y"): Obj {
+  const base = refLine(value, label, mode, axis);
+  return { ...base, label: { ...(base.label as Obj), ...halo(mode) } };
+}
+
 const longDay = (iso: string) =>
   fmtDate(iso, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 
@@ -91,9 +116,9 @@ export function PmcCard({
   const data = query.data ?? NO_LOAD;
   const options = useMemo(() => {
     const c = CHROME[mode];
-    const cat = CATEGORICAL[mode];
+    const m = MEASURE_COLORS[mode];
     const div = DIVERGING[mode];
-    const loadColor = ZONE_RAMP[mode][0]!;
+    const loadColor = NEUTRAL[mode];
     const extent = dayExtent(start, end);
     const grid = (bottom: number) => ({
       left: PMC_LEFT,
@@ -113,8 +138,8 @@ export function PmcCard({
         if (!d) return "";
         return (
           tooltipTitle(longDay(d.day)) +
-          tooltipRow(cat[0]!, "Fitness (CTL)", fmtNumber(d.ctl, 1)) +
-          tooltipRow(cat[1]!, "Fatigue (ATL)", fmtNumber(d.atl, 1)) +
+          tooltipRow(m.fitness, "Fitness (CTL)", fmtNumber(d.ctl, 1)) +
+          tooltipRow(m.fatigue, "Fatigue (ATL)", fmtNumber(d.atl, 1)) +
           tooltipRow(d.tsb >= 0 ? div.negative : div.positive, "Form (TSB)", signed(d.tsb, 1)) +
           tooltipRow(
             loadColor,
@@ -128,18 +153,16 @@ export function PmcCard({
       xAxis: timeAxis(extent, false),
       yAxis: valueYAxis(undefined, (v) => fmtNumber(v), { scale: true }),
       series: [
-        {
-          ...line(
-            "Fitness",
-            data.map((d) => [dayMs(d.day), d.ctl]),
-            cat[0]!,
-            { area: true, z: 3 },
-          ),
-        },
+        line(
+          "Fitness",
+          data.map((d) => [dayMs(d.day), d.ctl]),
+          m.fitness,
+          { area: true, z: 3 },
+        ),
         line(
           "Fatigue",
           data.map((d) => [dayMs(d.day), d.atl]),
-          cat[1]!,
+          m.fatigue,
         ),
       ],
     };
@@ -199,25 +222,25 @@ export function PmcCard({
     return { fitness, load, form };
   }, [data, start, end, mode]);
 
-  const cat = CATEGORICAL[mode];
+  const m = MEASURE_COLORS[mode];
   return (
     <Card
       className="lg:col-span-2"
       title="Fitness, fatigue & form"
-      subtitle={`Fitness is your 42-day load average, fatigue the 7-day one; form is yesterday's fitness minus fatigue.${sportFiltered ? " Load always includes every sport." : ""}`}
+      subtitle={`Fitness (CTL) and fatigue (ATL) are exponentially weighted load averages with 42- and 7-day time constants; form (TSB) is yesterday's fitness minus fatigue.${sportFiltered ? " Load always includes every sport." : ""}`}
     >
       <QueryState
         query={query}
-        height={500}
+        height={520}
         isEmpty={(d) => d.length === 0}
         empty={<EmptyState title="No training load in this period" />}
       >
         {() => (
           <>
             <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5">
-              <LegendItem shape="line" color={cat[0]!} label="Fitness (CTL)" />
-              <LegendItem shape="line" color={cat[1]!} label="Fatigue (ATL)" />
-              <LegendItem color={ZONE_RAMP[mode][0]!} label="Daily load" />
+              <LegendItem shape="line" color={m.fitness} label="Fitness (CTL)" />
+              <LegendItem shape="line" color={m.fatigue} label="Fatigue (ATL)" />
+              <LegendItem color={NEUTRAL[mode]} label="Daily load" />
               <LegendItem color={DIVERGING[mode].negative} label="Fresh (form > 0)" />
               <LegendItem color={DIVERGING[mode].positive} label="Tired (form < 0)" />
               <LegendItem color={wash(NEUTRAL[mode], 0.45)} label="Productive range (−10 to −30)" />
@@ -249,7 +272,7 @@ export function PmcCard({
   );
 }
 
-/** Acute:chronic workload ratio with the 0.8–1.3 sweet spot and the 1.5 danger line. */
+/** Garminizer's own rolling ACWR with the 0.8–1.3 sweet spot and the 1.5 danger line. */
 export function AcwrCard({
   query,
   start,
@@ -274,7 +297,7 @@ export function AcwrCard({
         if (!d || d.acwr === null) return "";
         return (
           tooltipTitle(longDay(d.day)) +
-          tooltipRow(color, "ACWR", `${fmtNumber(d.acwr, 2)} · ${acwrZone(d.acwr).label}`)
+          tooltipRow(color, "ACWR (rolling)", `${fmtNumber(d.acwr, 2)} · ${acwrZone(d.acwr).label}`)
         );
       }),
       xAxis: timeAxis(dayExtent(start, end), true),
@@ -298,24 +321,21 @@ export function AcwrCard({
               color: c.muted,
               fontSize: 11,
               formatter: "Optimal 0.8–1.3",
+              ...halo(mode),
             },
             data: [[{ yAxis: 0.8 }, { yAxis: 1.3 }]],
           },
-          markLine: refLine(1.5, "Injury risk > 1.5", mode),
+          markLine: haloLine(1.5, "Injury risk > 1.5", mode),
         },
       ],
     };
   }, [points, start, end, mode]);
-  const zone = latest?.acwr != null ? acwrZone(latest.acwr) : null;
   return (
     <Card
-      title="Acute : chronic workload ratio"
-      subtitle="Last 7 days of load vs the 28-day average. Ramp up slowly to stay in the band."
-      actions={
-        zone && latest?.acwr != null ? (
-          <StatusPill status={zone.status} label={`${fmtNumber(latest.acwr, 2)} · ${zone.label}`} />
-        ) : undefined
-      }
+      title="ACWR · 7/28-day rolling (Garminizer)"
+      subtitle={`Garminizer's ratio of the last 7 days of load to the 28-day average${
+        latest?.acwr != null ? ` (now ${fmtNumber(latest.acwr, 2)})` : ""
+      }. Ramp up slowly to stay in the band.`}
     >
       <QueryState
         query={query}
@@ -324,24 +344,29 @@ export function AcwrCard({
         empty={<EmptyState title="Not enough load history for a ratio" />}
       >
         {() => (
-          <Chart option={option} height={240} ariaLabel="Acute to chronic workload ratio per day" />
+          <Chart
+            option={option}
+            height={240}
+            ariaLabel="Garminizer's rolling 7 to 28 day workload ratio per day"
+          />
         )}
       </QueryState>
     </Card>
   );
 }
 
-const CLASS_ICON = {
+const STATUS_ICON: Record<Status | "neutral", LucideIcon> = {
   good: CircleCheck,
   neutral: CircleMinus,
   warning: AlertTriangle,
   serious: CircleAlert,
-} as const;
+  critical: OctagonAlert,
+};
 
-function StatusIcon({ cls, mode }: { cls: StatusClass; mode: Mode }) {
-  return createElement(CLASS_ICON[cls], {
-    size: 14,
-    color: classColor(cls, mode),
+function StatusIcon({ status }: { status: Status | null }) {
+  return createElement(STATUS_ICON[status ?? "neutral"], {
+    size: 13,
+    color: status ? STATUS[status] : "var(--text-muted)",
     "aria-hidden": true,
   });
 }
@@ -374,7 +399,7 @@ function segments(data: StatusPoint[]): Segment[] {
   return out;
 }
 
-/** Garmin's daily training status as a thin categorical band with a labelled legend. */
+/** Garmin's daily training status as a strip: one swatch colour per status, labelled legend. */
 export function StatusCard({
   query,
   start,
@@ -391,26 +416,24 @@ export function StatusCard({
     const m = new Map<string, number>();
     for (const s of segs) m.set(s.key, (m.get(s.key) ?? 0) + s.days);
     return [...m.entries()]
-      .map(([key, days]) => ({ key, days, ...statusInfo(key) }))
-      .sort((a, b) => CLASS_ORDER.indexOf(a.cls) - CLASS_ORDER.indexOf(b.cls) || b.days - a.days);
+      .map(([key, days]) => ({ key, days }))
+      .sort((a, b) => statusRank(a.key) - statusRank(b.key));
   }, [segs]);
   const total = counts.reduce((s, x) => s + x.days, 0) || 1;
   const latest = segs[segs.length - 1];
   const option = useMemo<ChartOption>(() => {
     const c = CHROME[mode];
     const [x0, x1] = dayExtent(start, end);
+    const keys = [...new Set(segs.map((s) => s.key))];
     return {
       grid: { left: 14, right: 14, top: 4, bottom: 22, outerBoundsMode: "none" },
       tooltip: itemTooltip((p) => {
         const s = segs[(p as { dataIndex: number }).dataIndex];
         if (!s) return "";
-        const info = statusInfo(s.key);
         const span =
-          s.start === s.end
-            ? fmtShortDate(s.start)
-            : `${fmtShortDate(s.start)} – ${fmtDate(s.end)}`;
+          s.start === s.end ? fmtDate(s.start) : `${fmtDate(s.start)} – ${fmtDate(s.end)}`;
         return (
-          tooltipTitle(info.label) +
+          `<div style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:4px"><span style="width:10px;height:10px;border-radius:3px;background:${statusSwatch(s.key, mode)};display:inline-block"></span>${statusIconSvg(trainingState(s.key).status, mode)}${statusLabel(s.key)}</div>` +
           `<div style="color:${c.muted}">${span} · ${s.days} ${s.days === 1 ? "day" : "days"}</div>`
         );
       }),
@@ -431,7 +454,7 @@ export function StatusCard({
           data: segs.map((s) => [
             new Date(`${s.start}T00:00:00`).getTime(),
             new Date(`${s.end}T00:00:00`).getTime() + 86_400_000,
-            CLASS_ORDER.indexOf(statusInfo(s.key).cls),
+            keys.indexOf(s.key),
           ]),
           renderItem: (
             _params: unknown,
@@ -439,7 +462,7 @@ export function StatusCard({
           ) => {
             const a = api.coord([api.value(0), 1]);
             const b = api.coord([api.value(1), 0]);
-            const cls = CLASS_ORDER[api.value(2)] ?? "neutral";
+            const key = keys[api.value(2)] ?? "";
             return {
               type: "rect",
               shape: {
@@ -449,7 +472,7 @@ export function StatusCard({
                 height: b[1]! - a[1]!,
                 r: 3,
               },
-              style: { fill: classColor(cls, mode) },
+              style: { fill: statusSwatch(key, mode) },
             };
           },
         },
@@ -457,15 +480,15 @@ export function StatusCard({
     };
   }, [segs, start, end, mode]);
 
-  const latestInfo = latest ? statusInfo(latest.key) : null;
+  const now = latest ? trainingState(latest.key) : null;
   return (
     <Card
       className="lg:col-span-2"
       title="Garmin training status"
       subtitle="What your watch concluded each day from load, VO2max trend and recovery"
       actions={
-        latestInfo ? (
-          <StatusPill status={classStatus(latestInfo.cls)} label={`Now: ${latestInfo.label}`} />
+        latest && now ? (
+          <StatusPill status={now.status} label={`Now: ${statusLabel(latest.key)}`} />
         ) : undefined
       }
     >
@@ -484,8 +507,13 @@ export function StatusCard({
             >
               {counts.map((s) => (
                 <li key={s.key} className="inline-flex items-center gap-1.5 text-xs text-ink-2">
-                  <StatusIcon cls={s.cls} mode={mode} />
-                  <span className="font-medium text-ink">{s.label}</span>
+                  <span
+                    aria-hidden
+                    className="inline-block size-2.5 rounded-[3px]"
+                    style={{ background: statusSwatch(s.key, mode) }}
+                  />
+                  <StatusIcon status={trainingState(s.key).status} />
+                  <span className="font-medium text-ink">{statusLabel(s.key)}</span>
                   <span className="tabular">
                     {s.days} d · {fmtNumber((s.days / total) * 100)} %
                   </span>
@@ -500,17 +528,74 @@ export function StatusCard({
 }
 
 const FOCUS = [
-  { key: "low_aerobic", label: "Low aerobic", ramp: 0 },
-  { key: "high_aerobic", label: "High aerobic", ramp: 2 },
+  { key: "low_aerobic", label: "Low aerobic", ramp: 1 },
+  { key: "high_aerobic", label: "High aerobic", ramp: 3 },
   { key: "anaerobic", label: "Anaerobic", ramp: 4 },
 ] as const;
 
-function sentence(key: string): string {
-  const t = titleCase(key).toLowerCase();
-  return t.charAt(0).toUpperCase() + t.slice(1);
+/** One bullet row, styled like the Overview's load focus: dashed outline = target range. */
+function FocusRow({
+  label,
+  value,
+  min,
+  max,
+  scale,
+  color,
+}: {
+  label: string;
+  value: number;
+  min: number | null;
+  max: number | null;
+  scale: number;
+  color: string;
+}) {
+  const pct = (v: number) => `${Math.min(v / scale, 1) * 100}%`;
+  const verdict =
+    min === null || max === null
+      ? null
+      : value < min
+        ? "Below target"
+        : value > max
+          ? "Above target"
+          : "In target";
+  return (
+    <div>
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-2 text-xs">
+        <span className="font-medium text-ink-2">
+          {label}
+          {min !== null && max !== null && (
+            <span className="ml-1.5 font-normal text-ink-3 tabular">
+              target {fmtNumber(min)}–{fmtNumber(max)}
+            </span>
+          )}
+        </span>
+        <span className="flex items-center gap-2">
+          {verdict && (
+            <span className="inline-flex items-center gap-1 text-ink-3">
+              {verdict === "In target" && <CircleCheck size={13} color={STATUS.good} aria-hidden />}
+              {verdict}
+            </span>
+          )}
+          <span className="font-semibold text-ink tabular">{fmtNumber(value)}</span>
+        </span>
+      </div>
+      <div aria-hidden className="relative h-3.5 rounded-full bg-surface-2">
+        {min !== null && max !== null && (
+          <div
+            className="absolute inset-y-0 rounded-full border border-dashed border-ink-3/70 bg-surface-3/60"
+            style={{ left: pct(min), width: `calc(${pct(max)} - ${pct(min)})` }}
+          />
+        )}
+        <div
+          className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-full"
+          style={{ width: pct(value), background: color }}
+        />
+      </div>
+    </div>
+  );
 }
 
-/** Latest 28-day load per intensity bucket against Garmin's target range (bullet chart). */
+/** Latest 28-day load per intensity bucket against Garmin's target range. */
 export function FocusCard({ query }: { query: Q<StatusPoint[]> }) {
   const mode = useMode();
   const data = query.data ?? NO_STATUS;
@@ -518,149 +603,63 @@ export function FocusCard({ query }: { query: Q<StatusPoint[]> }) {
     () => [...data].reverse().find((d) => d.load_low_aerobic !== null),
     [data],
   );
-  const rows = useMemo(
-    () =>
-      latest
-        ? FOCUS.map((f) => ({
-            ...f,
-            value: (latest[`load_${f.key}`] as number | null) ?? 0,
-            lo: latest[`target_${f.key}_min`] as number | null,
-            hi: latest[`target_${f.key}_max`] as number | null,
-          }))
-        : [],
-    [latest],
-  );
-  const option = useMemo<ChartOption>(() => {
-    const c = CHROME[mode];
-    const max = Math.max(...rows.map((r) => Math.max(r.value, r.hi ?? 0)), 1);
-    const verdict = (r: (typeof rows)[number]) =>
-      r.lo === null || r.hi === null
-        ? ""
-        : r.value < r.lo
-          ? "below target"
-          : r.value > r.hi
-            ? "above target"
-            : "in target";
-    return {
-      grid: { left: 4, right: 44, top: 4, bottom: 4 },
-      tooltip: itemTooltip((p) => {
-        const r = rows[(p as { dataIndex: number }).dataIndex];
-        if (!r) return "";
-        return (
-          tooltipTitle(r.label) +
-          tooltipRow(ZONE_RAMP[mode][r.ramp]!, "Last 28 days", fmtNumber(r.value)) +
-          (r.lo !== null && r.hi !== null
-            ? tooltipRow(
-                wash(NEUTRAL[mode], 0.5),
-                "Target",
-                `${fmtNumber(r.lo)}–${fmtNumber(r.hi)}`,
-              ) + `<div style="color:${c.muted};margin-top:4px">${sentence(verdict(r))}</div>`
-            : "")
-        );
-      }),
-      xAxis: { type: "value", max: Math.ceil(max * 1.12), splitNumber: 4, show: false },
-      yAxis: {
-        type: "category",
-        inverse: true,
-        data: rows.map((r) => r.label),
-        axisLine: { show: false },
-        axisLabel: {
-          formatter: (_v: string, i: number) => {
-            const r = rows[i];
-            if (!r) return "";
-            const target =
-              r.lo !== null && r.hi !== null ? `target ${fmtNumber(r.lo)}–${fmtNumber(r.hi)}` : "";
-            return `{name|${r.label}}\n{target|${target}}`;
-          },
-          rich: {
-            name: { color: c.text2, fontSize: 12, lineHeight: 17, align: "right" },
-            target: { color: c.muted, fontSize: 11, lineHeight: 15, align: "right" },
-          },
-        },
-      },
-      series: [
-        {
-          type: "custom",
-          name: "Target range",
-          silent: true,
-          encode: { y: 0, x: [1, 2] },
-          data: rows.map((r, i) => [i, r.lo ?? 0, r.hi ?? 0]),
-          renderItem: (
-            _params: unknown,
-            api: {
-              value: (i: number) => number;
-              coord: (v: number[]) => number[];
-              size: (v: number[]) => number[];
-            },
-          ) => {
-            const a = api.coord([api.value(1), api.value(0)]);
-            const b = api.coord([api.value(2), api.value(0)]);
-            const h = Math.min((api.size([0, 1])[1] ?? 40) * 0.62, 30);
-            return {
-              type: "rect",
-              shape: { x: a[0]!, y: a[1]! - h / 2, width: b[0]! - a[0]!, height: h, r: 6 },
-              style: { fill: wash(NEUTRAL[mode], 0.2), stroke: c.axis, lineWidth: 1 },
-            };
-          },
-          z: 1,
-        },
-        {
-          type: "bar",
-          name: "Last 28 days",
-          barWidth: 10,
-          z: 2,
-          data: rows.map((r) => ({
-            value: r.value,
-            itemStyle: { color: ZONE_RAMP[mode][r.ramp], borderRadius: [0, 4, 4, 0] },
-          })),
-          label: {
-            show: true,
-            position: "right",
-            color: c.text2,
-            fontSize: 11,
-            formatter: (p: { value: number }) => fmtNumber(p.value),
-          },
-        },
-      ],
-    };
-  }, [rows, mode]);
-
-  const feedback = latest?.load_balance_feedback ?? null;
-  const balanced = feedback?.toUpperCase().includes("BALANCED") ?? false;
+  const rows = latest
+    ? FOCUS.map((f) => ({
+        ...f,
+        value: (latest[`load_${f.key}`] as number | null) ?? 0,
+        min: latest[`target_${f.key}_min`] as number | null,
+        max: latest[`target_${f.key}_max`] as number | null,
+      }))
+    : [];
+  const scale = Math.max(1, ...rows.flatMap((r) => [r.value, r.max ?? 0])) * 1.08;
+  const balance = loadBalanceState(latest?.load_balance_feedback);
   return (
     <Card
       title="Load focus"
       subtitle={
         latest
-          ? `28-day load by intensity on ${fmtDate(latest.day)}, against Garmin's target range`
-          : "28-day load by intensity against Garmin's target range"
+          ? `Last 4 weeks to ${fmtDate(latest.day)} · dashed = Garmin's target range`
+          : "Last 4 weeks · dashed = Garmin's target range"
       }
       actions={
-        feedback ? (
-          <StatusPill status={balanced ? "good" : "warning"} label={sentence(feedback)} />
+        latest?.load_balance_feedback ? (
+          <StatusPill status={balance.status} label={balance.label} />
         ) : undefined
       }
     >
       <QueryState
         query={query}
-        height={236}
+        height={200}
         isEmpty={() => !latest}
         empty={<EmptyState title="No load focus reported in this period" />}
       >
         {() => (
-          <>
-            <Chart
-              option={option}
-              height={236}
-              ariaLabel="Low aerobic, high aerobic and anaerobic load of the last 28 days against their target ranges"
-            />
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
-              {FOCUS.map((f) => (
-                <LegendItem key={f.key} color={ZONE_RAMP[mode][f.ramp]!} label={f.label} />
-              ))}
-              <LegendItem color={wash(NEUTRAL[mode], 0.45)} label="Target range" />
-            </div>
-          </>
+          <div
+            className="flex flex-col gap-5 pt-2"
+            role="img"
+            aria-label={rows
+              .map(
+                (r) =>
+                  `${r.label} ${fmtNumber(r.value)}${r.min !== null && r.max !== null ? `, target ${fmtNumber(r.min)} to ${fmtNumber(r.max)}` : ""}`,
+              )
+              .join("; ")}
+          >
+            {rows.map((r) => (
+              <FocusRow
+                key={r.key}
+                label={r.label}
+                value={r.value}
+                min={r.min}
+                max={r.max}
+                scale={scale}
+                color={ZONE_RAMP[mode][r.ramp]!}
+              />
+            ))}
+            <p className="text-xs text-ink-3">
+              Low aerobic builds the base, high aerobic raises threshold and VO2max, anaerobic
+              sharpens speed. Garmin sets the targets from your recent load.
+            </p>
+          </div>
         )}
       </QueryState>
     </Card>

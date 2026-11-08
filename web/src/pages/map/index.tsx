@@ -58,11 +58,17 @@ const VIEWS = [
   { value: "explorer", label: "Explorer" },
 ] as const;
 
-const SUBTITLE: Record<View, string> = {
-  routes: "Every GPS track, coloured by sport; overlaps glow brighter. Click a route for details.",
-  heatmap: "Where you go most: density of every recorded track point.",
-  explorer: "Zoom-14 map tiles you have visited (all time). The outlined block is your max square.",
-};
+/** Sports are told apart by colour only when few are visible (all-pairs views like a map). */
+const MAX_SPORT_COLOURS = 3;
+
+function subtitle(view: View, bySport: boolean): string {
+  if (view === "heatmap") return "Where you go most: density of every recorded track point.";
+  if (view === "explorer")
+    return "Zoom-14 map tiles you have visited (all time). The outlined block is your max square.";
+  return bySport
+    ? "Every GPS track, coloured by sport; overlaps glow brighter. Click a route for details."
+    : "Every GPS track; overlaps glow brighter where you go often. Click a route for details, or pick a sport below to see only its routes.";
+}
 
 function tileColors(mode: Mode) {
   return mode === "dark"
@@ -77,82 +83,114 @@ function heatRamp(mode: Mode): string[] {
 function buildLayers(
   view: View,
   mode: Mode,
-  data: { routes: FC; heat: FC; tiles: FC; square: FC; selected: FC; focus: FC },
+  data: { routes: FC; count: number; heat: FC; tiles: FC; square: FC; selected: FC; focus: FC },
 ): MapLayer[] {
   const surface = CHROME[mode].surface;
   const ink = CHROME[mode].text;
   const tc = tileColors(mode);
   const ramp = heatRamp(mode);
-  const on = (v: View, fc: FC) => (view === v ? fc : EMPTY);
+  const focus: MapLayer = {
+    id: "place-focus",
+    type: "circle",
+    data: data.focus,
+    paint: {
+      "circle-radius": 11,
+      "circle-color": wash(CATEGORICAL[mode][0]!, 0.25),
+      "circle-stroke-color": ink,
+      "circle-stroke-width": 2,
+    },
+  };
+  if (view === "explorer")
+    return [
+      {
+        id: "tiles-fill",
+        type: "fill",
+        data: data.tiles,
+        paint: {
+          "fill-color": ["match", ["get", "kind"], "cluster", tc.cluster, tc.visited],
+          "fill-opacity": ["match", ["get", "kind"], "cluster", 0.62, 0.42],
+          "fill-outline-color": surface,
+        },
+      },
+      {
+        id: "tiles-square-casing",
+        type: "line",
+        data: data.square,
+        paint: { "line-color": surface, "line-width": 6, "line-opacity": 0.9 },
+        layout: { "line-join": "round" },
+      },
+      {
+        id: "tiles-square",
+        type: "line",
+        data: data.square,
+        paint: { "line-color": ink, "line-width": 2.5 },
+        layout: { "line-join": "round" },
+      },
+      focus,
+    ];
+  if (view === "heatmap")
+    return [
+      {
+        id: "heat",
+        type: "heatmap",
+        data: data.heat,
+        paint: {
+          "heatmap-weight": 0.22,
+          "heatmap-intensity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            4,
+            0.25,
+            9,
+            0.6,
+            13,
+            1.4,
+            16,
+            3,
+          ],
+          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 4, 2, 9, 5, 13, 10, 16, 22],
+          "heatmap-opacity": mode === "dark" ? 0.9 : 0.8,
+          "heatmap-color": [
+            "interpolate",
+            ["linear"],
+            ["heatmap-density"],
+            0,
+            wash(ramp[1]!, 0),
+            0.06,
+            wash(ramp[1]!, 0.45),
+            0.25,
+            ramp[1],
+            0.5,
+            ramp[2],
+            0.75,
+            ramp[3],
+            1,
+            ramp[4],
+          ],
+        },
+      },
+      focus,
+    ];
   return [
-    {
-      id: "tiles-fill",
-      type: "fill",
-      data: on("explorer", data.tiles),
-      paint: {
-        "fill-color": ["match", ["get", "kind"], "cluster", tc.cluster, tc.visited],
-        "fill-opacity": ["match", ["get", "kind"], "cluster", 0.62, 0.42],
-        "fill-outline-color": surface,
-      },
-    },
-    {
-      id: "tiles-square-casing",
-      type: "line",
-      data: on("explorer", data.square),
-      paint: { "line-color": surface, "line-width": 6, "line-opacity": 0.9 },
-      layout: { "line-join": "round" },
-    },
-    {
-      id: "tiles-square",
-      type: "line",
-      data: on("explorer", data.square),
-      paint: { "line-color": ink, "line-width": 2.5 },
-      layout: { "line-join": "round" },
-    },
-    {
-      id: "heat",
-      type: "heatmap",
-      data: on("heatmap", data.heat),
-      paint: {
-        "heatmap-weight": 0.22,
-        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 4, 0.25, 9, 0.6, 13, 1.4, 16, 3],
-        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 4, 2, 9, 5, 13, 10, 16, 22],
-        "heatmap-opacity": mode === "dark" ? 0.9 : 0.8,
-        "heatmap-color": [
-          "interpolate",
-          ["linear"],
-          ["heatmap-density"],
-          0,
-          wash(ramp[1]!, 0),
-          0.06,
-          wash(ramp[1]!, 0.45),
-          0.25,
-          ramp[1],
-          0.5,
-          ramp[2],
-          0.75,
-          ramp[3],
-          1,
-          ramp[4],
-        ],
-      },
-    },
     {
       id: "routes",
       type: "line",
-      data: on("routes", data.routes),
+      data: data.routes,
       paint: {
         "line-color": ["get", "color"],
         "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.8, 10, 1.3, 14, 2.4, 17, 4],
-        "line-opacity": mode === "dark" ? 0.5 : 0.42,
-        ...(mode === "dark" ? { "line-blur": 0.4 } : {}),
+        // Few routes barely overlap, so they need more ink to read as a glow.
+        "line-opacity":
+          data.count < 40 ? 0.8 : data.count < 160 ? 0.6 : mode === "dark" ? 0.45 : 0.38,
+        "line-blur": mode === "dark" ? 0.4 : 0,
       },
       layout: { "line-cap": "round", "line-join": "round" },
     },
     {
       id: "route-selected-casing",
       type: "line",
-      data: on("routes", data.selected),
+      data: data.selected,
       paint: {
         "line-color": surface,
         "line-width": ["interpolate", ["linear"], ["zoom"], 5, 4, 14, 8],
@@ -163,30 +201,20 @@ function buildLayers(
     {
       id: "route-selected",
       type: "line",
-      data: on("routes", data.selected),
+      data: data.selected,
       paint: {
         "line-color": ["get", "color"],
         "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 14, 4],
       },
       layout: { "line-cap": "round", "line-join": "round" },
     },
-    {
-      id: "place-focus",
-      type: "circle",
-      data: data.focus,
-      paint: {
-        "circle-radius": 11,
-        "circle-color": wash(CATEGORICAL[mode][0]!, 0.25),
-        "circle-stroke-color": ink,
-        "circle-stroke-width": 2,
-      },
-    },
+    focus,
     {
       // Invisible wide twin of the routes so thin lines are easy to click (opacity 0 is
       // not drawn but still queryable).
       id: "routes-hit",
       type: "line",
-      data: on("routes", data.routes),
+      data: data.routes,
       paint: { "line-color": surface, "line-width": 14, "line-opacity": 0 },
       layout: { "line-cap": "round", "line-join": "round" },
     },
@@ -221,11 +249,15 @@ function coordText(lat: number, lon: number): string {
 function Legend({
   view,
   sports,
+  bySport,
+  hasSelection,
   mode,
   className,
 }: {
   view: View;
   sports: SportRow[];
+  bySport: boolean;
+  hasSelection: boolean;
   mode: Mode;
   className: string;
 }) {
@@ -233,7 +265,19 @@ function Legend({
   const ramp = heatRamp(mode);
   return (
     <div className={className}>
-      {view === "routes" && (
+      {view === "routes" && !bySport && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <LegendItem color={CATEGORICAL[mode][0]!} label="Route" shape="line" />
+          {hasSelection && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-ink-2">
+              <span aria-hidden className="inline-block h-0.5 w-4 rounded bg-ink" />
+              Selected
+            </span>
+          )}
+          <span className="text-xs text-ink-3">brighter where routes overlap</span>
+        </div>
+      )}
+      {view === "routes" && bySport && (
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {sports.map((s) => (
             <LegendItem
@@ -437,7 +481,10 @@ function PlacesCard({
   const top = (places ?? []).slice(0, 6);
   const max = top[0]?.activities ?? 1;
   return (
-    <Card title="Favourite start places" subtitle="Where your activities begin (about 100 m)">
+    <Card
+      title="Favourite start places"
+      subtitle="Starts within 150 m of each other count as one place"
+    >
       {!places ? (
         <Skeleton height={220} />
       ) : top.length === 0 ? (
@@ -447,20 +494,12 @@ function PlacesCard({
           {top.map((p, i) => {
             const isFocused = focused?.lat === p.lat && focused?.lon === p.lon;
             return (
-              <li
-                key={`${p.lat},${p.lon}`}
-                className="flex items-center gap-3 rounded-xl px-2 py-1.5"
-              >
-                <span className="w-4 text-right text-xs font-semibold text-ink-3 tabular">
-                  {i + 1}
-                </span>
+              <li key={`${p.lat},${p.lon}`} className="flex items-center gap-3 px-1 py-1.5">
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-xs text-ink-2 tabular">
-                      {coordText(p.lat, p.lon)}
-                    </span>
-                    <span className="text-sm font-medium text-ink tabular">
-                      {fmtNumber(p.activities)}
+                    <span className="text-sm font-medium text-ink">Place {i + 1}</span>
+                    <span className="text-sm text-ink-2 tabular">
+                      {fmtNumber(p.activities)} {p.activities === 1 ? "start" : "starts"}
                     </span>
                   </span>
                   <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-surface-3">
@@ -470,12 +509,16 @@ function PlacesCard({
                       style={{ width: `${(p.activities / max) * 100}%` }}
                     />
                   </span>
+                  <span className="mt-1 block truncate text-[11px] text-ink-3 tabular">
+                    {coordText(p.lat, p.lon)}
+                  </span>
                 </span>
                 <button
                   type="button"
                   onClick={() => onFocus(p)}
-                  aria-label={`Show start place ${i + 1} on the map`}
+                  aria-label={`Show place ${i + 1} on the map`}
                   aria-pressed={isFocused}
+                  title="Show on the map"
                   className={clsx(
                     "rounded-lg p-1.5 hover:bg-surface-2 hover:text-ink",
                     isFocused ? "text-accent" : "text-ink-3",
@@ -598,14 +641,18 @@ export default function MapPage() {
     const t = tracks ?? [];
     const zoom = tiles?.zoom ?? 14;
     const cluster = maxClusterTiles(tiles?.tiles ?? []);
+    const rows = sportRows(t);
+    const bySport = rows.length <= MAX_SPORT_COLOURS;
+    const accent = CATEGORICAL[mode][0]!;
     return {
+      bySport,
       byId: new Map(t.map((x) => [x.activity_id, x])),
-      routes: routeFeatures(t, (g) => sportColor(g, mode)),
+      routes: routeFeatures(t, (g) => (bySport ? sportColor(g, mode) : accent)),
       tiles: tileFeatures(tiles?.tiles ?? [], zoom, cluster),
       square: squareFeature(tiles?.max_square ?? null, zoom),
       trackBounds: boundsOf(t.map((x) => x.points)),
       tileBounds: tilesBounds(tiles?.tiles ?? [], zoom),
-      rows: sportRows(t),
+      rows,
       distance: t.reduce((s, x) => s + (x.distance_m ?? 0), 0),
     };
   }, [tracks, tiles, mode]);
@@ -619,13 +666,17 @@ export default function MapPage() {
     () =>
       buildLayers(view, mode, {
         routes: geo.routes,
+        count: tracks?.length ?? 0,
         heat,
         tiles: geo.tiles,
         square: geo.square,
-        selected: trackFeature(selectedTrack, sportColor(selectedTrack?.sport_group ?? "", mode)),
+        selected: trackFeature(
+          selectedTrack,
+          geo.bySport ? sportColor(selectedTrack?.sport_group ?? "", mode) : CHROME[mode].text,
+        ),
         focus: placeFeature(focus),
       }),
-    [view, mode, geo, heat, selectedTrack, focus],
+    [view, mode, geo, heat, selectedTrack, focus, tracks],
   );
   const bounds = useMemo(
     () =>
@@ -710,7 +761,7 @@ export default function MapPage() {
 
         <Card
           title="Your map"
-          subtitle={SUBTITLE[view]}
+          subtitle={subtitle(view, geo.bySport)}
           actions={
             <Segmented label="Map view" value={view} onChange={changeView} options={VIEWS} />
           }
@@ -764,13 +815,22 @@ export default function MapPage() {
               <Legend
                 view={view}
                 sports={geo.rows}
+                bySport={geo.bySport}
+                hasSelection={!!selectedTrack}
                 mode={mode}
                 className="pointer-events-none absolute bottom-2 left-2 hidden max-w-[calc(100%-4rem)] rounded-xl border border-line bg-surface px-3 py-2 shadow-card sm:block"
               />
             </div>
           )}
           {!loading && !noData && (
-            <Legend view={view} sports={geo.rows} mode={mode} className="mt-3 sm:hidden" />
+            <Legend
+              view={view}
+              sports={geo.rows}
+              bySport={geo.bySport}
+              hasSelection={!!selectedTrack}
+              mode={mode}
+              className="mt-3 sm:hidden"
+            />
           )}
         </Card>
 

@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 import numpy as np
 from fastapi import APIRouter, Query
 
-from garminizer.analytics.geo import max_cluster, max_square
+from garminizer.analytics.geo import haversine_m, max_cluster, max_square
 from garminizer.api.deps import RangeDep, SessionDep, SportDep, rows
 from garminizer.api.schemas import Model
 
 router = APIRouter(prefix="/api/map", tags=["map"])
 
 LOW_DETAIL_POINTS = 120
+PLACE_RADIUS_M = 150.0  # start points closer than this to a place's centre belong to it
 
 
 class MapTrack(Model):
@@ -122,19 +124,47 @@ def tiles(
     )
 
 
+def cluster_places(
+    points: Iterable[tuple[float, float, int]], radius_m: float = PLACE_RADIUS_M
+) -> list[MapPlace]:
+    """Group start points ``(lat, lon, activities)`` into places (deterministic).
+
+    Points are visited most used first (ties by lat, lon). A point joins the nearest place whose
+    centre (its most used point) lies within ``radius_m``, otherwise it becomes a new place, so
+    place centres are always more than ``radius_m`` apart. Places come most used first.
+    """
+    centres: list[tuple[float, float]] = []
+    counts: list[int] = []
+    for lat, lon, n in sorted(points, key=lambda p: (-p[2], p[0], p[1])):
+        if centres:
+            lats, lons = zip(*centres, strict=True)
+            dist = haversine_m(lat, lon, lats, lons)
+            nearest = int(np.argmin(dist))
+            if float(dist[nearest]) <= radius_m:
+                counts[nearest] += n
+                continue
+        centres.append((lat, lon))
+        counts.append(n)
+    places = [
+        MapPlace(lat=round(lat, 4), lon=round(lon, 4), activities=n)
+        for (lat, lon), n in zip(centres, counts, strict=True)
+    ]
+    return sorted(places, key=lambda p: (-p.activities, p.lat, p.lon))
+
+
 @router.get("/places", response_model=list[MapPlace])
 def places(session: SessionDep, rng: RangeDep, sport: SportDep) -> list[MapPlace]:
-    """Activity start points rounded to 3 decimals (about 100 m), most used first."""
+    """Favourite start places: activity starts within 150 m of each other, most used first."""
     where, params = _filter(rng, sport)
     data = rows(
         session,
         f"""
-        SELECT round(a.start_lat::numeric, 3)::float8 AS lat,
-               round(a.start_lon::numeric, 3)::float8 AS lon, count(*) AS activities
+        SELECT round(a.start_lat::numeric, 4)::float8 AS lat,
+               round(a.start_lon::numeric, 4)::float8 AS lon, count(*) AS activities
         FROM garmin.activity a
         WHERE {where} AND a.start_lat IS NOT NULL AND a.start_lon IS NOT NULL
-        GROUP BY 1, 2 ORDER BY 3 DESC, 1, 2
+        GROUP BY 1, 2
         """,  # noqa: S608 - where is built from constants, values are bound
         **params,
     )
-    return [MapPlace(**r) for r in data]
+    return cluster_places((r["lat"], r["lon"], int(r["activities"])) for r in data)

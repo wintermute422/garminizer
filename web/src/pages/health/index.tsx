@@ -14,7 +14,6 @@ import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
 import {
   Card,
-  Delta,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -22,12 +21,12 @@ import {
   StatusPill,
   type DeltaDirection,
 } from "@/components/ui";
-import { fmtDate, fmtNumber, signed, titleCase } from "@/lib/format";
+import { DASH, fmtDate, fmtNumber, fmtShortDate, titleCase } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { addDays, useRange } from "@/lib/range";
 import { DayView } from "./DayView";
 import { HourHeatmap } from "./Heatmap";
-import { DeltaHint, MetricTile, Spark, TileSkeletons } from "./kit";
+import { Change, MetricTile, Spark, TileSkeletons } from "./kit";
 import {
   bodyBatteryOption,
   dayExtent,
@@ -65,16 +64,9 @@ interface TileSpec {
   direction: DeltaDirection;
   color: string;
   get: (d: Day) => number | null | undefined;
-  badge?: (rows: Day[]) => ReactNode;
+  /** State metrics show the latest value with that day's badge (and the period average). */
+  latestBadge?: (row: Day) => ReactNode;
   sub?: (rows: Day[]) => ReactNode;
-}
-
-function latest<T>(rows: Day[], get: (d: Day) => T | null | undefined): T | null {
-  for (let i = rows.length - 1; i >= 0; i--) {
-    const v = get(rows[i]!);
-    if (v !== null && v !== undefined) return v;
-  }
-  return null;
 }
 
 function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number }) {
@@ -98,7 +90,7 @@ function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number })
     },
     {
       key: "hrv",
-      label: "HRV",
+      label: "HRV · last night",
       icon: <Activity size={14} />,
       unit: "ms",
       digits: 0,
@@ -106,10 +98,10 @@ function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number })
       direction: "up-good",
       color: col.hrv,
       get: (d) => d.hrv_last_night_avg_ms,
-      badge: (r) => {
-        const s = latest(r, (d) => d.hrv_status);
-        return s ? <StatusPill status={hrvStatus(s)} label={titleCase(s)} /> : null;
-      },
+      latestBadge: (d) =>
+        d.hrv_status ? (
+          <StatusPill status={hrvStatus(d.hrv_status)} label={titleCase(d.hrv_status)} />
+        ) : null,
     },
     {
       key: "ready",
@@ -119,12 +111,15 @@ function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number })
       digits: 0,
       deltaDigits: 1,
       direction: "up-good",
-      color: col.score,
+      color: col.readiness,
       get: (d) => d.readiness_score,
-      badge: (r) => {
-        const l = latest(r, (d) => d.readiness_level);
-        return l ? <StatusPill status={readinessStatus(l)} label={titleCase(l)} /> : null;
-      },
+      latestBadge: (d) =>
+        d.readiness_level ? (
+          <StatusPill
+            status={readinessStatus(d.readiness_level)}
+            label={titleCase(d.readiness_level)}
+          />
+        ) : null,
     },
     {
       key: "bb",
@@ -197,10 +192,38 @@ function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number })
       {specs.map((s) => {
         const cur = mean(rows.map(s.get));
         const before = mean(prev.map(s.get));
-        const d = diff(cur, before);
         const weeks = weekly(rows, (r) => r.day, s.get);
         const unitSuffix =
-          s.unit && !s.unit.startsWith("/") && !s.unit.startsWith("%") ? ` ${s.unit}` : "";
+          s.unit && !s.unit.startsWith("/") && !s.unit.startsWith("%") ? s.unit : "";
+        const spark = (
+          <Spark
+            values={weeks.map((w) => w.value)}
+            color={s.color}
+            label={`${s.label}, weekly averages`}
+          />
+        );
+        if (s.latestBadge) {
+          // The badge describes the number shown: both come from the latest day.
+          const row = [...rows].reverse().find((r) => s.get(r) != null);
+          return (
+            <MetricTile
+              key={s.key}
+              label={s.label}
+              icon={s.icon}
+              value={row ? fmtNumber(s.get(row), s.digits) : DASH}
+              unit={s.unit}
+              delta={row ? s.latestBadge(row) : null}
+              sub={
+                row ? (
+                  <span>
+                    {fmtShortDate(row.day)} · {days}-day avg {fmtNumber(cur, s.digits)}
+                  </span>
+                ) : null
+              }
+              spark={spark}
+            />
+          );
+        }
         return (
           <MetricTile
             key={s.key}
@@ -209,29 +232,16 @@ function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number })
             value={fmtNumber(cur, s.digits)}
             unit={s.unit}
             delta={
-              d == null ? null : (
-                <DeltaHint title={`Change vs the previous ${days} days`}>
-                  <Delta
-                    value={d}
-                    text={signed(d, s.deltaDigits, unitSuffix)}
-                    direction={s.direction}
-                  />
-                </DeltaHint>
-              )
-            }
-            sub={
-              <>
-                {s.badge?.(rows)}
-                {s.sub && <span>{s.sub(rows)}</span>}
-              </>
-            }
-            spark={
-              <Spark
-                values={weeks.map((w) => w.value)}
-                color={s.color}
-                label={`${s.label}, weekly averages`}
+              <Change
+                value={diff(cur, before)}
+                digits={s.deltaDigits}
+                unit={unitSuffix}
+                direction={s.direction}
+                title={`Change vs the previous ${days} days`}
               />
             }
+            sub={s.sub && <span>{s.sub(rows)}</span>}
+            spark={spark}
           />
         );
       })}

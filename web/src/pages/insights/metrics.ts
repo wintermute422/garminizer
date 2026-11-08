@@ -29,7 +29,14 @@ export interface MetricView {
   digits: number;
 }
 
-const STEP: Record<string, number> = { steps: 1000, active_kcal: 100, load: 10 };
+const STEP: Record<string, number> = {
+  steps: 1000,
+  active_kcal: 100,
+  intake_kcal: 100,
+  energy_balance_kcal: 100,
+  protein_g: 10,
+  load: 10,
+};
 
 export function metricView(
   key: string,
@@ -159,4 +166,64 @@ export function phrase(label: string): string {
   if (second && second === second.toUpperCase() && second !== second.toLowerCase()) return label;
   if (/^\w\d/.test(label)) return label;
   return label.charAt(0).toLowerCase() + label.slice(1);
+}
+
+/**
+ * Metrics computed from each other: their correlation is trivially high and says nothing
+ * (TSB = CTL − ATL, both smoothed load; sleep stages are parts of sleep; energy balance is
+ * intake minus expenditure).
+ */
+const DERIVED_GROUPS: readonly (readonly string[])[] = [
+  ["body_battery_high", "body_battery_at_wake"],
+  ["load", "ctl", "atl", "tsb"],
+  ["sleep_s", "sleep_deep_s", "sleep_rem_s"],
+  ["intake_kcal", "protein_g", "energy_balance_kcal"],
+  ["active_kcal", "energy_balance_kcal"],
+];
+
+export function isDerived(a: string, b: string): boolean {
+  return a === b || DERIVED_GROUPS.some((g) => g.includes(a) && g.includes(b));
+}
+
+export interface PairStat {
+  /** Metric on day d (matrix column). */
+  x: string;
+  /** Metric on day d + lag (matrix row). */
+  y: string;
+  lag: number;
+  r: number | null;
+  n: number;
+  derived: boolean;
+  /** Indexes into `metrics`. */
+  a: number;
+  b: number;
+}
+
+/**
+ * The distinct pairs of a correlation matrix: without a lag the matrix is symmetric, so each
+ * pair once (a < b); with a lag direction matters, so every ordered pair (a ≠ b).
+ */
+export function correlationPairs(d: {
+  lag: number;
+  metrics: string[];
+  r: (number | null)[][];
+  n: number[][];
+}): PairStat[] {
+  const out: PairStat[] = [];
+  d.metrics.forEach((x, a) =>
+    d.metrics.forEach((y, b) => {
+      if (d.lag === 0 ? b <= a : a === b) return;
+      out.push({
+        x,
+        y,
+        lag: d.lag,
+        r: d.r[a]?.[b] ?? null,
+        n: d.n[a]?.[b] ?? 0,
+        derived: isDerived(x, y),
+        a,
+        b,
+      });
+    }),
+  );
+  return out;
 }

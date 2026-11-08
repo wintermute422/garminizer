@@ -20,7 +20,7 @@ import {
   SleepCard,
   StressCard,
 } from "./recovery";
-import { todaysCall } from "./status";
+import { todaysCall } from "@/lib/status";
 import { validZone } from "./time";
 import { FitnessCard, PerformanceCard, TrainingStatusCard } from "./training";
 

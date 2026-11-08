@@ -17,7 +17,7 @@ import {
   wash,
   type Mode,
 } from "@/lib/tokens";
-import { hrvState, readinessState, sleepState, stressLabel } from "./status";
+import { hrvState, readinessState, sleepState, stressLabel } from "@/lib/status";
 import { fmtClock, fmtHourOfDay, hoursIntoDay } from "./time";
 import { BandBullet, BigValue, Meter, MiniStat } from "./widgets";
 

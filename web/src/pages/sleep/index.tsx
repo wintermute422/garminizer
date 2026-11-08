@@ -5,18 +5,17 @@ import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartInstance } from "@/components/Chart";
 import {
   Card,
-  Delta,
   EmptyState,
   ErrorState,
   PageHeader,
   Skeleton,
   type DeltaDirection,
 } from "@/components/ui";
-import { fmtDate, fmtHours, fmtNumber, signed } from "@/lib/format";
+import { fmtDate, fmtHours, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { useRange } from "@/lib/range";
 import { SLEEP_STAGES } from "@/lib/tokens";
-import { DeltaHint, MetricTile, Spark, TileSkeletons } from "../health/kit";
+import { Change, MetricTile, Spark, TileSkeletons } from "../health/kit";
 import {
   dayOfPoint,
   diff,
@@ -26,7 +25,7 @@ import {
   spanDays,
   stdev,
   useNarrow,
-  washHex,
+  outlineFill,
   weekly,
 } from "../health/util";
 import { NightDetail } from "./NightDetail";
@@ -47,21 +46,36 @@ type Stats = Schemas["SleepStats"];
 
 const TILE_GRID = "grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6";
 
+/** Stage share of time in bed (deep + light + REM + awake), so the four stages sum to 100 %. */
 function share(part: number | null | undefined, n: Night | Stats, kind: "night" | "stats") {
-  const [d, l, r] =
+  const parts =
     kind === "night"
-      ? [(n as Night).deep_s, (n as Night).light_s, (n as Night).rem_s]
-      : [(n as Stats).avg_deep_s, (n as Stats).avg_light_s, (n as Stats).avg_rem_s];
-  const total = (d ?? 0) + (l ?? 0) + (r ?? 0);
+      ? [(n as Night).deep_s, (n as Night).light_s, (n as Night).rem_s, (n as Night).awake_s]
+      : [
+          (n as Stats).avg_deep_s,
+          (n as Stats).avg_light_s,
+          (n as Stats).avg_rem_s,
+          (n as Stats).avg_awake_s,
+        ];
+  const total = parts.reduce<number>((s, v) => s + (v ?? 0), 0);
   return part == null || !total ? null : (part / total) * 100;
 }
 
-function delta(d: number | null, text: string, direction: DeltaDirection, days: number): ReactNode {
-  if (d == null) return null;
+function delta(
+  d: number | null,
+  digits: number,
+  unit: string,
+  direction: DeltaDirection,
+  days: number,
+): ReactNode {
   return (
-    <DeltaHint title={`Change vs the previous ${days} days`}>
-      <Delta value={d} text={text} direction={direction} />
-    </DeltaHint>
+    <Change
+      value={d}
+      digits={digits}
+      unit={unit}
+      direction={direction}
+      title={`Change vs the previous ${days} days`}
+    />
   );
 }
 
@@ -96,17 +110,12 @@ function Tiles({
         label="Average sleep"
         icon={<MoonStar size={14} />}
         value={fmtHours(stats.avg_duration_s)}
-        delta={delta(
-          durDiff == null ? null : durDiff / 60,
-          signed(durDiff == null ? null : durDiff / 60, 0, " min"),
-          "up-good",
-          days,
-        )}
+        delta={delta(durDiff == null ? null : durDiff / 60, 0, "min", "up-good", days)}
         sub={`${fmtNumber(stats.nights)} nights`}
         spark={
           <Spark
             values={wk((n) => asleep(n))}
-            color={col.score}
+            color={col.sleep}
             label="Sleep duration, weekly averages"
           />
         }
@@ -116,11 +125,11 @@ function Tiles({
         icon={<Star size={14} />}
         value={fmtNumber(stats.avg_score)}
         unit="/ 100"
-        delta={delta(scoreDiff, signed(scoreDiff, 1), "up-good", days)}
+        delta={delta(scoreDiff, 1, "", "up-good", days)}
         spark={
           <Spark
             values={wk((n) => n.score)}
-            color={col.score}
+            color={col.sleep}
             label="Sleep score, weekly averages"
           />
         }
@@ -130,7 +139,7 @@ function Tiles({
         icon={<Brain size={14} />}
         value={fmtNumber(deep)}
         unit="%"
-        delta={delta(diff(deep, prevDeep), signed(diff(deep, prevDeep), 1, " pp"), "neutral", days)}
+        delta={delta(diff(deep, prevDeep), 1, "pp", "neutral", days)}
         sub={fmtHours(stats.avg_deep_s)}
         spark={
           <Spark
@@ -145,7 +154,7 @@ function Tiles({
         icon={<BedDouble size={14} />}
         value={fmtNumber(rem)}
         unit="%"
-        delta={delta(diff(rem, prevRem), signed(diff(rem, prevRem), 1, " pp"), "neutral", days)}
+        delta={delta(diff(rem, prevRem), 1, "pp", "neutral", days)}
         sub={fmtHours(stats.avg_rem_s)}
         spark={
           <Spark
@@ -160,7 +169,7 @@ function Tiles({
         icon={<AlarmClock size={14} />}
         value={stats.bedtime_sd_min == null ? "–" : `±${fmtNumber(stats.bedtime_sd_min)}`}
         unit="min"
-        delta={delta(sdDiff, signed(sdDiff, 0, " min"), "down-good", days)}
+        delta={delta(sdDiff, 0, "min", "down-good", days)}
         sub={stats.waketime_sd_min == null ? null : `wake ±${fmtNumber(stats.waketime_sd_min)} min`}
         spark={
           <Spark
@@ -213,7 +222,7 @@ function GroupLegend() {
       <span className="inline-flex items-center gap-1.5">
         <span
           className="inline-block size-2.5 rounded-[3px] border-[1.5px]"
-          style={{ background: washHex(col.weekend, 0.28), borderColor: col.weekend }}
+          style={{ background: outlineFill(col.weekend, mode), borderColor: col.weekend }}
           aria-hidden
         />
         Weekend nights

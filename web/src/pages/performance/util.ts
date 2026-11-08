@@ -1,6 +1,6 @@
 /** Performance page helpers: race distances, endurance classes, deltas over a series. */
-import { useSyncExternalStore } from "react";
 import { fmtDuration, titleCase } from "@/lib/format";
+import { CHROME, type Mode } from "@/lib/tokens";
 
 export function dayMs(day: string): number {
   return new Date(`${day}T12:00:00`).getTime();
@@ -86,10 +86,12 @@ export function withGaps(points: [number, number][], days = 14): [number, number
   return out;
 }
 
-/** "−0:18" / "+1:02" for a change in seconds. */
-export function signedDuration(s: number): string {
-  if (Math.abs(s) < 0.5) return "±0:00";
-  return `${s > 0 ? "+" : "−"}${fmtDuration(Math.abs(s))}`;
+/** A change in time: "−18 s" under a minute, "−1:23" from a minute up, "no change" at 0. */
+export function fmtTimeDelta(s: number): string {
+  const r = Math.round(s);
+  if (r === 0) return "no change";
+  const a = Math.abs(r);
+  return `${r > 0 ? "+" : "−"}${a < 60 ? `${a} s` : fmtDuration(a)}`;
 }
 
 /** Whole years between an ISO birth date and an ISO day. */
@@ -102,19 +104,7 @@ export function ageOn(birth: string, day: string): number {
   return age;
 }
 
-const WIDE = "(min-width: 640px)";
-
-function subscribeWide(onChange: () => void): () => void {
-  const mq = window.matchMedia?.(WIDE);
-  mq?.addEventListener("change", onChange);
-  return () => mq?.removeEventListener("change", onChange);
-}
-
-/** True from the `sm` breakpoint up (stat-tile sparklines only fit there). */
-export function useWide(): boolean {
-  return useSyncExternalStore(
-    subscribeWide,
-    () => window.matchMedia?.(WIDE).matches ?? true,
-    () => true,
-  );
+/** Text label halo so reference labels stay legible where they cross data. */
+export function halo(mode: Mode): Record<string, unknown> {
+  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: 3 };
 }

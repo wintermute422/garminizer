@@ -1,17 +1,9 @@
 import { keepPreviousData } from "@tanstack/react-query";
 import { Dumbbell, Percent, Ruler, Scale } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
-import {
-  Card,
-  Delta,
-  EmptyState,
-  ErrorState,
-  PageHeader,
-  ScrollArea,
-  StatusPill,
-} from "@/components/ui";
+import { Card, EmptyState, ErrorState, PageHeader, ScrollArea, StatusPill } from "@/components/ui";
 import {
   axisTooltip,
   dayPoint,
@@ -26,8 +18,7 @@ import {
   DASH,
   fmtDate,
   fmtNumber,
-  fmtWeight,
-  signed,
+  fmtShortDate,
   titleCase,
   weightValue,
   type UnitSystem,
@@ -35,10 +26,13 @@ import {
 import { useMode, useUnits } from "@/lib/preferences";
 import { useRange } from "@/lib/range";
 import { CHROME, type Mode } from "@/lib/tokens";
-import { MetricTile, Spark, TileSkeletons } from "../health/kit";
+import { Change, MetricTile, Spark, TileSkeletons } from "../health/kit";
 import {
+  cased,
   DAY_MS,
   dotSize,
+  dotStyle,
+  legendItems,
   dayAxis,
   dayOfPoint,
   fmtWallDate,
@@ -105,7 +99,13 @@ function measureOption(opts: {
   const trendAt = new Map(opts.trend.map(([x, v]) => [x, v]));
   return {
     grid: { ...GRID_WITH_LEGEND, right: 40 },
-    legend: legend(),
+    legend: {
+      ...legend(),
+      data: legendItems([
+        ["Weigh-ins", "dot"],
+        ["7-day trend", "line"],
+      ]),
+    },
     tooltip: axisTooltip((params) => {
       const arr = (Array.isArray(params) ? params : [params]) as { value?: unknown }[];
       const v = arr.find((a) => Array.isArray(a.value))?.value as [number, number] | undefined;
@@ -142,19 +142,22 @@ function measureOption(opts: {
           color,
           dotSize(points.length),
         ),
-        itemStyle: { color, opacity: 0.45, borderWidth: 0 },
+        itemStyle: dotStyle(color, mode),
       },
-      {
-        ...line("7-day trend", opts.trend, color),
-        endLabel: {
-          show: true,
-          color: CHROME[mode].text2,
-          fontSize: 11,
-          distance: 6,
-          formatter: (p: { value: [number, number | null] }) =>
-            p.value[1] == null ? "" : fmtNumber(p.value[1], 1),
+      ...cased(
+        {
+          ...line("7-day trend", opts.trend, color),
+          endLabel: {
+            show: true,
+            color: CHROME[mode].text2,
+            fontSize: 11,
+            distance: 6,
+            formatter: (p: { value: [number, number | null] }) =>
+              p.value[1] == null ? "" : fmtNumber(p.value[1], 1),
+          },
         },
-      },
+        mode,
+      ),
     ],
   };
 }
@@ -256,6 +259,19 @@ function change30(trend: [number, number | null][]): number | null {
   return near ? last[1] - near[1] : null;
 }
 
+/** Last non-null point of a trend series. */
+function lastOf(trend: [number, number | null][]): { x: number; v: number } | null {
+  for (let i = trend.length - 1; i >= 0; i--) {
+    const [x, v] = trend[i]!;
+    if (v != null) return { x, v };
+  }
+  return null;
+}
+
+/**
+ * Tiles show the same number the charts end on: the 7-day trend at the last weigh-in of the
+ * period (labelled with its date), plus the change over ~30 days of that trend.
+ */
 function Tiles({
   data,
   points,
@@ -269,25 +285,45 @@ function Tiles({
 }) {
   const col = measureColors(mode);
   const latest = data.latest;
-  const recent = [...points].reverse().find((p) => p.item.body_water_pct != null)?.item;
-  const wk = (v: (w: WeighIn) => number | null) =>
-    weekly(
-      points,
-      (p) => p.day,
-      (p) => v(p.item),
-    ).map((w) => w.value);
-  const fatTrend = trendOf(points, (w) => w.body_fat_pct);
-  const muscleTrend = trendOf(points, (w) => w.muscle_mass_kg);
-  const fatChange = change30(fatTrend);
-  const muscleChange = change30(muscleTrend);
   const unit = units === "metric" ? "kg" : "lb";
   const wv = (kg: number) => weightValue(kg, units);
-  const change = (d: number | null, text: string, label: string): ReactNode =>
-    d == null ? (
-      <span>{label}</span>
-    ) : (
+  const weightTrend: [number, number | null][] = data.trend.map((t) => [
+    dayPoint(t.day, 0)[0],
+    t.weight_kg,
+  ]);
+  const fatTrend: [number, number | null][] = data.trend.map((t) => [
+    dayPoint(t.day, 0)[0],
+    t.body_fat_pct,
+  ]);
+  const bmiTrend = trendOf(points, (w) => w.bmi);
+  const muscleTrend = trendOf(points, (w) => w.muscle_mass_kg);
+  const w = lastOf(weightTrend);
+  const fat = lastOf(fatTrend);
+  const bmi = lastOf(bmiTrend);
+  const muscle = lastOf(muscleTrend);
+  const wk = (trend: [number, number | null][], f: (v: number) => number = (v) => v) =>
+    weekly(
+      trend,
+      ([x]) => dayOfPoint(x),
+      ([, v]) => (v == null ? null : f(v)),
+    ).map((x) => x.value);
+  // Without weigh-ins in the period, fall back to the last weigh-in before it.
+  const label = (p: { x: number } | null) =>
+    p ? (
+      <span className="basis-full">7-day trend · {fmtShortDate(dayOfPoint(p.x))}</span>
+    ) : latest ? (
+      <span className="basis-full">last weigh-in · {fmtShortDate(latest.measured_at)}</span>
+    ) : null;
+  const change = (d: number | null, digits: number, u: string) =>
+    d == null ? null : (
       <>
-        <Delta value={d} text={text} direction="neutral" />
+        <Change
+          value={d}
+          digits={digits}
+          unit={u}
+          direction="neutral"
+          title="Change of the 7-day trend over about 30 days"
+        />
         <span>in 30 days</span>
       </>
     );
@@ -296,61 +332,49 @@ function Tiles({
       <MetricTile
         label="Weight"
         icon={<Scale size={14} />}
-        value={latest ? fmtNumber(wv(latest.weight_kg), 1) : DASH}
+        value={w ? fmtNumber(wv(w.v), 1) : latest ? fmtNumber(wv(latest.weight_kg), 1) : DASH}
         unit={unit}
-        delta={change(
-          data.change_30d_kg,
-          signed(data.change_30d_kg == null ? null : wv(data.change_30d_kg), 1, ` ${unit}`),
-          latest ? `on ${fmtDate(latest.measured_at)}` : "no weigh-in yet",
-        )}
+        delta={label(w)}
+        sub={change(data.change_30d_kg == null ? null : wv(data.change_30d_kg), 1, unit)}
         spark={
-          <Spark
-            values={weekly(
-              data.trend,
-              (t) => t.day,
-              (t) => (t.weight_kg == null ? null : wv(t.weight_kg)),
-            ).map((w) => w.value)}
-            color={col.weight}
-            label="Weight trend, weekly"
-          />
+          <Spark values={wk(weightTrend, wv)} color={col.weight} label="Weight trend, weekly" />
         }
       />
       <MetricTile
         label="BMI"
         icon={<Ruler size={14} />}
-        value={fmtNumber(latest?.bmi, 1)}
-        sub={bmiNote(latest?.bmi)}
-        spark={<Spark values={wk((w) => w.bmi)} color={col.weight} label="BMI, weekly" />}
+        value={fmtNumber(bmi?.v ?? latest?.bmi, 1)}
+        delta={label(bmi)}
+        sub={bmiNote(bmi?.v ?? latest?.bmi)}
+        spark={<Spark values={wk(bmiTrend)} color={col.weight} label="BMI trend, weekly" />}
       />
       <MetricTile
         label="Body fat"
         icon={<Percent size={14} />}
-        value={fmtNumber(latest?.body_fat_pct, 1)}
+        value={fmtNumber(fat?.v ?? latest?.body_fat_pct, 1)}
         unit="%"
-        delta={change(
-          fatChange,
-          signed(fatChange, 1, " pp"),
-          recent?.body_water_pct != null ? `water ${fmtNumber(recent.body_water_pct)} %` : "",
-        )}
-        spark={
-          <Spark values={wk((w) => w.body_fat_pct)} color={col.fat} label="Body fat, weekly" />
-        }
+        delta={label(fat)}
+        sub={change(change30(fatTrend), 1, "pp")}
+        spark={<Spark values={wk(fatTrend)} color={col.fat} label="Body fat trend, weekly" />}
       />
       <MetricTile
         label="Muscle mass"
         icon={<Dumbbell size={14} />}
-        value={latest?.muscle_mass_kg != null ? fmtNumber(wv(latest.muscle_mass_kg), 1) : DASH}
+        value={
+          muscle
+            ? fmtNumber(wv(muscle.v), 1)
+            : latest?.muscle_mass_kg != null
+              ? fmtNumber(wv(latest.muscle_mass_kg), 1)
+              : DASH
+        }
         unit={unit}
-        delta={change(
-          muscleChange,
-          signed(muscleChange == null ? null : wv(muscleChange), 1, ` ${unit}`),
-          recent?.bone_mass_kg != null ? `bone ${fmtWeight(recent.bone_mass_kg, units)}` : "",
-        )}
+        delta={label(muscle)}
+        sub={change(change30(muscleTrend) == null ? null : wv(change30(muscleTrend)!), 1, unit)}
         spark={
           <Spark
-            values={wk((w) => (w.muscle_mass_kg == null ? null : wv(w.muscle_mass_kg)))}
+            values={wk(muscleTrend, wv)}
             color={col.muscle}
-            label="Muscle mass, weekly"
+            label="Muscle mass trend, weekly"
           />
         }
       />

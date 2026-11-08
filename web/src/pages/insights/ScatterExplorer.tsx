@@ -236,7 +236,7 @@ export function ScatterView({ data, xv, yv }: { data: Scatter; xv: MetricView; y
       series: [
         {
           ...scatter("Days", pts, dot, 8),
-          itemStyle: { color: dot, opacity: 0.6, borderColor: c.surface, borderWidth: 1 },
+          itemStyle: { color: dot, opacity: 0.85, borderColor: c.surface, borderWidth: 1 },
           emphasis: { scale: 1.6, itemStyle: { opacity: 1 } },
         },
         {

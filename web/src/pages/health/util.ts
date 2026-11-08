@@ -5,7 +5,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { addDays } from "@/lib/range";
-import { CATEGORICAL, CHROME, NEUTRAL, type Mode, type Status } from "@/lib/tokens";
+import { CATEGORICAL, CHROME, MEASURE_COLORS, NEUTRAL, type Mode, type Status } from "@/lib/tokens";
 
 type Obj = Record<string, unknown>;
 
@@ -275,24 +275,67 @@ export function dayAxis(min: number, max: number): Obj {
 
 /** One fixed categorical slot per measure, the same on every health page. */
 export function measureColors(mode: Mode) {
+  const m = MEASURE_COLORS[mode];
   const c = CATEGORICAL[mode];
   return {
-    hr: c[7]!,
-    hrv: c[0]!,
-    stress: c[1]!,
-    bodyBattery: c[2]!,
-    steps: c[0]!,
-    spo2: c[3]!,
-    respiration: c[5]!,
-    score: c[0]!,
-    weekday: c[0]!,
-    weekend: c[1]!,
-    weight: c[0]!,
+    hr: m.hr,
+    hrv: m.hrv,
+    stress: m.stress,
+    bodyBattery: m.bodyBattery,
+    steps: m.steps,
+    spo2: m.spo2,
+    respiration: m.respiration,
+    sleep: m.sleep,
+    readiness: m.fitness,
+    weight: m.weight,
+    // Not in the shared measure set (body page only): distinct slots on that page.
     fat: c[1]!,
     muscle: c[2]!,
     pressure: c[6]!,
+    // Weekday / weekend nights: two categorical slots + fill style as the second encoding.
+    weekday: c[0]!,
+    weekend: c[1]!,
     neutral: NEUTRAL[mode],
   };
+}
+
+/**
+ * Raw daily dots under a trend line: lighter than the line but still ≥ 3:1 against the card
+ * (a plain 40 % opacity sinks into the dark surface).
+ */
+export function dotStyle(color: string, mode: Mode): Obj {
+  return { color, opacity: mode === "dark" ? 0.85 : 0.75, borderWidth: 0 };
+}
+
+/**
+ * A trend line with a surface-coloured casing underneath, so it reads above dense dots.
+ * Returns [casing, line]; keep the casing out of the legend with `legend.data`.
+ */
+export function cased(lineSeries: Obj, mode: Mode): Obj[] {
+  const ls = (lineSeries.lineStyle as Obj | undefined) ?? {};
+  return [
+    {
+      type: "line",
+      name: CASING,
+      data: lineSeries.data,
+      symbol: "none",
+      silent: true,
+      connectNulls: false,
+      lineStyle: { color: CHROME[mode].surface, width: ((ls.width as number) ?? 2) + 3 },
+      itemStyle: { color: CHROME[mode].surface },
+      tooltip: { show: false },
+      z: 3,
+    },
+    { ...lineSeries, z: 4 },
+  ];
+}
+
+export const CASING = "casing";
+
+/** Value rounded the way it is displayed (so "no change" never wears an arrow colour). */
+export function shown(v: number | null, digits: number): number | null {
+  if (v == null) return null;
+  return Math.abs(v) < 0.5 * 10 ** -digits ? 0 : v;
 }
 
 /** Garmin state strings → reserved status colours (always shown with icon + label). */
@@ -378,7 +421,7 @@ export function rangeBars(
     z?: number;
   },
 ): Obj {
-  const fill = opts.outline ? washHex(color, 0.28) : color;
+  const fill = opts.outline ? outlineFill(color, mode) : color;
   return {
     type: "custom",
     name,
@@ -451,6 +494,14 @@ export function rangeBars(
   };
 }
 
+/**
+ * Fill of an outlined (secondary-encoded) mark: a strong enough wash that it reads as the hue on
+ * the dark card instead of a muddy brown, while the solid edge keeps it distinct from solid fills.
+ */
+export function outlineFill(color: string, mode: Mode): string {
+  return washHex(color, mode === "dark" ? 0.6 : 0.3);
+}
+
 /** rgba() wash of a hex colour (same as tokens.wash; kept here for custom series fills). */
 export function washHex(hex: string, alpha: number): string {
   const n = Number.parseInt(hex.slice(1), 16);
@@ -517,4 +568,14 @@ export function tooltipMuted(label: string, value: string, mode: Mode): string {
 /** Marker size that keeps long ranges from turning into a carpet of dots. */
 export function dotSize(points: number, base = 6): number {
   return points > 240 ? base - 2 : points > 120 ? base - 1 : base;
+}
+
+const LINE_ICON = "path://M0,0H24V5H0Z";
+
+/** Legend entries whose icon matches the mark: dots for raw readings, a dash for lines. */
+export function legendItems(items: [string, "dot" | "line" | "area"][]): Obj[] {
+  return items.map(([name, kind]) => ({
+    name,
+    icon: kind === "dot" ? "circle" : kind === "line" ? LINE_ICON : "roundRect",
+  }));
 }

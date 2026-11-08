@@ -12,8 +12,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from garminizer.analytics.geo import max_cluster, max_square
-from garminizer.api.routers.maps import LOW_DETAIL_POINTS, thin
+from garminizer.analytics.geo import haversine_m, max_cluster, max_square
+from garminizer.api.routers.maps import LOW_DETAIL_POINTS, PLACE_RADIUS_M, cluster_places, thin
 from tests.api.conftest import API_END
 
 RANGE_START = API_END - timedelta(days=364)  # RangeDep default: one year ending at the last day
@@ -115,7 +115,26 @@ def test_tiles_other_zoom_is_empty(client: TestClient) -> None:
     assert client.get("/api/map/tiles", params={"zoom": 99}).status_code == 422
 
 
-def test_places_count_start_points(client: TestClient, sql: Session) -> None:
+def test_cluster_places_groups_nearby_starts() -> None:
+    # ~0.00045 deg latitude is 50 m; at 48 deg N ~0.0054 deg longitude is 400 m.
+    a = (48.0, 11.0, 5)
+    b = (48.00045, 11.0, 3)  # 50 m from a -> joins a
+    c = (48.0, 11.0054, 4)  # 400 m from a -> own place
+    d = (48.00153, 11.0, 1)  # 170 m from a, 120 m from b (not a centre) -> own place
+    e = (48.0, 11.0054, 4)  # same spot as c, equal count: tie broken by position
+    places = cluster_places([d, c, b, a])
+    assert [(p.lat, p.lon, p.activities) for p in places] == [
+        (48.0, 11.0, 8),
+        (48.0, 11.0054, 4),
+        (48.0015, 11.0, 1),
+    ]
+    # Input order does not matter.
+    assert cluster_places([a, b, c, d]) == places
+    assert cluster_places([c, e])[0].activities == 8
+    assert cluster_places([]) == []
+
+
+def test_places_cluster_start_points(client: TestClient, sql: Session) -> None:
     places = client.get("/api/map/places").json()
     n = _rows(
         sql,
@@ -129,7 +148,12 @@ def test_places_count_start_points(client: TestClient, sql: Session) -> None:
     counts = [p["activities"] for p in places]
     assert counts == sorted(counts, reverse=True)
     for p in places:
-        assert round(p["lat"], 3) == p["lat"]
-        assert round(p["lon"], 3) == p["lon"]
+        assert round(p["lat"], 4) == p["lat"]
+        assert round(p["lon"], 4) == p["lon"]
+    # Place centres are further apart than the clustering radius (no duplicates of one spot).
+    for i, p in enumerate(places):
+        for q in places[i + 1 :]:
+            assert float(haversine_m(p["lat"], p["lon"], q["lat"], q["lon"])) > PLACE_RADIUS_M
+    assert client.get("/api/map/places").json() == places  # deterministic
     walks = client.get("/api/map/places", params={"sport": "walk"}).json()
     assert 0 < sum(p["activities"] for p in walks) < n

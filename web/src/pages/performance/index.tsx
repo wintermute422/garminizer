@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { api, type Schemas } from "@/api/client";
 import { Delta, ErrorState, PageHeader, Skeleton, Sparkline, StatTile } from "@/components/ui";
-import { DASH, fmtDate, fmtNumber, fmtShortDate, signed } from "@/lib/format";
+import { DASH, fmtDate, fmtDelta, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { useRange } from "@/lib/range";
 import { sportColor } from "@/lib/sports";
-import { CATEGORICAL } from "@/lib/tokens";
 import {
   EfficiencyCard,
   EnduranceCard,
@@ -14,13 +13,12 @@ import {
   RaceCard,
   Vo2Card,
 } from "./Charts";
-import { ageOn, firstLast, sentenceCase, useWide } from "./util";
+import { ageOn, firstLast, sentenceCase } from "./util";
 
 type Series = Schemas["PerformanceSeries"];
 
-function Trend({ values, color, label }: { values: number[]; color: string; label: string }) {
-  if (values.length < 2) return null;
-  return <Sparkline values={values} color={color} label={label} />;
+function trend(values: number[], color: string, label: string) {
+  return values.length < 2 ? undefined : <Sparkline values={values} color={color} label={label} />;
 }
 
 function change<T>(
@@ -31,17 +29,15 @@ function change<T>(
 ) {
   const fl = firstLast(rows, get);
   if (!fl || fl.firstRow === undefined) return { delta: undefined, since: undefined };
-  const d = fl.last - fl.first;
+  const d = Math.round((fl.last - fl.first) * 10 ** digits) / 10 ** digits;
   return {
-    delta: <Delta value={d} text={signed(d, digits)} direction={direction} />,
-    since: `since ${fmtShortDate((fl.firstRow as { day: string }).day)}`,
+    delta: <Delta value={d} text={fmtDelta(d, digits)} direction={direction} />,
+    since: "this period",
   };
 }
 
 function Tiles({ s, age }: { s: Series; age: number | null }) {
   const mode = useMode();
-  const wide = useWide();
-  const cat = CATEGORICAL[mode];
   const l = s.latest;
   const run = change(s.vo2max, (d) => d.running, 1, "up-good");
   const ride = change(s.vo2max, (d) => d.cycling, 1, "up-good");
@@ -58,31 +54,23 @@ function Tiles({ s, age }: { s: Series; age: number | null }) {
         label="VO2max running"
         value={fmtNumber(l.vo2max_running, 1)}
         delta={run.delta}
-        sub={run.since}
-        trend={
-          wide ? (
-            <Trend
-              values={values(s.vo2max, (d) => d.running)}
-              color={sportColor("run", mode)}
-              label="VO2max running trend"
-            />
-          ) : undefined
-        }
+
+        trend={trend(
+          values(s.vo2max, (d) => d.running),
+          sportColor("run", mode),
+          "VO2max running trend",
+        )}
       />
       <StatTile
         label="VO2max cycling"
         value={fmtNumber(l.vo2max_cycling, 1)}
         delta={ride.delta}
-        sub={ride.since}
-        trend={
-          wide ? (
-            <Trend
-              values={values(s.vo2max, (d) => d.cycling)}
-              color={sportColor("ride", mode)}
-              label="VO2max cycling trend"
-            />
-          ) : undefined
-        }
+
+        trend={trend(
+          values(s.vo2max, (d) => d.cycling),
+          sportColor("ride", mode),
+          "VO2max cycling trend",
+        )}
       />
       <StatTile
         label="Fitness age"
@@ -102,15 +90,6 @@ function Tiles({ s, age }: { s: Series; age: number | null }) {
         value={fmtNumber(l.endurance_score)}
         delta={end.delta}
         sub={l.endurance_class ? sentenceCase(l.endurance_class) : undefined}
-        trend={
-          wide ? (
-            <Trend
-              values={values(s.endurance, (d) => d.score)}
-              color={cat[0]!}
-              label="Endurance score trend"
-            />
-          ) : undefined
-        }
       />
       <StatTile
         className="col-span-2 md:col-span-1"

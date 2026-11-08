@@ -20,6 +20,7 @@ import { CATEGORICAL, CHROME, type Mode } from "@/lib/tokens";
 import {
   CURVE_TICKS,
   curveDisplay,
+  doyDate,
   doyLabel,
   durText,
   durTick,
@@ -351,7 +352,7 @@ export function CumulativeCard({ sport }: { sport: string }) {
       title={`Year over year · ${sportLabel(sport)}`}
       subtitle={
         current && lastPoint
-          ? `${current.year} so far: ${fmt(conv(lastPoint.value))} by ${doyLabel(lastPoint.day_of_year)}${
+          ? `${current.year} so far: ${fmt(conv(lastPoint.value))} by ${doyDate(current.year, lastPoint.day_of_year)}${
               pct !== null && prev
                 ? ` · ${signed(pct, 0, " %")} vs ${prev.year} at the same point`
                 : ""

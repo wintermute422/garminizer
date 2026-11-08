@@ -11,14 +11,32 @@ import { quantile, useNarrow } from "./util";
 
 export type HeatMetric = "hr" | "stress" | "body_battery" | "steps";
 
-const METRICS: { value: HeatMetric; label: string; unit: string; fmt: (v: number) => string }[] = [
-  { value: "hr", label: "Heart rate", unit: "bpm", fmt: (v) => fmtNumber(v) },
-  { value: "stress", label: "Stress", unit: "", fmt: (v) => fmtNumber(v) },
-  { value: "body_battery", label: "Body battery", unit: "", fmt: (v) => fmtNumber(v) },
-  { value: "steps", label: "Steps", unit: "steps", fmt: (v) => fmtNumber(v) },
+const METRICS: {
+  value: HeatMetric;
+  label: string;
+  unit: string;
+  scale: string;
+  fmt: (v: number) => string;
+}[] = [
+  { value: "hr", label: "Heart rate", unit: "bpm", scale: "bpm", fmt: (v) => fmtNumber(v) },
+  { value: "stress", label: "Stress", unit: "", scale: "stress", fmt: (v) => fmtNumber(v) },
+  {
+    value: "body_battery",
+    label: "Body battery",
+    unit: "",
+    scale: "body battery",
+    fmt: (v) => fmtNumber(v),
+  },
+  { value: "steps", label: "Steps", unit: "steps", scale: "steps / h", fmt: (v) => fmtNumber(v) },
 ];
 
 const pad = (h: number) => String(h).padStart(2, "0");
+
+interface RenderApi {
+  value: (dim: number) => number;
+  coord: (v: number[]) => number[];
+  size: (v: number[]) => number[];
+}
 
 function heatOption(
   data: { days: string[]; values: (number | null)[][] },
@@ -29,15 +47,18 @@ function heatOption(
 ): ChartOption {
   const c = CHROME[mode];
   const cells: { value: [number, number, number]; day: string }[] = [];
+  const gaps: { value: [number, number, number]; day: string }[] = [];
   data.values.forEach((row, i) =>
     row.forEach((v, h) => {
       if (v !== null) cells.push({ value: [i, h, v], day: data.days[i]! });
+      else gaps.push({ value: [i, h, 0], day: data.days[i]! });
     }),
   );
   const all = cells.map((x) => x.value[2]);
   const lo = metric.value === "steps" ? 0 : (quantile(all, 0.02) ?? 0);
   const hi = Math.max(quantile(all, metric.value === "steps" ? 0.97 : 0.98) ?? 1, lo + 1);
   const sel = selected ? data.days.indexOf(selected) : -1;
+  const gapFill = mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(11,11,11,0.025)";
   const dense = data.days.length > (narrow ? 40 : 120);
   const short = (v: number) => (metric.value === "steps" ? fmtCompact(v) : fmtNumber(v));
   return {
@@ -46,12 +67,19 @@ function heatOption(
       trigger: "item",
       confine: true,
       formatter: (p: unknown) => {
-        const it = p as { data?: { value: [number, number, number]; day: string } };
+        const it = p as {
+          seriesIndex?: number;
+          data?: { value: [number, number, number]; day: string };
+        };
         if (!it.data) return "";
         const [, h, v] = it.data.value;
-        return (
+        const head =
           tooltipTitle(fmtDate(it.data.day, { weekday: "short", day: "numeric", month: "short" })) +
-          `<div style="color:${c.muted};margin:-2px 0 6px">${pad(h)}:00–${pad((h + 1) % 24)}:00 local time</div>` +
+          `<div style="color:${c.muted};margin:-2px 0 6px">${pad(h)}:00–${pad((h + 1) % 24)}:00 local time</div>`;
+        if (it.seriesIndex === 0)
+          return `${head}<div style="color:${c.muted}">No measurement</div>`;
+        return (
+          head +
           tooltipRow(
             SEQUENTIAL[mode][3]!,
             metric.value === "steps" ? "Steps" : `Average ${metric.label.toLowerCase()}`,
@@ -75,23 +103,49 @@ function heatOption(
       axisLabel: { interval: 5 },
       splitLine: { show: false },
     },
-    visualMap: {
-      type: "continuous",
-      dimension: 2,
-      min: lo,
-      max: hi,
-      calculable: false,
-      orient: "horizontal",
-      right: 0,
-      top: 0,
-      itemWidth: 10,
-      itemHeight: 120,
-      text: [short(hi), short(lo)],
-      textGap: 6,
-      textStyle: { color: c.muted, fontSize: 11 },
-      inRange: { color: [...SEQUENTIAL[mode]] },
-    },
+    visualMap: [
+      {
+        type: "continuous",
+        dimension: 2,
+        min: lo,
+        max: hi,
+        calculable: false,
+        orient: "horizontal",
+        right: 0,
+        top: 0,
+        itemWidth: 10,
+        itemHeight: 120,
+        text: [`${short(hi)} ${metric.scale}`, short(lo)],
+        seriesIndex: 1,
+        textGap: 6,
+        textStyle: { color: c.muted, fontSize: 11 },
+        inRange: { color: [...SEQUENTIAL[mode]] },
+      },
+      {
+        // Heatmap series need a visualMap; the no-measurement cells get one flat fill.
+        type: "continuous",
+        show: false,
+        seriesIndex: 0,
+        dimension: 2,
+        min: 0,
+        max: 1,
+        inRange: { color: [gapFill, gapFill] },
+      },
+    ],
     series: [
+      {
+        // Hours without any sample: outlined so they never read as the lowest bin.
+        type: "heatmap",
+        name: "No measurement",
+        data: gaps,
+        progressive: 0,
+        itemStyle: {
+          color: gapFill,
+          borderColor: mode === "dark" ? c.muted : c.axis,
+          borderWidth: 1,
+        },
+        emphasis: { disabled: true },
+      },
       {
         type: "heatmap",
         name: metric.label,
@@ -99,15 +153,38 @@ function heatOption(
         progressive: 0,
         itemStyle: { borderColor: c.surface, borderWidth: dense ? 0 : 1 },
         emphasis: { itemStyle: { borderColor: c.text, borderWidth: 1 } },
-        markArea:
-          sel >= 0
-            ? {
-                silent: true,
-                itemStyle: { color: "transparent", borderColor: c.text, borderWidth: 1.5 },
-                data: [[{ xAxis: sel }, { xAxis: sel }]],
-              }
-            : undefined,
       },
+      // Outline of the selected day's column (a category markArea collapses to zero width).
+      ...(sel >= 0
+        ? [
+            {
+              type: "custom",
+              name: "Selected day",
+              silent: true,
+              z: 10,
+              data: [[sel, 0]],
+              encode: { x: 0, y: 1 },
+              renderItem: (_p: unknown, api: RenderApi) => {
+                const top = api.coord([api.value(0), 0]);
+                const bottom = api.coord([api.value(0), 23]);
+                const w = Math.abs(api.size([1, 0])[0] ?? 0);
+                const rh = Math.abs(api.size([0, 1])[1] ?? 0);
+                const y0 = Math.min(top[1]!, bottom[1]!) - rh / 2;
+                return {
+                  type: "rect",
+                  shape: {
+                    x: top[0]! - w / 2,
+                    y: y0,
+                    width: Math.max(w, 2),
+                    height: Math.abs(bottom[1]! - top[1]!) + rh,
+                    r: 2,
+                  },
+                  style: { fill: "transparent", stroke: c.text, lineWidth: 1.5 },
+                };
+              },
+            },
+          ]
+        : []),
     ],
   };
 }
@@ -184,6 +261,14 @@ export function HourHeatmap({
             ariaLabel={`${spec.label} by hour of day for each day in the period`}
             onReady={onReady}
           />
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-3">
+            <span
+              className="inline-block size-2.5 rounded-[2px] border"
+              style={{ borderColor: mode === "dark" ? CHROME.dark.muted : CHROME.light.axis }}
+              aria-hidden
+            />
+            Outlined hours: no measurement
+          </p>
         </div>
       )}
     </Card>

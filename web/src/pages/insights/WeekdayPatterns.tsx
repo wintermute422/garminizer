@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui";
 import { categoryXAxis, itemTooltip, refLine, tooltipTitle, valueYAxis } from "@/lib/charts";
 import { fmtCompact, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { BLUE, CATEGORICAL, CHROME } from "@/lib/tokens";
+import { BLUE, CHROME } from "@/lib/tokens";
 import type { MetricView } from "./metrics";
 
 type Weekday = Schemas["InsightWeekday"];
@@ -31,8 +31,8 @@ function Multiple({ rows, mv, k }: { rows: Weekday[]; mv: MetricView; k: Weekday
     const max = Math.max(...values.map((v) => v ?? -Infinity));
     const peak = values.indexOf(max);
     const label = (v: number) => (k === "steps" ? fmtCompact(v) : mv.text(v));
-    const strong = CATEGORICAL[mode][0]!;
-    const soft = mode === "dark" ? BLUE[600]! : BLUE[200]!;
+    // Both steps clear 3:1 against the card; the peak is the strongest step of the same hue.
+    const [soft, strong] = mode === "dark" ? [BLUE[500]!, BLUE[200]!] : [BLUE[400]!, BLUE[650]!];
     return {
       grid: { left: 4, right: 8, top: 20, bottom: 4 },
       tooltip: itemTooltip((p) => {
