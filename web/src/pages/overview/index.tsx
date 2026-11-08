@@ -10,6 +10,7 @@ import { ErrorState, PageHeader, Skeleton } from "@/components/ui";
 import { fmtDate } from "@/lib/format";
 import { addDays } from "@/lib/range";
 import { RecentCard, WeekCard } from "./activity";
+import { TodayCall } from "./call";
 import {
   BodyBatteryCard,
   GoalsCard,
@@ -19,6 +20,7 @@ import {
   SleepCard,
   StressCard,
 } from "./recovery";
+import { todaysCall } from "./status";
 import { validZone } from "./time";
 import { FitnessCard, PerformanceCard, TrainingStatusCard } from "./training";
 
@@ -63,6 +65,16 @@ export default function OverviewPage() {
   const last = meta.data?.last_day ?? null;
   const first = meta.data?.first_day ?? null;
   const isLatest = !!d && (!last || d.day >= last);
+  const call = d
+    ? todaysCall({
+        readiness: d.readiness,
+        hrv: d.hrv,
+        sleep: d.sleep,
+        tsb: d.fitness.tsb,
+        acwrStatus: d.training_status?.acwr_status ?? null,
+        batteryAtWake: d.body_battery.at_wake,
+      })
+    : null;
 
   return (
     <>
@@ -111,40 +123,38 @@ export default function OverviewPage() {
       ) : !d ? (
         <LoadingGrid />
       ) : (
-        <div
-          className={clsx(
-            "grid gap-5 transition-opacity lg:grid-cols-2 xl:grid-cols-12",
-            q.isPlaceholderData && "opacity-60",
-          )}
-        >
-          <ReadinessCard r={d.readiness} className="xl:col-span-4" />
-          <SleepCard s={d.sleep} tz={tz} className="xl:col-span-4" />
-          <BodyBatteryCard
-            b={d.body_battery}
-            sleep={d.sleep}
-            day={d.day}
-            tz={tz}
-            className="lg:col-span-2 xl:col-span-4"
-          />
-          <div className="grid gap-5 sm:grid-cols-2 lg:col-span-2 xl:col-span-12 xl:grid-cols-4">
-            <HrvCard h={d.hrv} />
-            <RestingHrCard r={d.resting_hr} />
-            <StressCard s={d.stress} />
-            <GoalsCard steps={d.steps} im={d.intensity_minutes} />
+        <div className={clsx("transition-opacity", q.isPlaceholderData && "opacity-60")}>
+          {call && <TodayCall call={call} />}
+          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-12">
+            <ReadinessCard r={d.readiness} className="xl:col-span-4" />
+            <SleepCard s={d.sleep} tz={tz} className="xl:col-span-4" />
+            <BodyBatteryCard
+              b={d.body_battery}
+              sleep={d.sleep}
+              day={d.day}
+              tz={tz}
+              className="lg:col-span-2 xl:col-span-4"
+            />
+            <div className="grid gap-5 sm:grid-cols-2 lg:col-span-2 xl:col-span-12 xl:grid-cols-4">
+              <HrvCard h={d.hrv} />
+              <RestingHrCard r={d.resting_hr} />
+              <StressCard s={d.stress} />
+              <GoalsCard steps={d.steps} im={d.intensity_minutes} />
+            </div>
+            <TrainingStatusCard
+              t={d.training_status}
+              day={d.day}
+              className="lg:col-span-2 xl:col-span-5"
+            />
+            <FitnessCard f={d.fitness} day={d.day} className="xl:col-span-4" />
+            <PerformanceCard v={d.vo2max} races={d.race_predictions} className="xl:col-span-3" />
+            <WeekCard week={d.week} day={d.day} className="xl:col-span-5" />
+            <RecentCard
+              items={d.recent_activities}
+              streak={d.streak}
+              className="lg:col-span-1 xl:col-span-7"
+            />
           </div>
-          <TrainingStatusCard
-            t={d.training_status}
-            day={d.day}
-            className="lg:col-span-2 xl:col-span-5"
-          />
-          <FitnessCard f={d.fitness} day={d.day} className="xl:col-span-4" />
-          <PerformanceCard v={d.vo2max} races={d.race_predictions} className="xl:col-span-3" />
-          <WeekCard week={d.week} day={d.day} className="xl:col-span-5" />
-          <RecentCard
-            items={d.recent_activities}
-            streak={d.streak}
-            className="lg:col-span-1 xl:col-span-7"
-          />
         </div>
       )}
     </>

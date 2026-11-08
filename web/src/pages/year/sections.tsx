@@ -31,7 +31,7 @@ import {
   DASH,
   distanceUnit,
   distanceValue,
-  fmtCompact,
+  fmtDelta,
   fmtDate,
   fmtDistance,
   fmtDuration,
@@ -39,20 +39,17 @@ import {
   fmtHours,
   fmtNumber,
   fmtPace,
-  signed,
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor, sportLabel } from "@/lib/sports";
 import { CATEGORICAL, CHROME, NEUTRAL, type Mode } from "@/lib/tokens";
 import {
   calendarHeatmapOption,
-  cellSize,
-  heatmapHeight,
-  heatmapWidth,
+  heatmapLayout,
   quantileBins,
   restColor,
   useElementWidth,
-} from "@/pages/calendar/heatmap";
+} from "@/lib/heatmap";
 
 type Review = Schemas["YearReview"];
 type Summary = Schemas["ActivitySummary"];
@@ -76,6 +73,8 @@ function HeroFigure({ label, value, sub }: { label: string; value: ReactNode; su
     </div>
   );
 }
+
+const round0 = (v: number | null) => (v === null ? null : Math.round(v));
 
 const EARTH_KM = 40_075;
 const EVEREST_M = 8_849;
@@ -151,9 +150,9 @@ export function Hero({
           {compare && (
             <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
               <span>{compare.label}</span>
-              <Delta value={dDist} text={`${signed(dDist)} % distance`} />
-              <Delta value={dTime} text={`${signed(dTime)} % time`} />
-              <Delta value={dActs} text={`${signed(dActs)} % activities`} />
+              <Delta value={round0(dDist)} text={`${fmtDelta(dDist, 0, "%")} distance`} />
+              <Delta value={round0(dTime)} text={`${fmtDelta(dTime, 0, "%")} time`} />
+              <Delta value={round0(dActs)} text={`${fmtDelta(dActs, 0, "%")} activities`} />
             </p>
           )}
         </div>
@@ -167,7 +166,7 @@ export function Hero({
             sub={`${fmtNumber((t.active_days / Math.max(covered, 1)) * 100)} % of days`}
           />
           <HeroFigure
-            label="Longest streak"
+            label={`Longest streak in ${r.year}`}
             value={`${fmtNumber(r.longest_streak)} ${r.longest_streak === 1 ? "day" : "days"}`}
           />
           <HeroFigure
@@ -196,6 +195,7 @@ const HIGHLIGHTS: {
   label: string;
   icon: LucideIcon;
   value: (a: Summary, units: ReturnType<typeof useUnits>) => string;
+  unit?: string;
 }[] = [
   {
     key: "longest_distance",
@@ -219,7 +219,8 @@ const HIGHLIGHTS: {
     key: "hardest_load",
     label: "Hardest session",
     icon: Flame,
-    value: (a) => `${fmtNumber(a.training_load)} load`,
+    value: (a) => fmtNumber(a.training_load),
+    unit: "training load",
   },
 ];
 
@@ -246,12 +247,17 @@ export function Highlights({ r }: { r: Review }) {
               {createElement(h.icon, { size: 15, "aria-hidden": true, className: "text-ink-3" })}
               {h.label}
             </span>
-            <span className="text-[26px] leading-none font-semibold text-ink">
-              {h.value(h.a, units)}
+            <span className="flex items-baseline gap-1.5">
+              <span className="text-[26px] leading-none font-semibold text-ink">
+                {h.value(h.a, units)}
+              </span>
+              {h.unit && <span className="text-sm text-ink-3">{h.unit}</span>}
             </span>
-            <span className="flex min-w-0 items-center gap-2 text-xs text-ink-3">
-              <SportIcon group={h.a.sport_group} size={14} colored />
-              <span className="min-w-0 truncate">
+            <span className="flex min-w-0 items-start gap-2 text-xs text-ink-3">
+              <span className="mt-px shrink-0">
+                <SportIcon group={h.a.sport_group} size={14} colored />
+              </span>
+              <span className="min-w-0">
                 <span className="font-medium text-ink-2 group-hover:text-ink">
                   {h.a.name ?? sportLabel(h.a.sport_group)}
                 </span>{" "}
@@ -484,16 +490,17 @@ export function YearHeatmap({ r, start, end }: { r: Review; start: string; end: 
       ),
     [values, mode],
   );
-  const cell = cellSize(width);
+  const layout = useMemo(
+    () => (width > 0 && start <= end ? heatmapLayout(width, start, end) : null),
+    [width, start, end],
+  );
   const option = useMemo(
     () =>
-      width > 0 && start <= end
+      layout
         ? calendarHeatmapOption({
-            start,
-            end,
+            layout,
             values,
             bins,
-            cell,
             mode,
             label: "duration",
             tooltip: (day) => {
@@ -501,21 +508,22 @@ export function YearHeatmap({ r, start, end }: { r: Review; start: string; end: 
               const title = tooltipTitle(
                 fmtDate(day, { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
               );
+              const line = (k: string, v: string) =>
+                `<div style="display:flex;justify-content:space-between;gap:16px;min-width:160px"><span>${k}</span><b style="font-variant-numeric:tabular-nums">${v}</b></div>`;
               return d
                 ? title +
-                    tooltipRow(CATEGORICAL[mode][0]!, "Duration", fmtHours(d.duration_s)) +
-                    tooltipRow(CATEGORICAL[mode][0]!, "Training load", fmtNumber(d.training_load))
+                    line("Duration", fmtHours(d.duration_s)) +
+                    line("Training load", fmtNumber(d.training_load))
                 : `${title}<div style="color:${CHROME[mode].muted}">Rest day</div>`;
             },
           })
         : null,
-    [width, start, end, values, bins, cell, mode, byDay],
+    [layout, values, bins, mode, byDay],
   );
-  const inner = heatmapWidth(cell, start, end);
   const chart = option ? (
     <Chart
       option={option}
-      height={heatmapHeight(1, cell)}
+      height={layout!.height}
       ariaLabel={`Calendar heatmap of daily training time in ${r.year}`}
     />
   ) : null;
@@ -525,25 +533,7 @@ export function YearHeatmap({ r, start, end }: { r: Review; start: string; end: 
       subtitle={`Daily training time · ${mode === "dark" ? "brighter" : "darker"} = longer`}
     >
       <div ref={measure} className="w-full">
-        {!bins.length ? (
-          <EmptyState title="No activities this year" />
-        ) : width > 0 && inner > width ? (
-          <ScrollArea
-            label={`Calendar of ${r.year}, scroll sideways`}
-            className="overflow-x-auto pb-1"
-          >
-            <div
-              style={{ width: inner }}
-              ref={(node) => {
-                if (node?.parentElement) node.parentElement.scrollLeft = node.scrollWidth;
-              }}
-            >
-              {chart}
-            </div>
-          </ScrollArea>
-        ) : (
-          chart
-        )}
+        {!bins.length ? <EmptyState title="No activities this year" /> : chart}
       </div>
       {bins.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-ink-2">
@@ -563,6 +553,17 @@ export function YearHeatmap({ r, start, end }: { r: Review; start: string; end: 
 }
 
 /* ---------------------------------------------------------------- best efforts */
+
+/** Signed time difference: "no change", "+9 s", "−2 min 13 s". */
+function fmtDeltaSeconds(s: number): string {
+  if (s === 0) return "no change";
+  const a = Math.abs(s);
+  const sign = s > 0 ? "+" : "−";
+  if (a < 60) return `${sign}${a} s`;
+  const m = Math.floor(a / 60);
+  const sec = a % 60;
+  return `${sign}${m} min${sec ? ` ${sec} s` : ""}`;
+}
 
 const EFFORT_LABEL: Record<string, string> = {
   "400": "400 m",
@@ -639,11 +640,7 @@ export function BestEfforts({
                         {diff === null ? (
                           <span className="text-xs text-ink-3">new</span>
                         ) : (
-                          <Delta
-                            value={diff}
-                            text={`${diff > 0 ? "+" : diff < 0 ? "−" : "±"}${Math.abs(diff) < 60 ? `${Math.abs(diff)} s` : fmtDuration(Math.abs(diff))}`}
-                            direction="down-good"
-                          />
+                          <Delta value={diff} text={fmtDeltaSeconds(diff)} direction="down-good" />
                         )}
                       </td>
                     )}
@@ -715,7 +712,11 @@ function FirstLast({
         {fmtNumber(first, digits)} → {fmtNumber(last, digits)}
         <span className="ml-1 text-xs font-normal text-ink-3">{unit}</span>
       </span>
-      <Delta value={d} text={signed(d, digits)} direction={direction} />
+      <Delta
+        value={Math.round(d * 10 ** digits) / 10 ** digits}
+        text={fmtDelta(d, digits)}
+        direction={direction}
+      />
     </span>
   );
 }
@@ -734,7 +735,7 @@ export function Health({ r, className }: { r: Review; className?: string }) {
           icon={Footprints}
           label="Steps"
           sub={r.steps.avg !== null ? `${fmtNumber(r.steps.avg)} per day` : undefined}
-          value={fmtCompact(r.steps.total)}
+          value={fmtNumber(r.steps.total)}
         />
         <Fact
           icon={Gauge}
@@ -774,7 +775,7 @@ export function Health({ r, className }: { r: Review; className?: string }) {
           icon={Flame}
           label="Active calories"
           sub="burned in activities"
-          value={`${fmtCompact(r.totals.calories)} kcal`}
+          value={`${fmtNumber(Math.round(r.totals.calories / 100) * 100)} kcal`}
         />
       </div>
     </Card>

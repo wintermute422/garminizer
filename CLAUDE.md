@@ -119,3 +119,11 @@ progress.md's "Next step".
   turns an empty `KEY=` line plus the next line into a false "secret".
 - Test values that look like personal data (private IPs, e-mails) are assembled at runtime in tests
   so the tracked file itself stays clean for secret_scan.
+- Git Bash on Windows has no `pkill`: a `pkill ... || true` cleanup silently does nothing and
+  leaves servers on their ports. Stop processes by PID (`kill $!`, or `netstat -ano` +
+  `taskkill //PID`), and check the port is free afterwards.
+- Parallel Playwright runs share `web/test-results/` and wipe each other's traces (ENOENT). Give
+  every concurrent run its own `--output=test-results-<port>`.
+- A Vite dev server picks up other agents' edits mid-test (HMR → "createRoot() … already" and
+  "removeChild" console errors). When several agents edit the tree, verify on a frozen
+  `vite build --outDir artifacts/dist-<port>` served via `WEB_DIST`, not on the dev server.

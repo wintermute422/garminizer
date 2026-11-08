@@ -14,7 +14,6 @@ import {
   ErrorState,
   LegendItem,
   PageHeader,
-  ScrollArea,
   Segmented,
   Skeleton,
   StatTile,
@@ -46,15 +45,12 @@ import { CATEGORICAL, CHROME, type Mode } from "@/lib/tokens";
 import { type DayTotals, daysBetween, dayStreaks, monthTotals, weeksInRow } from "./data";
 import {
   calendarHeatmapOption,
-  cellSize,
-  heatmapHeight,
-  heatmapWidth,
   type HeatBin,
+  heatmapLayout,
   quantileBins,
   restColor,
   useElementWidth,
-  yearsBetween,
-} from "./heatmap";
+} from "@/lib/heatmap";
 
 type Metric = "load" | "duration" | "distance";
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -157,31 +153,29 @@ function HeatmapCard({
     () => quantileBins([...values.values()], mode, m.nice, (v) => m.fmt(v, units)),
     [values, mode, m, units],
   );
-  const cell = cellSize(width);
-  const years = yearsBetween(start, end).length;
+  const layout = useMemo(
+    () => (width > 0 ? heatmapLayout(width, start, end) : null),
+    [width, start, end],
+  );
   const option = useMemo(
     () =>
-      width > 0
+      layout
         ? calendarHeatmapOption({
-            start,
-            end,
+            layout,
             values,
             bins,
-            cell,
             mode,
             label: m.label,
             tooltip: (day) =>
               dayTooltip(day, byDay.get(day), day >= start && day <= end, units, mode),
           })
         : null,
-    [width, start, end, values, bins, cell, mode, m.label, byDay, units],
+    [layout, start, end, values, bins, mode, m.label, byDay, units],
   );
-  const inner = heatmapWidth(cell, start, end);
-  const scrolls = width > 0 && inner > width;
   const chart = option ? (
     <Chart
       option={option}
-      height={heatmapHeight(years, cell)}
+      height={layout!.height}
       ariaLabel={`Calendar heatmap of daily ${m.label.toLowerCase()}${sport ? ` (${sportLabel(sport)})` : ""}, ${fmtDate(start)} to ${fmtDate(end)}`}
     />
   ) : null;
@@ -197,7 +191,7 @@ function HeatmapCard({
           value={metric}
           onChange={setMetric}
           options={[
-            { value: "load", label: "Load" },
+            { value: "load", label: "Training load" },
             { value: "duration", label: "Duration" },
             { value: "distance", label: "Distance" },
           ]}
@@ -207,18 +201,6 @@ function HeatmapCard({
       <div ref={measure} className="w-full">
         {!hasMetric ? (
           <EmptyState title={`No ${m.label.toLowerCase()} recorded in this period`} />
-        ) : scrolls ? (
-          <ScrollArea label="Activity calendar, scroll sideways" className="overflow-x-auto pb-1">
-            <div
-              style={{ width: inner }}
-              ref={(node) => {
-                // Start at the most recent weeks.
-                if (node?.parentElement) node.parentElement.scrollLeft = node.scrollWidth;
-              }}
-            >
-              {chart}
-            </div>
-          </ScrollArea>
         ) : (
           chart
         )}
@@ -261,7 +243,7 @@ function StreakTiles({
       />
       <StatTile
         icon={icon(Trophy)}
-        label="Longest streak"
+        label="Longest streak in this period"
         value={fmtNumber(s.longest)}
         unit={plural(s.longest, "day")}
         sub={s.longestStart ? `from ${fmtDate(s.longestStart)}` : undefined}

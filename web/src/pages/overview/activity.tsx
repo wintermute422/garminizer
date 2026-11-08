@@ -12,13 +12,13 @@ import {
   fmtHours,
   fmtLocalTime,
   fmtNumber,
-  signed,
+  fmtDelta,
   teLabel,
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
 import { addDays } from "@/lib/range";
-import { NEUTRAL, SEQUENTIAL } from "@/lib/tokens";
+import { HEAT_RAMP } from "@/lib/heatmap";
 
 type Overview = Schemas["OverviewToday"];
 type SportWeek = Schemas["OverviewSportWeek"];
@@ -38,59 +38,70 @@ function TwoWeeks({ day }: { day: string }) {
   const cal = api.useQuery("get", "/api/calendar", { params: { query: { start, end: day } } });
   const byDay = new Map((cal.data?.days ?? []).map((d) => [d.day, d]));
   if (cal.isPending) return <Skeleton height={86} />;
-  const ramp = SEQUENTIAL[mode];
-  const shade = (s: number) =>
-    s < 1800 ? ramp[1]! : s < 3600 ? ramp[2]! : s < 5400 ? ramp[3]! : ramp[4]!;
+  const ramp = HEAT_RAMP[mode];
+  const shade = (s: number) => ramp[s < 1800 ? 0 : s < 3600 ? 1 : s < 5400 ? 2 : 3]!;
+  const legend = [
+    { label: "< 30m", color: ramp[0]! },
+    { label: "30–60m", color: ramp[1]! },
+    { label: "60–90m", color: ramp[2]! },
+    { label: "> 90m", color: ramp[3]! },
+  ];
   const rows = [
     { label: "Last week", from: start },
     { label: "This week", from: monday },
   ];
   return (
-    <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] items-center gap-1.5 text-xs">
-      <span />
-      {WEEKDAY_INITIALS.map((w, i) => (
-        <span key={i} className="text-center text-ink-3" aria-hidden>
-          {w}
+    <div>
+      <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] items-center gap-1.5 text-xs">
+        <span />
+        {WEEKDAY_INITIALS.map((w, i) => (
+          <span key={i} className="text-center text-ink-3" aria-hidden>
+            {w}
+          </span>
+        ))}
+        {rows.map((r) => (
+          <div key={r.label} className="contents">
+            <span className="pr-2 whitespace-nowrap text-ink-3">{r.label}</span>
+            {Array.from({ length: 7 }, (_, i) => {
+              const d = addDays(r.from, i);
+              const t = byDay.get(d);
+              const future = d > day;
+              const text = `${fmtDate(d, { weekday: "long", day: "numeric", month: "short" })}: ${
+                future
+                  ? "upcoming"
+                  : t
+                    ? `${fmtHours(t.duration_s)}, ${t.sport_groups.map(sportLabel).join(", ")}`
+                    : "rest day"
+              }`;
+              return (
+                <span
+                  key={d}
+                  title={text}
+                  className={clsx(
+                    "h-6 rounded-md",
+                    future ? "border border-dashed border-line" : !t && "bg-surface-3",
+                  )}
+                  style={t ? { background: shade(t.duration_s) } : undefined}
+                >
+                  <span className="sr-only">{text}</span>
+                </span>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-3">
+        <span>Time per day</span>
+        <span className="inline-flex items-center gap-1">
+          <span className="size-2.5 rounded-[3px] bg-surface-3" aria-hidden /> rest
         </span>
-      ))}
-      {rows.map((r) => (
-        <div key={r.label} className="contents">
-          <span className="pr-2 whitespace-nowrap text-ink-3">{r.label}</span>
-          {Array.from({ length: 7 }, (_, i) => {
-            const d = addDays(r.from, i);
-            const t = byDay.get(d);
-            const future = d > day;
-            const text = `${fmtDate(d, { weekday: "long", day: "numeric", month: "short" })}: ${
-              future
-                ? "upcoming"
-                : t
-                  ? `${fmtHours(t.duration_s)}, ${t.sport_groups.map(sportLabel).join(", ")}`
-                  : "rest day"
-            }`;
-            return (
-              <span
-                key={d}
-                title={text}
-                className={clsx(
-                  "flex h-7 items-center justify-center gap-0.5 rounded-lg",
-                  future ? "border border-dashed border-line" : !t && "bg-surface-3",
-                )}
-                style={t ? { background: shade(t.duration_s) } : undefined}
-              >
-                <span className="sr-only">{text}</span>
-                {t?.sport_groups.slice(0, 3).map((g) => (
-                  <span
-                    key={g}
-                    aria-hidden
-                    className="size-1.5 rounded-full ring-1 ring-surface"
-                    style={{ background: sportColor(g, mode) }}
-                  />
-                ))}
-              </span>
-            );
-          })}
-        </div>
-      ))}
+        {legend.map((l) => (
+          <span key={l.label} className="inline-flex items-center gap-1">
+            <span className="size-2.5 rounded-[3px]" style={{ background: l.color }} aria-hidden />
+            {l.label}
+          </span>
+        ))}
+      </p>
     </div>
   );
 }
@@ -147,8 +158,8 @@ export function WeekCard({
               <p className="text-xs text-ink-3">Change</p>
               <p className="mt-1.5">
                 <Delta
-                  value={change}
-                  text={change === null ? DASH : `${signed(change)} %`}
+                  value={change === null ? null : Math.round(change)}
+                  text={fmtDelta(change, 0, "%")}
                   direction="neutral"
                 />
               </p>
@@ -162,8 +173,19 @@ export function WeekCard({
                 <th scope="col" className="pb-1.5 text-left font-medium">
                   Sport
                 </th>
-                <th scope="col" className="pb-1.5 font-medium">
+                <th scope="col" className="pb-1.5 text-left font-normal">
                   <span className="sr-only">Comparison bars</span>
+                  <span
+                    aria-hidden
+                    className="inline-flex flex-wrap items-center gap-x-3 text-[11px] whitespace-nowrap"
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2 w-3 rounded-full bg-ink-2" /> this wk
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2 w-3 rounded-full border-[1.5px] border-ink-3" /> last wk
+                    </span>
+                  </span>
                 </th>
                 <th scope="col" className="pb-1.5 pl-2 text-right font-medium whitespace-nowrap">
                   This week
@@ -196,13 +218,13 @@ export function WeekCard({
                             background: color,
                           }}
                         />
+                        {/* Last week: hollow bar in the same hue, so walking (neutral) still reads. */}
                         <span
-                          className="block h-1 rounded-full"
+                          className="block h-2 rounded-full"
                           style={{
                             width: `${((prev?.duration_s ?? 0) / max) * 100}%`,
-                            minWidth: prev ? 4 : 0,
-                            background: NEUTRAL[mode],
-                            opacity: 0.6,
+                            minWidth: prev ? 6 : 0,
+                            border: prev ? `1.5px solid ${color}` : undefined,
                           }}
                         />
                       </div>
@@ -252,7 +274,7 @@ function StreakStrip({ streak }: { streak: Overview["streak"] }) {
       <div className="flex items-center gap-2.5">
         <Trophy size={18} className="text-ink-3" aria-hidden />
         <div>
-          <p className="text-xs text-ink-3">Longest streak</p>
+          <p className="text-xs text-ink-3">Longest streak (all time)</p>
           <p className="text-sm font-semibold text-ink">{days(streak.longest)}</p>
         </div>
       </div>
@@ -300,7 +322,7 @@ export function RecentCard({
                   <p className="truncate text-sm font-medium text-ink">
                     {a.name ?? sportLabel(a.sport_group)}
                   </p>
-                  <p className="truncate text-xs text-ink-3">
+                  <p className="text-xs text-ink-3">
                     {fmtDate(a.start_time_local, {
                       weekday: "short",
                       day: "numeric",
@@ -316,7 +338,12 @@ export function RecentCard({
                   </p>
                   <p className="text-xs text-ink-3">
                     {a.distance_m ? fmtHours(a.moving_s ?? a.duration_s) : DASH}
-                    {a.training_load ? ` · load ${fmtNumber(a.training_load)}` : ""}
+                    {a.training_load ? (
+                      <span className="hidden sm:inline">
+                        {" "}
+                        · training load {fmtNumber(a.training_load)}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </Link>

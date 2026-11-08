@@ -6,9 +6,17 @@ import type { Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { Card, Delta, EmptyState, LegendItem, StatusPill } from "@/components/ui";
 import { axisTooltip, GRID, line, tooltipRow, tooltipTitle, valueYAxis } from "@/lib/charts";
-import { DASH, fmtHours, fmtNumber, signed } from "@/lib/format";
+import { DASH, fmtDelta, fmtHours, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { CATEGORICAL, CHROME, SLEEP_STAGES, STATUS, wash, type Mode } from "@/lib/tokens";
+import {
+  CATEGORICAL,
+  CHROME,
+  MEASURE_COLORS,
+  SLEEP_STAGES,
+  STATUS,
+  wash,
+  type Mode,
+} from "@/lib/tokens";
 import { hrvState, readinessState, sleepState, stressLabel } from "./status";
 import { fmtClock, fmtHourOfDay, hoursIntoDay } from "./time";
 import { BandBullet, BigValue, Meter, MiniStat } from "./widgets";
@@ -188,11 +196,9 @@ export function SleepCard({
                     <LegendItem color={SLEEP_STAGES[mode][st.key]} label={st.label} />
                     <span className="text-ink tabular">
                       {fmtHours(secs[st.key])}
-                      {st.key !== "awake" && asleep > 0 && (
-                        <span className="ml-1 text-ink-3">
-                          {fmtNumber((secs[st.key] / asleep) * 100)} %
-                        </span>
-                      )}
+                      <span className="ml-1 text-ink-3">
+                        {fmtNumber((secs[st.key] / total) * 100)} %
+                      </span>
                     </span>
                   </li>
                 ))}
@@ -235,7 +241,7 @@ function batteryOption(
   mode: Mode,
 ): ChartOption {
   const c = CHROME[mode];
-  const accent = CATEGORICAL[mode][0]!;
+  const accent = MEASURE_COLORS[mode].bodyBattery;
   return {
     grid: { ...GRID, top: 12, bottom: 4, left: 4, right: 8 },
     tooltip: axisTooltip((p) => {
@@ -345,6 +351,8 @@ export function BodyBatteryCard({
 }
 
 export function HrvCard({ h, className }: { h: Overview["hrv"]; className?: string }) {
+  const mode = useMode();
+  const color = MEASURE_COLORS[mode].hrv;
   const state = hrvState(h?.status);
   const vals = [
     h?.last_night_avg_ms,
@@ -376,10 +384,12 @@ export function HrvCard({ h, className }: { h: Overview["hrv"]; className?: stri
             bandHigh={h.baseline_balanced_upper_ms}
             value={h.last_night_avg_ms}
             secondary={h.weekly_avg_ms}
+            color={color}
           />
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-3">
             <span className="inline-flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-accent" aria-hidden /> Last night
+              <span className="size-2.5 rounded-full" style={{ background: color }} aria-hidden />{" "}
+              Last night
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="h-3 w-0.5 rounded-full bg-ink-2" aria-hidden /> 7-day avg{" "}
@@ -387,7 +397,14 @@ export function HrvCard({ h, className }: { h: Overview["hrv"]; className?: stri
             </span>
             {h.baseline_balanced_low_ms !== null && h.baseline_balanced_upper_ms !== null && (
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-3 rounded-full bg-accent-soft ring-1 ring-accent/40" />
+                <span
+                  className="h-2 w-3 rounded-full"
+                  style={{
+                    background: wash(color, 0.22),
+                    boxShadow: `inset 0 0 0 1px ${wash(color, 0.6)}`,
+                  }}
+                  aria-hidden
+                />
                 Baseline{" "}
                 <span className="text-ink-2 tabular">
                   {fmtNumber(h.baseline_balanced_low_ms)}–{fmtNumber(h.baseline_balanced_upper_ms)}{" "}
@@ -413,7 +430,11 @@ export function RestingHrCard({ r, className }: { r: Overview["resting_hr"]; cla
           <div>
             <p className="text-xs text-ink-3">Today</p>
             <BigValue value={r.value} unit="bpm">
-              <Delta value={diff} text={`${signed(diff, 1)} vs 30d`} direction="down-good" />
+              <Delta
+                value={diff === null ? null : Math.round(diff * 10) / 10}
+                text={`${fmtDelta(diff, 1)} vs 30-day avg`}
+                direction="down-good"
+              />
             </BigValue>
           </div>
           <div className="grid grid-cols-2 gap-3 border-t border-line pt-3">
@@ -426,7 +447,12 @@ export function RestingHrCard({ r, className }: { r: Overview["resting_hr"]; cla
   );
 }
 
+const STRESS_BANDS = ["Rest", "Low", "Medium", "High"] as const;
+
 export function StressCard({ s, className }: { s: Overview["stress"]; className?: string }) {
+  const mode = useMode();
+  const color = MEASURE_COLORS[mode].stress;
+  const pct = (v: number) => `${Math.min(Math.max(v, 0), 100)}%`;
   return (
     <Card title="Stress" subtitle="Garmin stress level, 0–100" className={className}>
       {s.avg === null ? (
@@ -439,33 +465,51 @@ export function StressCard({ s, className }: { s: Overview["stress"]; className?
               <span className="text-sm text-ink-2">{stressLabel(s.avg)}</span>
             </BigValue>
           </div>
-          <div className="relative pt-1">
-            <Meter value={s.avg} max={100} />
-            {[25, 50, 75].map((p) => (
-              <span
-                key={p}
-                aria-hidden
-                className="absolute top-1 h-2 w-0.5 -translate-x-1/2 bg-surface"
-                style={{ left: `${p}%` }}
-              />
-            ))}
-            {s.max !== null && (
-              <span
-                aria-hidden
-                className="absolute top-0 h-4 w-0.5 -translate-x-1/2 rounded-full bg-ink-2"
-                style={{ left: `${Math.min(s.max, 100)}%` }}
-              />
-            )}
-            <div className="mt-1.5 grid grid-cols-4 text-center text-[11px] text-ink-3" aria-hidden>
-              <span>Rest</span>
-              <span>Low</span>
-              <span>Medium</span>
-              <span>High</span>
+          <div aria-hidden>
+            {/* Peak label + tick above the scale. */}
+            <div className="relative h-5">
+              {s.max !== null && (
+                <span
+                  className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center text-[11px] leading-none whitespace-nowrap text-ink-2"
+                  style={{ left: pct(s.max) }}
+                >
+                  peak {s.max}
+                  <span className="mt-0.5 h-1.5 w-0.5 rounded-full bg-ink-2" />
+                </span>
+              )}
+            </div>
+            <div className="flex h-2.5 gap-0.5">
+              {STRESS_BANDS.map((b, i) => {
+                const fill = Math.min(Math.max(((s.avg ?? 0) - i * 25) / 25, 0), 1);
+                return (
+                  <span
+                    key={b}
+                    className="relative flex-1 overflow-hidden rounded-full bg-line-strong"
+                  >
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{ width: `${fill * 100}%`, background: color }}
+                    />
+                  </span>
+                );
+              })}
+            </div>
+            <div className="mt-1.5 grid grid-cols-4 text-center text-[11px] text-ink-3">
+              {STRESS_BANDS.map((b) => (
+                <span key={b}>{b}</span>
+              ))}
             </div>
           </div>
           <p className="text-xs text-ink-3">
-            Peak <span className="text-ink-2 tabular">{s.max ?? DASH}</span> ·{" "}
-            {stressLabel(s.max).toLowerCase()} at its highest
+            Average <span className="text-ink-2 tabular">{s.avg}</span> (
+            {stressLabel(s.avg).toLowerCase()})
+            {s.max !== null && (
+              <>
+                {" "}
+                · peak <span className="text-ink-2 tabular">{s.max}</span> (
+                {stressLabel(s.max).toLowerCase()})
+              </>
+            )}
           </p>
         </div>
       )}
@@ -479,12 +523,14 @@ function GoalRow({
   goal,
   unit,
   note,
+  color,
 }: {
   label: string;
   value: number | null;
   goal: number | null;
   unit?: string;
   note?: string;
+  color?: string;
 }) {
   const met = value !== null && goal !== null && goal > 0 && value >= goal;
   return (
@@ -509,7 +555,7 @@ function GoalRow({
           </span>
         ) : null}
       </p>
-      <Meter value={value ?? 0} max={goal ?? 0} className="mt-2" />
+      <Meter value={value ?? 0} max={goal ?? 0} color={color} className="mt-2" />
       {note && <p className="mt-1.5 text-xs text-ink-3">{note}</p>}
     </div>
   );
@@ -524,6 +570,7 @@ export function GoalsCard({
   im: Overview["intensity_minutes"];
   className?: string;
 }) {
+  const mode = useMode();
   return (
     <Card title="Goals" className={className}>
       <div className="flex flex-col gap-4">
@@ -532,6 +579,7 @@ export function GoalsCard({
           value={steps.value}
           goal={steps.goal}
           note={steps.avg_7d !== null ? `7-day avg ${fmtNumber(steps.avg_7d)}` : undefined}
+          color={MEASURE_COLORS[mode].steps}
         />
         <GoalRow
           label="Intensity minutes this week"

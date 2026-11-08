@@ -15,10 +15,19 @@ import {
   tooltipTitle,
   valueYAxis,
 } from "@/lib/charts";
-import { DASH, fmtDate, fmtDuration, fmtNumber, fmtPace, fmtShortDate, signed } from "@/lib/format";
+import {
+  DASH,
+  fmtDate,
+  fmtDelta,
+  fmtDuration,
+  fmtNumber,
+  fmtPace,
+  fmtShortDate,
+  signed,
+} from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { addDays, isoDay } from "@/lib/range";
-import { CATEGORICAL, CHROME, STATUS, ZONE_RAMP, type Mode } from "@/lib/tokens";
+import { MEASURE_COLORS, STATUS, ZONE_RAMP, type Mode } from "@/lib/tokens";
 import { acwrState, loadBalanceState, trainingState } from "./status";
 import { BigValue, MiniStat } from "./widgets";
 
@@ -138,7 +147,7 @@ export function TrainingStatusCard({
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-3 gap-3">
             <MiniStat
-              label="Acute : chronic"
+              label="Acute : chronic (Garmin)"
               value={fmtNumber(t.acwr, 2)}
               sub={
                 t.acwr_status ? (
@@ -180,12 +189,8 @@ export function TrainingStatusCard({
   );
 }
 
-function fitnessOption(
-  points: Schemas["TrainingLoadPoint"][],
-  mode: Mode,
-  ctlColor: string,
-): ChartOption {
-  const muted = CHROME[mode].muted;
+function fitnessOption(points: Schemas["TrainingLoadPoint"][], mode: Mode): ChartOption {
+  const colors = MEASURE_COLORS[mode];
   return {
     grid: { ...GRID_WITH_LEGEND, top: 30 },
     legend: legend(),
@@ -211,14 +216,13 @@ function fitnessOption(
       line(
         "Fitness (CTL)",
         points.map((p) => dayPoint(p.day, p.ctl)),
-        ctlColor,
+        colors.fitness,
         { area: true },
       ),
       line(
         "Fatigue (ATL)",
         points.map((p) => dayPoint(p.day, p.atl)),
-        muted,
-        { width: 1.5 },
+        colors.fatigue,
       ),
     ],
   };
@@ -238,17 +242,14 @@ export function FitnessCard({
     params: { query: { start: addDays(day, -89), end: day } },
   });
   const option = useMemo(
-    () =>
-      load.data && load.data.length > 1
-        ? fitnessOption(load.data, mode, CATEGORICAL[mode][0]!)
-        : null,
+    () => (load.data && load.data.length > 1 ? fitnessOption(load.data, mode) : null),
     [load.data, mode],
   );
   const form = f.tsb;
   return (
     <Card
       title="Fitness & form"
-      subtitle="Training stress balance, last 90 days"
+      subtitle="Weighted load averages: fitness over 42 days, fatigue over 7 · last 90 days"
       className={clsx("flex flex-col", className)}
       bodyClassName="flex flex-1 flex-col"
     >
@@ -262,13 +263,13 @@ export function FitnessCard({
               value={fmtNumber(f.ctl)}
               sub={
                 <Delta
-                  value={f.ctl_delta_28d}
-                  text={`${signed(f.ctl_delta_28d, 1)} in 28d`}
+                  value={f.ctl_delta_28d === null ? null : Math.round(f.ctl_delta_28d * 10) / 10}
+                  text={`${fmtDelta(f.ctl_delta_28d, 1)} in 28 d`}
                   direction="up-good"
                 />
               }
             />
-            <MiniStat label="Fatigue" value={fmtNumber(f.atl)} sub="7-day load" />
+            <MiniStat label="Fatigue" value={fmtNumber(f.atl)} sub="7-day weighted avg" />
             <MiniStat
               label="Form"
               value={signed(form, 0)}
@@ -325,8 +326,8 @@ export function PerformanceCard({
           <p className="text-xs text-ink-3">VO2 max</p>
           <BigValue value={v.running !== null ? fmtNumber(v.running, 1) : DASH} unit="ml/kg/min">
             <Delta
-              value={v.delta_30d}
-              text={`${signed(v.delta_30d, 1)} in 30 days`}
+              value={v.delta_30d === null ? null : Math.round(v.delta_30d * 10) / 10}
+              text={`${fmtDelta(v.delta_30d, 1)} in 30 days`}
               direction="up-good"
             />
           </BigValue>
