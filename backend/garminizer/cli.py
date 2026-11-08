@@ -58,6 +58,37 @@ def demo_seed(
 
 
 @app.command()
+def serve(
+    host: str | None = typer.Option(None, help="Override APP_HOST (default 127.0.0.1)."),
+    port: int | None = typer.Option(None, help="Override APP_PORT (default 8420)."),
+    reload: bool = typer.Option(False, help="Auto-reload on code changes (development)."),
+) -> None:
+    """Run the web app (API + dashboards)."""
+    import os  # noqa: PLC0415 - keep CLI start-up light
+
+    import uvicorn  # noqa: PLC0415
+
+    from garminizer.config import get_settings  # noqa: PLC0415
+
+    if host:
+        os.environ["APP_HOST"] = host
+    if port:
+        os.environ["APP_PORT"] = str(port)
+    get_settings.cache_clear()
+    settings = get_settings()
+    settings.check_web_safety()
+    migrate.upgrade()
+    uvicorn.run(
+        "garminizer.api.app:create_app",
+        factory=True,
+        host=settings.app_host,
+        port=settings.app_port,
+        reload=reload,
+        proxy_headers=True,
+    )
+
+
+@app.command()
 def version() -> None:
     """Print the Garminizer version."""
     typer.echo(__version__)
