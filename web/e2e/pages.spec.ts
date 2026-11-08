@@ -28,6 +28,31 @@ export const PAGES: { name: string; path: string }[] = [
 
 const SHOT_DIR = path.resolve(process.cwd(), "..", "artifacts", "screenshots");
 
+/**
+ * Content width beyond the configured viewport. Compare with the configured width, not
+ * innerWidth: mobile emulation widens the layout viewport to fit oversized content.
+ */
+async function pageOverflow(page: Page): Promise<number> {
+  const width = page.viewportSize()?.width ?? 0;
+  const content = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+  );
+  return content - width;
+}
+
+test("overflow check detects a too-wide page (self-test)", async ({ page }) => {
+  await page.goto("/sync");
+  await expect(page.locator("main h1").first()).toBeVisible();
+  expect(await pageOverflow(page)).toBeLessThanOrEqual(1);
+  await page.evaluate(() => {
+    const wide = document.createElement("div");
+    wide.style.width = "2000px";
+    wide.style.height = "10px";
+    document.querySelector("main")?.appendChild(wide);
+  });
+  expect(await pageOverflow(page)).toBeGreaterThan(100);
+});
+
 async function runActivityId(page: Page): Promise<string> {
   const res = await page.request.get("/api/activities?sport=run&limit=1&sort=distance&preset=all");
   const body = (await res.json()) as { items: { activity_id: number }[] };
@@ -71,11 +96,8 @@ for (const p of PAGES) {
       await expect(maps.nth(i)).toHaveAttribute("data-map-ready", "true", { timeout: 30_000 });
     }
 
-    // No horizontal page scroll at any width.
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth,
-    );
-    expect(overflow, "no horizontal page overflow").toBeLessThanOrEqual(1);
+    // No horizontal page scroll at any width (see pageOverflow).
+    expect(await pageOverflow(page), "no horizontal page overflow").toBeLessThanOrEqual(1);
 
     await page.evaluate(() => window.scrollTo(0, 0));
     fs.mkdirSync(path.join(SHOT_DIR, info.project.name), { recursive: true });

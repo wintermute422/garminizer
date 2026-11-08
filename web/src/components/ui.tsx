@@ -141,7 +141,7 @@ export function StatTile({
             {sub}
           </div>
         </div>
-        {trend && <div className="w-24 shrink-0">{trend}</div>}
+        {trend && <div className="hidden w-24 shrink-0 sm:block">{trend}</div>}
       </div>
     </div>
   );

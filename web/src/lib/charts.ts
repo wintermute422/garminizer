@@ -95,22 +95,37 @@ export function bars(
   };
 }
 
-/** Round the top data-end of the last segment of each stacked column. */
+function numericValue(d: unknown): number | null {
+  const v = d && typeof d === "object" && "value" in d ? (d as { value: unknown }).value : d;
+  const n = Array.isArray(v) ? v[v.length - 1] : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Round the visible top of every stacked column (the highest non-zero segment per category,
+ * which is not always the last series) and keep hover from fading the rest of the stack.
+ */
 export function roundStackTops(series: Obj[], mode: Mode): Obj[] {
-  const n = series.length;
-  if (!n) return series;
-  return series.map((s, i) =>
-    i === n - 1
-      ? {
-          ...s,
-          itemStyle: {
-            ...(s.itemStyle as Obj),
-            borderRadius: [4, 4, 0, 0],
-            borderColor: CHROME[mode].surface,
-          },
-        }
-      : s,
-  );
+  const values = series.map((s) => ((s.data as unknown[]) ?? []).map(numericValue));
+  const columns = values[0]?.length ?? 0;
+  const top: number[] = [];
+  for (let i = 0; i < columns; i++) {
+    let k = values.length - 1;
+    while (k >= 0 && !((values[k]?.[i] ?? 0) > 0)) k -= 1;
+    top.push(k);
+  }
+  return series.map((s, k) => ({
+    ...s,
+    emphasis: { focus: "none" },
+    data: ((s.data as unknown[]) ?? []).map((d, i) =>
+      top[i] === k
+        ? {
+            value: d && typeof d === "object" && "value" in d ? (d as { value: unknown }).value : d,
+            itemStyle: { borderRadius: [4, 4, 0, 0], borderColor: CHROME[mode].surface },
+          }
+        : d,
+    ),
+  }));
 }
 
 export function scatter(name: string, data: unknown[], color: string, size = 8): Obj {

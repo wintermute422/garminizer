@@ -133,6 +133,10 @@ class InsightCard(Model):
     trend: Trend
     sentiment: Sentiment
     metric: str | None
+    value_label: str | None = None  # display text when the value is not a plain number
+    x_metric: str | None = None  # for correlation cards: the pair to explore
+    y_metric: str | None = None
+    lag: int | None = None
 
 
 # --------------------------------------------------------------------------------------------
@@ -447,12 +451,13 @@ def _training_weekday_card(c: _CardData) -> InsightCard | None:
             f"You train most on {WEEKDAYS[wd]}s: {n} of {total} activities "
             f"({_num(n / total * 100, 0)}%)."
         ),
-        value=float(n),
-        unit="activities",
+        value=round(n / total * 100, 1),
+        unit="% of activities",
         delta=None,
         trend="flat",
         sentiment="neutral",
         metric=None,
+        value_label=WEEKDAYS[wd],
     )
 
 
@@ -506,8 +511,8 @@ def _streak_card(c: _CardData) -> InsightCard | None:
         id="streak",
         title="Activity streak",
         text=text,
-        value=float(current),
-        unit="days",
+        value=float(longest),
+        unit="days (longest)",
         delta=None,
         trend="flat",
         sentiment="good" if current >= 3 else "neutral",
@@ -535,9 +540,10 @@ def _active_month_card(c: _CardData) -> InsightCard | None:
         value=round(seconds),
         unit="s",
         delta=round(seconds - sum(others) / len(others)),
-        trend="flat",
+        trend="up",
         sentiment="good",
         metric=None,
+        value_label=f"{MONTHS[month - 1]} {year}",
     )
 
 
@@ -568,7 +574,12 @@ def _vo2max_card(c: _CardData) -> InsightCard | None:
 
 
 def _correlation_card(
-    card_id: str, title: str, metric: str, r: float, n: int, texts: tuple[str, str, str]
+    card_id: str,
+    title: str,
+    pair: tuple[str, str, int],
+    r: float,
+    n: int,
+    texts: tuple[str, str, str],
 ) -> InsightCard | None:
     """``texts``: (positive, negative, no link); each may use {strength}, {r} and {n}."""
     if n < MIN_PAIRS or not math.isfinite(r):
@@ -584,7 +595,10 @@ def _correlation_card(
         delta=None,
         trend=trend,
         sentiment="neutral",
-        metric=metric,
+        metric=pair[0],
+        x_metric=pair[0],
+        y_metric=pair[1],
+        lag=pair[2],
     )
 
 
@@ -596,7 +610,7 @@ def _sleep_readiness_card(c: _CardData) -> InsightCard | None:
     return _correlation_card(
         "sleep_readiness",
         "Sleep and readiness",
-        "sleep_score",
+        ("sleep_score", "readiness", 0),
         r,
         n,
         (
@@ -622,7 +636,7 @@ def _stress_sleep_card(c: _CardData) -> InsightCard | None:
     return _correlation_card(
         "stress_sleep",
         "Stress and sleep",
-        "avg_stress",
+        ("avg_stress", "sleep_score", 1),
         r,
         n,
         (

@@ -154,7 +154,7 @@ def _summarize(
     # Only structured run/ride efforts above threshold count as anaerobic work (not steep hikes).
     hard = float(np.sum(s.effort >= 1.0)) / 60 if group in {"run", "ride"} else 0.0
     aero = float(np.clip(0.8 + trimp / 42, 0, 5.0))
-    anaero = float(np.clip(0.06 * above + 0.32 * hard, 0, 4.0))
+    anaero = float(np.clip(0.03 * above + 0.11 * hard + rng.normal(0, 0.25), 0, 4.5))
     load = trimp * float(rng.uniform(0.92, 1.12)) + 10 * anaero
     kcal_per_s = (
         (

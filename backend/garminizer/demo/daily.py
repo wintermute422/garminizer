@@ -370,7 +370,7 @@ def _performance_rows(
     rode = any(a["sport_group"] == "ride" for a in window)
     vdot = st.vo2max * 0.98
     longest_h = max((a["duration_s"] / 3600 for a in window), default=0.0)
-    endurance = 2800 + 65 * st.ctl + 700 * min(longest_h, 4)
+    endurance = 2400 + 40 * st.ctl + 550 * min(longest_h, 3)
     trail = sum(1 for a in window if a["sport_type"] in {"trail_running", "hiking"})
     strength = 35 + 0.3 * st.ctl + 2.5 * min(trail, 6)
     endur = 40 + 0.35 * st.ctl
