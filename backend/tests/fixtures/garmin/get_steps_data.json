@@ -1,0 +1,26 @@
+[
+  {
+    "startGMT": "2024-05-01T00:00:00.0",
+    "endGMT": "2024-05-01T00:15:00.0",
+    "steps": 0,
+    "pushes": 0,
+    "primaryActivityLevel": "sleeping",
+    "activityLevelConstant": true
+  },
+  {
+    "startGMT": "2024-05-01T06:00:00.0",
+    "endGMT": "2024-05-01T06:15:00.0",
+    "steps": 450,
+    "pushes": 0,
+    "primaryActivityLevel": "active",
+    "activityLevelConstant": false
+  },
+  {
+    "startGMT": "2024-05-01T06:15:00.0",
+    "endGMT": "2024-05-01T06:30:00.0",
+    "steps": 1600,
+    "pushes": 0,
+    "primaryActivityLevel": "highlyActive",
+    "activityLevelConstant": false
+  }
+]

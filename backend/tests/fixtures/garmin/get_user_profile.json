@@ -1,0 +1,28 @@
+{
+  "id": 7654321,
+  "userData": {
+    "gender": "MALE",
+    "weight": 72500.0,
+    "height": 178.0,
+    "timeFormat": "time_twenty_four_hr",
+    "birthDate": "1990-06-15",
+    "measurementSystem": "metric",
+    "activityLevel": null,
+    "handedness": "RIGHT",
+    "vo2MaxRunning": 52.0,
+    "vo2MaxCycling": 49.0,
+    "lactateThresholdSpeed": 0.34,
+    "lactateThresholdHeartRate": 170,
+    "intensityMinutesCalcMethod": "AUTO",
+    "moderateIntensityMinutesHrZone": 3,
+    "vigorousIntensityMinutesHrZone": 4,
+    "thresholdHeartRateAutoDetected": true
+  },
+  "userSleep": {
+    "sleepTime": 79200,
+    "defaultSleepTime": false,
+    "wakeTime": 23400
+  },
+  "connectDate": null,
+  "sourceType": null
+}

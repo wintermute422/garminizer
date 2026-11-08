@@ -1,0 +1,20 @@
+{
+  "userInfo": {
+    "birthDate": "1990-06-15",
+    "genderType": "MALE",
+    "locale": "en",
+    "timeZone": "Europe/Rome",
+    "age": 33,
+    "countryCode": "IT"
+  },
+  "biometricProfile": {
+    "userId": 1234567890,
+    "height": 178.0,
+    "weight": 72500.0,
+    "vo2Max": 52.0,
+    "vo2MaxCycling": 49.0,
+    "lactateThresholdHeartRate": 170.0,
+    "functionalThresholdPower": 265
+  },
+  "timeZone": "Europe/Rome"
+}

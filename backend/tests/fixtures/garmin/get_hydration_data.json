@@ -1,0 +1,9 @@
+{
+  "userId": 1234567890,
+  "calendarDate": "2024-05-01",
+  "valueInML": 1800.0,
+  "goalInML": 2500.0,
+  "dailyAverageinML": null,
+  "sweatLossInML": 750.0,
+  "activityIntakeInML": 0.0
+}

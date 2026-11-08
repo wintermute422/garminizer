@@ -1,0 +1,17 @@
+[
+  {
+    "deviceId": 3400000001,
+    "unitId": 3400000001,
+    "productDisplayName": "Forerunner Demo",
+    "displayName": "Forerunner Demo",
+    "currentFirmwareVersion": "21.19",
+    "primary": true,
+    "imageUrl": "https://static.garmincdn.com/demo/forerunner.png"
+  },
+  {
+    "deviceId": 3400000002,
+    "productDisplayName": "Index Demo Scale",
+    "currentFirmwareVersion": "4.10",
+    "primary": false
+  }
+]

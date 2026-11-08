@@ -1,0 +1,127 @@
+{
+  "dailySleepDTO": {
+    "id": 1714511700000,
+    "userProfilePK": 1234567890,
+    "calendarDate": "2024-05-01",
+    "sleepTimeSeconds": 27000,
+    "napTimeSeconds": 0,
+    "sleepWindowConfirmed": true,
+    "sleepStartTimestampGMT": 1714511700000,
+    "sleepEndTimestampGMT": 1714539600000,
+    "sleepStartTimestampLocal": 1714518900000,
+    "sleepEndTimestampLocal": 1714546800000,
+    "unmeasurableSleepSeconds": 0,
+    "deepSleepSeconds": 4500,
+    "lightSleepSeconds": 16200,
+    "remSleepSeconds": 6300,
+    "awakeSleepSeconds": 900,
+    "averageSpO2Value": 95.0,
+    "lowestSpO2Value": 89,
+    "highestSpO2Value": 99,
+    "averageRespirationValue": 13.5,
+    "lowestRespirationValue": 11.0,
+    "highestRespirationValue": 17.0,
+    "awakeCount": 1,
+    "avgSleepStress": 14.0,
+    "sleepScoreFeedback": "POSITIVE_LONG_AND_DEEP",
+    "sleepScores": {
+      "totalDuration": {
+        "value": 88,
+        "qualifierKey": "GOOD"
+      },
+      "stress": {
+        "value": 90,
+        "qualifierKey": "EXCELLENT"
+      },
+      "awakeCount": {
+        "value": 85,
+        "qualifierKey": "GOOD"
+      },
+      "overall": {
+        "value": 84,
+        "qualifierKey": "GOOD"
+      },
+      "remPercentage": {
+        "value": 23,
+        "qualifierKey": "EXCELLENT"
+      },
+      "restlessness": {
+        "qualifierKey": "GOOD"
+      },
+      "lightPercentage": {
+        "value": 60,
+        "qualifierKey": "GOOD"
+      },
+      "deepPercentage": {
+        "value": 17,
+        "qualifierKey": "FAIR"
+      }
+    },
+    "sleepNeed": {
+      "userProfilePk": 1234567890,
+      "calendarDate": "2024-05-01",
+      "actual": 480
+    }
+  },
+  "sleepMovement": [],
+  "remSleepData": true,
+  "sleepLevels": [
+    {
+      "startGMT": "2024-04-30T21:15:00.0",
+      "endGMT": "2024-04-30T21:45:00.0",
+      "activityLevel": 1.0
+    },
+    {
+      "startGMT": "2024-04-30T21:45:00.0",
+      "endGMT": "2024-04-30T23:00:00.0",
+      "activityLevel": 0.0
+    },
+    {
+      "startGMT": "2024-04-30T23:00:00.0",
+      "endGMT": "2024-04-30T23:15:00.0",
+      "activityLevel": 3.0
+    },
+    {
+      "startGMT": "2024-04-30T23:15:00.0",
+      "endGMT": "2024-05-01T02:00:00.0",
+      "activityLevel": 1.0
+    },
+    {
+      "startGMT": "2024-05-01T02:00:00.0",
+      "endGMT": "2024-05-01T03:45:00.0",
+      "activityLevel": 2.0
+    },
+    {
+      "startGMT": "2024-05-01T03:45:00.0",
+      "endGMT": "2024-05-01T05:00:00.0",
+      "activityLevel": 1.0
+    }
+  ],
+  "restlessMomentsCount": 31,
+  "sleepHeartRate": [
+    {
+      "value": 54,
+      "startGMT": 1714511700000
+    },
+    {
+      "value": 50,
+      "startGMT": 1714515300000
+    },
+    {
+      "value": 47,
+      "startGMT": 1714518900000
+    },
+    {
+      "value": 49,
+      "startGMT": 1714522500000
+    },
+    {
+      "value": 52,
+      "startGMT": 1714526100000
+    }
+  ],
+  "avgOvernightHrv": 62.0,
+  "hrvStatus": "BALANCED",
+  "bodyBatteryChange": 58,
+  "restingHeartRate": 48
+}

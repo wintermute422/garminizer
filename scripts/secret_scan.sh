@@ -51,6 +51,16 @@ for u in "${USER:-}" "${USERNAME:-}"; do
 done
 sort -u "$VALUES" -o "$VALUES"
 
+# The GitHub owner of this repository is public in every clone URL, badge and link. When a
+# private value equals it (or is part of it), e.g. a Garmin display name that matches the GitHub
+# handle, it cannot be kept out of the repo and reveals nothing new: drop exactly those values.
+OWNER="$({ git remote get-url origin 2>/dev/null || true; } |
+  sed -nE 's#^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)([^/]+)/.*#\2#p')"
+if [ -n "$OWNER" ]; then
+  awk -v owner="$OWNER" 'index(tolower(owner), tolower($0)) == 0' "$VALUES" >"$TMP/values.kept"
+  mv "$TMP/values.kept" "$VALUES"
+fi
+
 # Generic patterns (extended regex). Name|regex
 GENERIC="$TMP/generic"
 cat >"$GENERIC" <<'EOF'

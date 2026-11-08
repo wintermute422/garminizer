@@ -40,10 +40,19 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `.claude/settings.json` `permissions.deny` | Read/Edit of `.env`, `data/**` |
 | `scripts/claude_hook.sh` / `scripts/pyenv.sh` | picks the venv interpreter (skips the Windows Store `python3` stub), execs it |
 | `scripts/check.sh` | ruff, format, mypy strict, hook selftest, dev DB up, pytest, web lint/format/tsc/vitest/build, API types check, secret scan, gitleaks history |
-| `scripts/secret_scan.sh` | exact values from `.env` + `data/private_values.txt` + local user name; generic rules (private IPv4, home/Windows user paths, private keys, JWTs, e-mails). Prints file:line + rule only |
+| `scripts/secret_scan.sh` | exact values from `.env` + `data/private_values.txt` + local user name; generic rules (private IPv4, home/Windows user paths, private keys, JWTs, e-mails). Prints file:line + rule only. Values equal to (or part of) the GitHub owner of `origin` are dropped: public in every repo URL (user-approved 2026-11-08; tested both ways in `test_git_hooks.py`) |
 | `scripts/gitleaks.sh` | gitleaks v8.30.1 (native or pinned Docker image) with `.gitleaks.toml` |
 | `.githooks/pre-commit` | blocks `.env*`, `data/`, FIT/dump/key files, git-ignored files, unmanifested screenshots; ruff + prettier on staged files; secret scan + gitleaks staged |
 | `.githooks/pre-push` | branches `feat/ fix/ docs/ chore/ ci/` only (main only for bootstrap), fast-forward only, no deletions, new `v*` tags only; scans the pushed range |
+| `scripts/bootstrap_remote.sh` | one-time: create the private GitHub repo and push `main`; refuses once origin has `main` |
+| `scripts/check_utf8.py` | every text file is UTF-8 with LF endings (pre-commit on staged files, check.sh on all) |
+| `scripts/devdb.sh` | dev/test Postgres 17 (`garminizer-dev`, 127.0.0.1:55432): up/down/status/reset/psql |
+| `scripts/gen_api_types.sh` | OpenAPI → `web/src/api/schema.d.ts`; `--check` fails when stale (check.sh) |
+| `scripts/e2e.sh` | A9/A10: production build + FastAPI on 8421 + deterministic `garminizer_e2e` demo DB; Playwright on every page × desktop/mobile × dark/light: charts drawn with data, maps loaded, no console errors, no horizontal overflow, axe serious/critical = 0; screenshots → `artifacts/screenshots/` |
+| `scripts/dev_api.sh`, `scripts/dev_web.sh` | development API (8425, dev DB) and Vite (5180) — never the real DB |
+| `scripts/init_env.py [--tz Zone]` | creates `.env` from `.env.example` with random secrets; never prints them; refuses to overwrite |
+| `scripts/screenshots.sh` | README screenshots from the demo e2e DB only (refuses non-demo), writes MANIFEST.sha256 |
+| `scripts/e2e_dev.sh API_PORT WEB_PORT "page x"` | same checks against Vite dev on private ports (parallel page work, no shared build) |
 
 ## Git workflow
 - Repo-local identity `wintermute422` + GitHub noreply e-mail (never the personal address).
@@ -69,8 +78,60 @@ Read CLAUDE.md, `plan.md`, `progress.md`, then `git status` and `git log -5`; co
 progress.md's "Next step".
 
 ## Lessons (append a rule whenever a mistake is caught)
-- Add imports in the same Edit as their first use: the post-edit hook lints/type-checks after
-  every single edit and reports the half-finished state.
+- Add imports and definitions *before* (or in the same Edit as) their first use: the post-edit
+  hook lints/type-checks after every single edit and reports the half-finished state.
+- Edits made through shell scripts/sed bypass the post-edit hook: run `ruff format` / `ruff check`
+  on the touched files right after (check.sh catches it otherwise).
+- Python on Windows defaults to cp1252 and CRLF: every `read_text`/`write_text`/`open` in a
+  script must pass `encoding="utf-8"` (and `newline="\n"` when writing). A cp1252 write once put
+  a stray byte into CLAUDE.md and a failed write truncated checks.md. Prefer the Edit/Write tools
+  for docs; use scripts only for code refactors.
+- Long multi-line Python heredocs inside one Bash call can get mangled; put the script in the
+  scratchpad and run it with `python -I script.py <args>`.
+- Calibrate synthetic data against known physiology before building on it (check pace/HR,
+  sleep-stage shares, race times vs predictions) — the first demo run had 30 % deep sleep and
+  marathon HR of 183 bpm.
+- Use absolute paths in every shell command: a `cd dir && …` once silently ran in the repo root
+  and scattered new files there.
+- React compiler lint (eslint-plugin-react-hooks 7): never write `ref.current` during render
+  (update "latest" refs in an effect) and never pick a component at render time
+  (`const Icon = f()`); use `createElement` (see `SportIcon`).
+- ECharts 6: no `grid.containLabel` (default outerBounds already contains labels). MapLibre 6:
+  pass the Vite-bundled worker via `setWorkerUrl` (see MapView), dev pre-bundling breaks it.
+- e2e readiness = no `.animate-pulse` skeletons + `data-chart-ready`/`data-map-ready`; never
+  `networkidle` (map tiles keep streaming).
+- New pages must add every chart through `<Chart>` (it exposes data-points for the e2e "chart
+  has data" check) and scrollable regions through `<ScrollArea>` (keyboard focusable, axe).
+- Prove every check can fail: give each harness check a self-test or mutation. The e2e
+  overflow check compared against `innerWidth`, which mobile emulation widens to fit oversized
+  content, so a 590 px-wide page passed until a self-test injected a 2000 px element.
+- Brief parallel agents with exact formatter paths (`prettier --write src/pages/<mine>`); a
+  broad `prettier --write src/pages` touched other agents' directories.
+- Git Bash rewrites container paths like `/data/...` in docker arguments into Windows paths;
+  set `MSYS_NO_PATHCONV=1` for docker commands with in-container paths.
+- Once `.env` exists, `DATABASE_URL` points at the user's REAL database (port 55433). Dev work
+  uses `scripts/dev_api.sh` / `scripts/dev_web.sh` (dev DB on 55432, API on 8425) and explicit
+  `DATABASE_URL=` prefixes; `garminizer demo seed` refuses once Garmin tokens exist.
 - Never put a blocked command string literally into a shell command (even inside a JSON test
   payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
 - Project hooks in `.claude/settings.json` take effect immediately in the running session.
+- In gitleaks/secret-scan regexes use `[ \t]*`, never `\s*`, around `=`: `\s` spans the newline and
+  turns an empty `KEY=` line plus the next line into a false "secret".
+- Test values that look like personal data (private IPs, e-mails) are assembled at runtime in tests
+  so the tracked file itself stays clean for secret_scan.
+- Git Bash on Windows has no `pkill`: a `pkill ... || true` cleanup silently does nothing and
+  leaves servers on their ports. Stop processes by PID (`kill $!`, or `netstat -ano` +
+  `taskkill //PID`), and check the port is free afterwards.
+- Parallel Playwright runs share `web/test-results/` and wipe each other's traces (ENOENT). Give
+  every concurrent run its own `--output=test-results-<port>`.
+- A Vite dev server picks up other agents' edits mid-test (HMR → "createRoot() … already" and
+  "removeChild" console errors). When several agents edit the tree, verify on a frozen
+  `vite build --outDir artifacts/dist-<port>` served via `WEB_DIST`, not on the dev server.
+- Under `set -euo pipefail` a failing command inside `$(a | b)` aborts the whole script (e.g.
+  `git remote get-url origin` in a repo without a remote). Guard it with `{ a || true; } | b`;
+  the hook tests in throwaway repos (no remote) caught this.
+- A user's Garmin display name can equal their GitHub handle: the scan then flags the repo's own
+  URLs. Ask the user before exempting anything from the secret scan.
+- Git Bash's `sha256sum` writes `hash *name` (binary marker), Linux writes `hash  name`: a
+  manifest check written for one blocked the other on the first real screenshot commit. Match
+  `[ *]` and normalise when writing; test both formats.

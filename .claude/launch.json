@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["scripts/dev_api.sh"],
+      "port": 8425
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["scripts/dev_web.sh"],
+      "port": 5180
+    }
+  ]
+}

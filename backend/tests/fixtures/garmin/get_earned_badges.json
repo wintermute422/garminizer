@@ -1,0 +1,25 @@
+[
+  {
+    "badgeId": 101,
+    "badgeKey": "challenge_run_5k",
+    "badgeName": "5K Finisher",
+    "badgeUuid": null,
+    "badgeCategoryId": 4,
+    "badgeDifficultyId": 1,
+    "badgePoints": 2,
+    "badgeTypeIds": [
+      1
+    ],
+    "badgeEarnedDate": "2024-05-01T07:30:00.0",
+    "badgeEarnedNumber": 1
+  },
+  {
+    "badgeId": 102,
+    "badgeKey": "early_bird",
+    "badgeName": "Early Bird",
+    "badgeCategoryId": 2,
+    "badgePoints": 1,
+    "badgeEarnedDate": "2024-04-11T05:00:00.0",
+    "badgeEarnedNumber": 3
+  }
+]

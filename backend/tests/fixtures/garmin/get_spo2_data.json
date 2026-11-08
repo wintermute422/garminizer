@@ -1,0 +1,39 @@
+{
+  "userProfilePK": 1234567890,
+  "calendarDate": "2024-05-01",
+  "averageSpO2": 95.0,
+  "lowestSpO2": 89,
+  "lastSevenDaysAvgSpO2": 95.4,
+  "latestSpO2": 96,
+  "avgSleepSpO2": 95.0,
+  "spO2HourlyAverages": [
+    [
+      1714525200000,
+      95
+    ],
+    [
+      1714528800000,
+      94
+    ]
+  ],
+  "continuousReadingDTOList": [
+    {
+      "epochTimestamp": "2024-05-01T01:00:00.0",
+      "deviceId": 3400000001,
+      "epochDuration": 60,
+      "spo2Reading": 95
+    },
+    {
+      "epochTimestamp": "2024-05-01T01:01:00.0",
+      "deviceId": 3400000001,
+      "epochDuration": 60,
+      "spo2Reading": 94
+    },
+    {
+      "epochTimestamp": "2024-05-01T01:02:00.0",
+      "deviceId": 3400000001,
+      "epochDuration": 60,
+      "spo2Reading": 0
+    }
+  ]
+}

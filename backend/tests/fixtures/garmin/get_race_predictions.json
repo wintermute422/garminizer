@@ -1,0 +1,18 @@
+[
+  {
+    "userId": 1234567890,
+    "calendarDate": "2024-05-01",
+    "time5K": 1165,
+    "time10K": 2420,
+    "timeHalfMarathon": 5360,
+    "timeMarathon": 11250
+  },
+  {
+    "userId": 1234567890,
+    "calendarDate": "2024-05-02",
+    "time5K": 1163,
+    "time10K": 2416,
+    "timeHalfMarathon": 5352,
+    "timeMarathon": 11232
+  }
+]

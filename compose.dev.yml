@@ -1,0 +1,21 @@
+# Development/test database only (demo + test data). Your real data lives in the separate
+# `garminizer` stack from compose.yml. Managed by scripts/devdb.sh.
+name: garminizer-dev
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: garminizer
+      POSTGRES_PASSWORD: garminizer-dev
+      POSTGRES_DB: garminizer
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U garminizer -d garminizer"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  pgdata-dev:

@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**", "docs/**", "chore/**", "ci/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_DATABASE_URL: postgresql+psycopg://garminizer:garminizer-dev@127.0.0.1:55432/garminizer_test
+  GARMINIZER_DB_EXTERNAL: "1"
+
+jobs:
+  backend:
+    name: Backend (lint, types, tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: garminizer
+          POSTGRES_PASSWORD: garminizer-dev
+          POSTGRES_DB: garminizer
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U garminizer" --health-interval 2s --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check backend scripts
+      - run: ruff format --check backend scripts
+      - run: mypy
+      - run: python scripts/claude_hook.py selftest
+      - run: python scripts/check_utf8.py
+      - run: python scripts/gen_data_model_doc.py --check
+      - run: pytest
+
+  web:
+    name: Web (lint, types, unit tests, build, API contract)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pip install -e ".[dev]"
+      - run: pnpm -C web install --frozen-lockfile
+      - run: pnpm -C web run lint
+      - run: pnpm -C web run format:check
+      - run: pnpm -C web run typecheck
+      - run: pnpm -C web run test
+      - run: pnpm -C web run build
+      - name: Generated API types are up to date
+        run: bash scripts/gen_api_types.sh --check
+
+  e2e:
+    name: End-to-end (Playwright, demo data)
+    runs-on: ubuntu-latest
+    needs: [backend, web]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: garminizer
+          POSTGRES_PASSWORD: garminizer-dev
+          POSTGRES_DB: garminizer
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U garminizer" --health-interval 2s --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pip install -e ".[dev]"
+      - run: pnpm -C web install --frozen-lockfile
+      - run: pnpm -C web exec playwright install --with-deps chromium
+      - run: bash scripts/e2e.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            web/playwright-report
+            artifacts/screenshots
+          retention-days: 7
+
+  secrets:
+    name: Secret & personal-data scan (full history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: bash scripts/gitleaks.sh history
+      - run: bash scripts/secret_scan.sh --history
+      - run: bash scripts/secret_scan.sh --tree
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: garminizer:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,10 @@
+{
+  "userDeviceId": 3400000001,
+  "userProfileNumber": 1234567890,
+  "applicationNumber": 1,
+  "lastUsedDeviceApplicationKey": "demo-app-key",
+  "lastUsedDeviceName": "Forerunner Demo",
+  "lastUsedDeviceUploadTime": 1714564800000,
+  "imageUrl": "https://static.garmincdn.com/demo/forerunner.png",
+  "released": true
+}

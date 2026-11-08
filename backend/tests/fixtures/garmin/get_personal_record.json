@@ -1,0 +1,40 @@
+[
+  {
+    "id": 9001,
+    "typeId": 3,
+    "activityId": 1234567890,
+    "activityName": "Morning Run",
+    "activityType": "running",
+    "activityStartDateTimeInGMT": 1714546800000,
+    "actStartDateTimeInGMTFormatted": "2024-05-01T07:00:00.0",
+    "value": 1185.3,
+    "prStartTimeGmt": 1714548000000,
+    "prStartTimeGmtFormatted": "2024-05-01T07:20:00.0",
+    "prTypeLabelKey": null,
+    "poolLengthUnit": null
+  },
+  {
+    "id": 9002,
+    "typeId": 7,
+    "activityId": 1234567890,
+    "activityType": "running",
+    "value": 21500.0,
+    "prStartTimeGmt": 1714546800000,
+    "prTypeLabelKey": null
+  },
+  {
+    "id": 9003,
+    "typeId": 12,
+    "activityId": null,
+    "value": 25012.0,
+    "prStartTimeGmt": 1713657600000,
+    "prTypeLabelKey": null
+  },
+  {
+    "id": 9004,
+    "typeId": 99,
+    "activityId": null,
+    "value": 3.0,
+    "prStartTimeGmt": null
+  }
+]

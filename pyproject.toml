@@ -31,6 +31,8 @@ dependencies = [
   "numpy>=2.1",
   "fitdecode>=0.10",
   "itsdangerous>=2.2",
+  "tzdata>=2024.1",  # IANA time zones on Windows
+  "mcp>=2.3,<3",  # MCP server for Claude Desktop meal logging (`garminizer mcp`)
 ]
 
 [project.optional-dependencies]
@@ -58,6 +60,8 @@ src = ["backend", "scripts"]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "N", "C4", "PTH", "PL", "S"]
 ignore = [
   "PLR0913",  # many-args functions are common in parsers/handlers
+  "PLR0917",  # same, positional variant
+  "PLR0911",  # early returns read better in status/label mapping functions
   "PLR2004",  # magic values: physiological constants read better inline
   "S101",     # assert is fine in tests
   "S603",     # subprocess with list args is intended (scripts, backup)
@@ -67,11 +71,21 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "backend/tests/**" = ["S", "PLR", "N802"]
 "backend/garminizer/db/migrations/**" = ["E501"]
+"backend/garminizer/models/**" = ["RUF012"]  # SQLAlchemy's __table_args__ idiom
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["backend/garminizer", "backend/tests", "scripts/claude_hook.py"]
+files = [
+  "backend/garminizer",
+  "backend/tests",
+  "scripts/claude_hook.py",
+  "scripts/check_utf8.py",
+  "scripts/e2e_db.py",
+  "scripts/gen_data_model_doc.py",
+]
+mypy_path = "backend"
+explicit_package_bases = true
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
 

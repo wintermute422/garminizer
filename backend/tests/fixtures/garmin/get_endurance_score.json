@@ -1,0 +1,36 @@
+{
+  "userProfilePK": 1234567890,
+  "startDate": "2024-05-01",
+  "endDate": "2024-05-31",
+  "avg": 6110,
+  "max": 6125,
+  "groupMap": {
+    "2024-05-01": {
+      "groupAverage": 6100,
+      "groupMax": 6100,
+      "enduranceContributorDTOList": []
+    },
+    "2024-05-02": {
+      "groupAverage": 6120,
+      "groupMax": 6120,
+      "enduranceContributorDTOList": []
+    }
+  },
+  "enduranceScoreDTO": {
+    "userProfilePK": 1234567890,
+    "deviceId": 3400000001,
+    "calendarDate": "2024-05-02",
+    "overallScore": 6125,
+    "classification": 4,
+    "feedbackPhrase": 34,
+    "primaryTrainingDevice": true,
+    "gaugeLowerLimit": 3570,
+    "classificationLowerLimitIntermediate": 5100,
+    "classificationLowerLimitTrained": 5800,
+    "classificationLowerLimitWellTrained": 6500,
+    "classificationLowerLimitExpert": 7200,
+    "classificationLowerLimitSuperior": 7900,
+    "classificationLowerLimitElite": 8600,
+    "gaugeUpperLimit": 10320
+  }
+}
