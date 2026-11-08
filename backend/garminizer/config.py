@@ -23,8 +23,10 @@ class Settings(BaseSettings):
 
     database_url: str = DEFAULT_DEV_DATABASE_URL
 
-    app_host: str = "127.0.0.1"
+    app_host: str = "127.0.0.1"  # who may reach the dashboard (safety check)
     app_port: int = 8420
+    listen_host: str | None = None  # bind address; Docker sets 0.0.0.0 behind a 127.0.0.1 port map
+    web_dist: Path | None = None  # built SPA (defaults to web/dist in a source checkout)
     app_password: SecretStr | None = None
     app_secret_key: SecretStr | None = None
 
@@ -60,6 +62,10 @@ class Settings(BaseSettings):
     @property
     def backups_dir(self) -> Path:
         return self.backup_dir or self.data_dir / "backups"
+
+    @property
+    def bind_host(self) -> str:
+        return self.listen_host or self.app_host
 
     @property
     def is_loopback(self) -> bool:

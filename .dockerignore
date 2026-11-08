@@ -1,0 +1,22 @@
+# Never send secrets, real data or local state into the build context.
+.env
+.env.*
+!.env.example
+data/
+artifacts/
+*.dump
+*.fit
+.git/
+.venv/
+**/__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+**/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+plan.md
+checks.md
+progress.md
+.claude/

@@ -60,6 +60,8 @@ def create_app(
     web_dist: Path | None = DEFAULT_WEB_DIST,
 ) -> FastAPI:
     settings = settings or get_settings()
+    if settings.web_dist is not None and web_dist == DEFAULT_WEB_DIST:
+        web_dist = settings.web_dist
     settings.check_web_safety()
     engine = create_engine(database_url or settings.database_url, pool_pre_ping=True)
     factory = sessionmaker(engine, expire_on_commit=False)

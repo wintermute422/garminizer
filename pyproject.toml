@@ -75,7 +75,14 @@ ignore = [
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["backend/garminizer", "backend/tests", "scripts/claude_hook.py"]
+files = [
+  "backend/garminizer",
+  "backend/tests",
+  "scripts/claude_hook.py",
+  "scripts/check_utf8.py",
+  "scripts/e2e_db.py",
+  "scripts/gen_data_model_doc.py",
+]
 mypy_path = "backend"
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]

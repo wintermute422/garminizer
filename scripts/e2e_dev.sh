@@ -17,9 +17,7 @@ shift 3
 DB_URL="postgresql+psycopg://garminizer:garminizer-dev@127.0.0.1:55432/garminizer_e2e"
 
 bash scripts/devdb.sh up >/dev/null
-exists="$(docker compose -f compose.dev.yml -p garminizer-dev exec -T db \
-  psql -U garminizer -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='garminizer_e2e'" || true)"
-[ "$exists" = "1" ] || { echo "e2e_dev: run scripts/e2e.sh once to seed the e2e database" >&2; exit 2; }
+"$PY" scripts/e2e_db.py "$DB_URL" "${E2E_END:-2026-10-31}"
 
 mkdir -p artifacts
 DATABASE_URL="$DB_URL" APP_HOST=127.0.0.1 APP_PORT="$API_PORT" APP_PASSWORD="" \

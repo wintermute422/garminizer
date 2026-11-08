@@ -1,0 +1,71 @@
+# Garminizer stack: PostgreSQL 17 + web app + background worker.
+#   cp .env.example .env    # set POSTGRES_PASSWORD (and APP_PASSWORD if you expose it on your LAN)
+#   docker compose up -d --build
+#   open http://localhost:8420  ->  Sync & settings  ->  Connect Garmin
+# Data lives in the `pgdata` volume; tokens and backups in ./data (git-ignored).
+name: garminizer
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://garminizer:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/garminizer
+  # Exposure (safety check): 127.0.0.1 = this computer only. 0.0.0.0 requires APP_PASSWORD.
+  APP_HOST: ${APP_HOST:-127.0.0.1}
+  APP_PORT: "8420"
+  LISTEN_HOST: 0.0.0.0
+  DATA_DIR: /data
+  TZ: ${TZ:-UTC}
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: garminizer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: garminizer
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${DB_PORT:-55433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U garminizer -d garminizer"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    image: garminizer:local
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment: *app-env
+    ports:
+      - "${APP_HOST:-127.0.0.1}:${APP_PORT:-8420}:8420"
+    volumes:
+      - ./data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["garminizer", "serve"]
+
+  worker:
+    image: garminizer:local
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment: *app-env
+    volumes:
+      - ./data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    command: ["garminizer", "worker"]
+    healthcheck:
+      disable: true
+
+volumes:
+  pgdata:

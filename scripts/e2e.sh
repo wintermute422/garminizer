@@ -13,19 +13,14 @@ export ROOT
 
 E2E_END="${E2E_END:-2026-10-31}"
 PORT="${E2E_PORT:-8421}"
-DB_URL="postgresql+psycopg://garminizer:garminizer-dev@127.0.0.1:55432/garminizer_e2e"
+DB_URL="${E2E_DATABASE_URL:-postgresql+psycopg://garminizer:garminizer-dev@127.0.0.1:55432/garminizer_e2e}"
 RESEED=0
 if [ "${1:-}" = "--reseed" ]; then RESEED=1; shift; fi
 
 bash scripts/devdb.sh up >/dev/null
-exists="$(docker compose -f compose.dev.yml -p garminizer-dev exec -T db \
-  psql -U garminizer -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='garminizer_e2e'" || true)"
-if [ "$exists" != "1" ] || [ "$RESEED" = "1" ]; then
-  echo "e2e: seeding demo database (730 days ending $E2E_END)"
-  docker compose -f compose.dev.yml -p garminizer-dev exec -T db psql -U garminizer -d postgres -q \
-    -c "DROP DATABASE IF EXISTS garminizer_e2e WITH (FORCE)" -c "CREATE DATABASE garminizer_e2e"
-  DATABASE_URL="$DB_URL" "$PY" -m garminizer.cli demo seed --days 730 --seed 42 --end "$E2E_END" | head -1
-fi
+args=("$DB_URL" "$E2E_END")
+[ "$RESEED" = "1" ] && args+=(--reseed)
+"$PY" scripts/e2e_db.py "${args[@]}"
 
 (cd web && pnpm run -s build >/dev/null)
 
