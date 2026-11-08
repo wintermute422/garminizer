@@ -17,6 +17,7 @@ All settings come from environment variables or the git-ignored `.env` file (cop
 | `SYNC_REQUEST_DELAY_S` | `1.0` | minimum pause between Garmin requests (be kind; don't lower it much) |
 | `BACKUP_KEEP` | `14` | number of nightly backups kept in `data/backups` |
 | `TZ` | `UTC` | your time zone (daily boundaries, backup time) |
+| `GARMINIZER_DATA` | `./data` | host folder for tokens and backups (Docker) |
 | `MAP_STYLE_URL`, `MAP_STYLE_URL_DARK` | OpenFreeMap positron / dark | MapLibre style URLs |
 
 ## Common tasks
