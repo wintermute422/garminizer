@@ -33,6 +33,19 @@ def _app_client(url: str, data_dir: Path, **state: Any) -> Generator[TestClient,
         yield c
 
 
+def _wait_idle(client: TestClient) -> dict[str, Any]:
+    """Poll /status until no sync runs any more; returns the last status."""
+    deadline = time.monotonic() + 60
+    status: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        status = client.get("/api/sync/status").json()
+        runs = status["last_runs"]
+        if not status["running"] and runs and runs[0]["status"] != "running":
+            break
+        time.sleep(0.2)
+    return status
+
+
 @pytest.fixture
 def demo_client(api_db_url: str, tmp_path: Path) -> Iterator[TestClient]:
     yield from _app_client(api_db_url, tmp_path / "data", garmin_factory=factory_for())
@@ -127,8 +140,9 @@ def test_connect_mfa_disconnect(real_db_url: str, tmp_path: Path) -> None:
         )
         resp = client.post("/api/sync/mfa", json={"code": MFA_CODE}, headers=CSRF)
         assert resp.json() == {"status": "ok"}
-        status = client.get("/api/sync/status").json()
+        status = _wait_idle(client)  # finishing the login starts a first sync
         assert (status["connected"], status["mfa_pending"]) == (True, False)
+        assert status["last_runs"][0]["kind"] == "incremental"
         assert not list((tmp_path / "data").rglob("*mfa*"))
         assert client.post("/api/sync/disconnect", headers=CSRF).json() == {"connected": False}
         assert client.get("/api/sync/status").json()["connected"] is False
@@ -141,17 +155,19 @@ def test_connect_and_run_an_incremental_sync(real_client: TestClient) -> None:
         "/api/sync/connect", json={"email": FAKE_EMAIL, "password": FAKE_PASSWORD}, headers=CSRF
     )
     assert resp.json() == {"status": "ok"}
-    resp = real_client.post("/api/sync/run", json={"kind": "incremental"}, headers=CSRF)
+    first = _wait_idle(real_client)  # connecting starts a first incremental sync by itself
+    assert first["last_runs"][0]["kind"] == "incremental"
+    assert first["last_runs"][0]["status"] == "ok", first["last_runs"][0]
+    deadline = time.monotonic() + 10
+    while True:  # the finished run's thread may still be releasing its lock for a moment
+        resp = real_client.post("/api/sync/run", json={"kind": "incremental"}, headers=CSRF)
+        if resp.status_code != 409 or time.monotonic() > deadline:
+            break
+        time.sleep(0.1)
     assert resp.status_code == 202
     assert resp.json() == {"status": "started", "kind": "incremental"}
-    deadline = time.monotonic() + 60
-    status: dict[str, Any] = {}
-    while time.monotonic() < deadline:
-        status = real_client.get("/api/sync/status").json()
-        runs = status["last_runs"]
-        if not status["running"] and runs and runs[0]["status"] != "running":
-            break
-        time.sleep(0.2)
+    status = _wait_idle(real_client)
+    assert status["last_runs"][0]["id"] > first["last_runs"][0]["id"]
     assert status["last_runs"][0]["kind"] == "incremental"
     assert status["last_runs"][0]["status"] == "ok", status["last_runs"][0]
     assert status["last_runs"][0]["requests"] > 0

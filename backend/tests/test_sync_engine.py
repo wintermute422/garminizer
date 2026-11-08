@@ -31,6 +31,7 @@ from tests.garmin_fake import Crash, FakeGarmin, factory_for
 
 TODAY = date(2024, 5, 10)
 BOOKKEEPING = {"sync_run", "sync_error", "sync_cursor", "app_setting"}
+NOT_FROM_GARMIN = {"meal", "meal_item"}  # logged by the user (nutrition), never synced
 
 
 @pytest.fixture(scope="module")
@@ -123,7 +124,7 @@ def test_incremental_sync_fills_every_table_and_is_idempotent(
     assert first["sleep_stage"] == 18
     assert first["hr_sample"] == 12
     assert first["body_composition"] == 1
-    assert [name for name, n in first.items() if n == 0] == []
+    assert [name for name, n in first.items() if n == 0 and name not in NOT_FROM_GARMIN] == []
 
     again = engine.incremental(sf, client_for(fake), TODAY, settings=settings)
     assert again.status == "ok"
@@ -226,6 +227,23 @@ def test_backfill_walks_back_to_the_first_day(
     again = engine.backfill(sf, client_for(fake), today=TODAY, settings=settings)
     assert again.done
     assert len(fake.calls) == calls  # a complete backfill requests nothing
+
+
+def test_a_first_backfill_fetches_recent_days_before_old_activities(
+    sf: sessionmaker[Session], settings: Settings
+) -> None:
+    fake = _backfill_fake()
+    engine.backfill(sf, client_for(fake), today=TODAY, settings=settings)
+    names = [name for name, _ in fake.calls]
+    assert names.index("get_sleep_data") < names.index("get_activities")
+    first_sleep_day = next(args for name, args in fake.calls if name == "get_sleep_data")
+    assert TODAY.isoformat() in repr(first_sleep_day) or (
+        (TODAY - timedelta(days=engine.OVERLAP_DAYS)).isoformat() in repr(first_sleep_day)
+    )
+    _assert_backfill_complete(sf)
+    fake.calls.clear()
+    engine.backfill(sf, client_for(fake), today=TODAY, settings=settings)
+    assert fake.calls == []  # recent days are fetched once, not on every backfill chunk
 
 
 @pytest.mark.parametrize("crash_after", [30, 80, 140])

@@ -624,6 +624,39 @@ def _sync_ranges_incremental(run: _Run) -> bool:
     return True
 
 
+def _sync_recent_days(run: _Run) -> bool:
+    """The last OVERLAP_DAYS of every daily/range dataset, skipping days already stored.
+
+    Starts after each dataset's newest day, so a resumed run (or a later backfill chunk on the
+    same day) asks Garmin for nothing twice.
+    """
+    cursors = _with_session(run, _cursors)
+    floor = run.today - timedelta(days=OVERLAP_DAYS)
+
+    def start(name: str) -> date:
+        cur = cursors.get(name)
+        newest: date | None = cur.newest_day if cur is not None else None
+        return floor if newest is None else max(floor, newest + timedelta(days=1))
+
+    for ds in RANGE:
+        first = start(ds.name)
+        for month in _months(first, run.today) if first <= run.today else []:
+            if run.out_of_time():
+                return False
+            _month_unit(run, ds, month)
+    starts = {ds.name: start(ds.name) for ds in DAILY}
+    day = min(starts.values())
+    while day <= run.today:
+        for ds in DAILY:
+            if day < starts[ds.name]:
+                continue
+            if run.out_of_time():
+                return False
+            _daily_unit(run, ds, day)
+        day += timedelta(days=1)
+    return True
+
+
 def account_first_day(session: Session, today: date) -> date:
     """Earliest of the profile creation date (when Garmin sends one) and the first activity."""
     raw = {
@@ -875,7 +908,13 @@ def backfill(
     """Walk back from the oldest synced day to the account's first day (or `until`)."""
 
     def body(run: _Run) -> tuple[str | None, bool]:
-        if not (_sync_static(run, only_missing=True) and _backfill_activities(run)):
+        # A first backfill can take hours of activity downloads; fetch the last few days of
+        # every daily/range dataset first so the dashboards show today right away.
+        if not (
+            _sync_static(run, only_missing=True)
+            and _sync_recent_days(run)
+            and _backfill_activities(run)
+        ):
             return "time budget reached", False
         first = _with_session(run, lambda s: account_first_day(s, run.today))
         floor = max(first, until) if until else first

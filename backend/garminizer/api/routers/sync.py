@@ -204,6 +204,8 @@ def connect(body: SyncConnectRequest, session: SessionDep, request: Request) -> 
         raise _garmin_http_error(exc) from None
     if result.status == "needs_mfa":
         setattr(request.app.state, _PENDING_ATTR, result.state)
+    else:
+        _start_job("incremental", request)
     return SyncConnectResult(status=result.status)
 
 
@@ -219,6 +221,7 @@ def mfa(body: SyncMfaRequest, session: SessionDep, request: Request) -> SyncConn
     except GarminError as exc:
         raise _garmin_http_error(exc) from None
     setattr(request.app.state, _PENDING_ATTR, None)
+    _start_job("incremental", request)
     return SyncConnectResult(status="ok")
 
 
@@ -252,23 +255,29 @@ def _job(
         _JOB_LOCK.release()
 
 
-@router.post("/run", response_model=SyncRunAccepted, status_code=202)
-def run(body: SyncRunRequest, session: SessionDep, request: Request) -> SyncRunAccepted:
-    """Start an incremental sync or a backfill in the background (see GET /status)."""
-    _refuse_demo(session)
-    settings = _settings(request)
-    if not auth.has_tokens(settings):
-        raise HTTPException(status_code=409, detail="not connected to Garmin")
-    if engine.is_running(session) or not _JOB_LOCK.acquire(blocking=False):
-        raise HTTPException(status_code=409, detail="a sync is already running")
+def _start_job(kind: Literal["incremental", "backfill"], request: Request) -> bool:
+    """Run a sync in a background thread; False when one is already running here."""
+    if not _JOB_LOCK.acquire(blocking=False):
+        return False
     try:
         threading.Thread(
             target=_job,
-            args=(body.kind, settings, request.app.state.session_factory, _factory(request)),
-            name=f"garminizer-{body.kind}",
+            args=(kind, _settings(request), request.app.state.session_factory, _factory(request)),
+            name=f"garminizer-{kind}",
             daemon=True,
         ).start()
     except BaseException:
         _JOB_LOCK.release()
         raise
+    return True
+
+
+@router.post("/run", response_model=SyncRunAccepted, status_code=202)
+def run(body: SyncRunRequest, session: SessionDep, request: Request) -> SyncRunAccepted:
+    """Start an incremental sync or a backfill in the background (see GET /status)."""
+    _refuse_demo(session)
+    if not auth.has_tokens(_settings(request)):
+        raise HTTPException(status_code=409, detail="not connected to Garmin")
+    if engine.is_running(session) or not _start_job(body.kind, request):
+        raise HTTPException(status_code=409, detail="a sync is already running")
     return SyncRunAccepted(status="started", kind=body.kind)
