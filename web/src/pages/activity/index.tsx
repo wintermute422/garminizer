@@ -21,6 +21,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  LegendItem,
   ScrollArea,
   Segmented,
   Skeleton,
@@ -52,7 +53,7 @@ import {
 import type { Bounds } from "@/lib/geo";
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor, sportLabel, usesPace } from "@/lib/sports";
-import { BLUE, CATEGORICAL, CHROME, ZONE_RAMP, type Mode } from "@/lib/tokens";
+import { BLUE, CATEGORICAL, CHROME, MEASURE_COLORS, ZONE_RAMP, type Mode } from "@/lib/tokens";
 
 type Detail = Schemas["ActivityDetail"];
 type Streams = Schemas["Streams"];
@@ -182,12 +183,36 @@ interface Series {
   values: (number | null)[];
   color: string;
   format: (v: number) => string;
+  /** Smallest y span shown (so a steady cadence isn't blown up into noise) and tick step. */
+  minSpan: number;
+  step: number;
   inverse?: boolean;
   area?: boolean;
 }
 
+/**
+ * Robust y range: 1st–99th percentile (a strap's first-minute spike can't flatten the rest),
+ * at least `minSpan` wide, snapped to `step` with an even number of steps so the middle tick
+ * is round too.
+ */
+function yBounds(ser: Series): { min: number; max: number; interval: number } | null {
+  const finite = ser.values.filter((v): v is number => v !== null && Number.isFinite(v));
+  if (finite.length < 2) return null;
+  let lo = quantile(finite, 0.01);
+  let hi = quantile(finite, 0.99);
+  if (hi - lo < ser.minSpan) {
+    const mid = (lo + hi) / 2;
+    lo = mid - ser.minSpan / 2;
+    hi = mid + ser.minSpan / 2;
+  }
+  const min = Math.floor(lo / ser.step) * ser.step;
+  let max = Math.ceil(hi / ser.step) * ser.step;
+  if (Math.round((max - min) / ser.step) % 2 === 1) max += ser.step;
+  return { min, max, interval: (max - min) / 2 };
+}
+
 function buildSeries(d: Detail, s: Streams, units: UnitSystem, mode: Mode): Series[] {
-  const c = CATEGORICAL[mode];
+  const c = MEASURE_COLORS[mode];
   const out: Series[] = [];
   const has = (a: (number | null)[]) => a.some((v) => v !== null && v !== 0);
   if (has(s.altitude_m)) {
@@ -197,8 +222,10 @@ function buildSeries(d: Detail, s: Streams, units: UnitSystem, mode: Mode): Seri
       label: "Elevation",
       unit: units === "metric" ? "m" : "ft",
       values: s.altitude_m.map((v) => (v == null ? null : v * f)),
-      color: CHROME[mode].muted,
+      color: c.elevation,
       format: (v) => fmtNumber(v),
+      minSpan: units === "metric" ? 20 : 60,
+      step: units === "metric" ? 10 : 25,
       area: true,
     });
   }
@@ -208,8 +235,10 @@ function buildSeries(d: Detail, s: Streams, units: UnitSystem, mode: Mode): Seri
       label: "Heart rate",
       unit: "bpm",
       values: s.hr,
-      color: c[7]!,
+      color: c.hr,
       format: (v) => fmtNumber(v),
+      minSpan: 30,
+      step: 10,
     });
   if (has(s.speed_mps) && d.distance_m) {
     if (usesPace(d.sport_group) && d.sport_group !== "swim") {
@@ -222,8 +251,10 @@ function buildSeries(d: Detail, s: Streams, units: UnitSystem, mode: Mode): Seri
         values: s.speed_mps.map((v) =>
           v == null || v < 0.5 ? null : Math.min(paceSeconds(v, units), cap),
         ),
-        color: c[0]!,
+        color: c.pace,
         format: (v) => fmtDuration(v),
+        minSpan: 60,
+        step: 15,
         inverse: true,
       });
     } else {
@@ -232,8 +263,10 @@ function buildSeries(d: Detail, s: Streams, units: UnitSystem, mode: Mode): Seri
         label: "Speed",
         unit: speedUnit(units),
         values: s.speed_mps.map((v) => (v == null ? null : speedValue(v, units))),
-        color: c[0]!,
+        color: c.pace,
         format: (v) => fmtNumber(v, 1),
+        minSpan: 6,
+        step: 2,
       });
     }
   }
@@ -243,8 +276,10 @@ function buildSeries(d: Detail, s: Streams, units: UnitSystem, mode: Mode): Seri
       label: "Cadence",
       unit: d.sport_group === "ride" ? "rpm" : "spm",
       values: s.cadence.map((v) => (v ? v : null)),
-      color: c[6]!,
+      color: c.cadence,
       format: (v) => fmtNumber(v),
+      minSpan: 20,
+      step: 5,
     });
   if (has(s.power_w))
     out.push({
@@ -252,8 +287,10 @@ function buildSeries(d: Detail, s: Streams, units: UnitSystem, mode: Mode): Seri
       label: "Power",
       unit: "W",
       values: s.power_w,
-      color: c[1]!,
+      color: c.power,
       format: (v) => fmtNumber(v),
+      minSpan: 100,
+      step: 25,
     });
   return out;
 }
@@ -307,9 +344,9 @@ function StreamCharts({
             ser.key === "hr" ? Math.max(1, Math.round(win / 3)) : win,
           );
           const data = values.map((v, i) => [x[i], v]);
-          const finite = ser.values.filter((v): v is number => v !== null);
+          const bounds = yBounds(ser);
           const option: ChartOption = {
-            grid: { ...GRID, top: 22, bottom: idx === series.length - 1 ? 4 : 0 },
+            grid: { ...GRID, top: 28, bottom: idx === series.length - 1 ? 4 : 0 },
             title: {
               text: `${ser.label} (${ser.unit})`,
               left: 0,
@@ -333,12 +370,13 @@ function StreamCharts({
             yAxis: valueYAxis(undefined, ser.format, {
               inverse: ser.inverse ?? false,
               scale: true,
-              min: ser.key === "alt" ? Math.floor(Math.min(...finite) - 5) : undefined,
+              ...(bounds ?? {}),
             }),
             series: [
               {
                 ...line(ser.label, data, ser.color, { area: ser.area ?? false }),
                 sampling: "lttb",
+                clip: true,
               },
             ],
           };
@@ -346,7 +384,7 @@ function StreamCharts({
             <Chart
               key={`${ser.key}-${xMode}-${units}`}
               option={option}
-              height={idx === series.length - 1 ? 150 : 128}
+              height={idx === series.length - 1 ? 156 : 134}
               group="activity-streams"
               ariaLabel={`${ser.label} over ${xMode}`}
               onEvents={{
@@ -409,73 +447,105 @@ function Zones({ d }: { d: Detail }) {
   );
 }
 
+/** "+42 / −38 m"; "flat" when the split neither climbs nor drops. */
+function elevationText(
+  gain: number | null | undefined,
+  loss: number | null | undefined,
+  units: UnitSystem,
+): string {
+  if (gain == null && loss == null) return DASH;
+  const up = Math.round(gain ?? 0);
+  const down = Math.round(loss ?? 0);
+  if (up === 0 && down === 0) return "flat";
+  if (down === 0) return `+${fmtElevation(up, units)}`;
+  if (up === 0) return `−${fmtElevation(down, units)}`;
+  return `+${fmtElevation(up, units).split(" ")[0]} / −${fmtElevation(down, units)}`;
+}
+
+const SPLITS_COLLAPSED = 15;
+
 function SplitsTable({ d }: { d: Detail }) {
   const units = useUnits();
   const mode = useMode();
+  const [all, setAll] = useState(false);
   const splits = units === "metric" ? d.splits_km : d.splits_mi;
   if (!splits.length) return null;
   const pace = usesPace(d.sport_group);
   const speeds = splits.map((s) => s.distance_m / s.duration_s);
-  const max = Math.max(...speeds);
+  // Bars span this activity's own range (slowest → fastest), so pacing differences show.
+  const lo = Math.min(...speeds);
+  const hi = Math.max(...speeds);
+  const avg =
+    splits.reduce((a, s) => a + s.distance_m, 0) / splits.reduce((a, s) => a + s.duration_s, 0);
+  const width = (v: number) => (hi - lo < 1e-6 ? 100 : 25 + (75 * (v - lo)) / (hi - lo));
+  const fmtV = (v: number) => (pace ? fmtPace(v, units) : fmtSpeed(v, units)).split(" ")[0];
+  const shown = all ? splits : splits.slice(0, SPLITS_COLLAPSED);
+  const color = sportColor(d.sport_group, mode);
   return (
     <Card
       title={`Splits per ${distanceUnit(units)}`}
-      subtitle={pace ? "Bar length = speed" : undefined}
+      subtitle={`Bar length from slowest to fastest split · average ${pace ? fmtPace(avg, units) : fmtSpeed(avg, units)}`}
     >
-      <ScrollArea label="Splits table" className="max-h-[420px] overflow-y-auto">
-        <table className="w-full text-sm tabular">
-          <thead className="sticky top-0 bg-surface text-xs text-ink-3">
-            <tr>
-              <th scope="col" className="py-1.5 text-left font-medium">
-                #
-              </th>
-              <th scope="col" className="py-1.5 text-left font-medium">
-                {pace ? "Pace" : "Speed"}
-              </th>
-              <th scope="col" className="py-1.5 text-right font-medium">
-                HR
-              </th>
-              <th scope="col" className="py-1.5 text-right font-medium">
-                Elev.
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {splits.map((s, i) => {
-              const v = speeds[i]!;
-              return (
-                <tr key={s.split_index} className="border-t border-line">
-                  <td className="py-1.5 pr-2 text-ink-3">{s.split_index}</td>
-                  <td className="w-full py-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-20 shrink-0 text-ink">
-                        {pace ? fmtPace(v, units).split(" ")[0] : fmtSpeed(v, units)}
-                      </span>
+      <table className="w-full text-sm tabular">
+        <thead className="text-xs text-ink-3">
+          <tr>
+            <th scope="col" className="py-1.5 text-left font-medium">
+              #
+            </th>
+            <th scope="col" className="py-1.5 text-left font-medium">
+              {pace ? "Pace" : "Speed"}
+            </th>
+            <th scope="col" className="py-1.5 pl-4 text-right font-medium">
+              HR
+            </th>
+            <th scope="col" className="py-1.5 pl-4 text-right font-medium">
+              Elevation
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((s, i) => {
+            const v = speeds[i]!;
+            return (
+              <tr key={s.split_index} className="border-t border-line">
+                <td className="py-1.5 pr-2 text-ink-3">{s.split_index}</td>
+                <td className="w-full py-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-12 shrink-0 text-ink">{fmtV(v)}</span>
+                    <span className="h-2 flex-1" aria-hidden>
                       <span
-                        className="h-2 rounded-full"
+                        className="block h-2 rounded-full"
                         style={{
-                          width: `${(v / max) * 100}%`,
-                          background: sportColor(d.sport_group, mode),
-                          opacity: 0.85,
+                          width: `${width(v)}%`,
+                          background: color,
+                          opacity: v >= avg ? 0.95 : 0.5,
                         }}
-                        aria-hidden
                       />
-                    </div>
-                  </td>
-                  <td className="py-1.5 text-right text-ink-2">
-                    {s.avg_hr ? fmtNumber(s.avg_hr) : DASH}
-                  </td>
-                  <td className="py-1.5 pl-3 text-right whitespace-nowrap text-ink-2">
-                    {s.elevation_gain_m != null
-                      ? `+${fmtElevation(s.elevation_gain_m, units)}`
-                      : DASH}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </ScrollArea>
+                    </span>
+                  </div>
+                </td>
+                <td className="py-1.5 pl-4 text-right text-ink-2">
+                  {s.avg_hr ? fmtNumber(s.avg_hr) : DASH}
+                </td>
+                <td className="py-1.5 pl-4 text-right whitespace-nowrap text-ink-2">
+                  {elevationText(s.elevation_gain_m, s.elevation_loss_m, units)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {splits.length > SPLITS_COLLAPSED && (
+        <button
+          type="button"
+          onClick={() => setAll((v) => !v)}
+          aria-expanded={all}
+          className="mt-2 w-full rounded-xl border border-line py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+        >
+          {all ? "Show fewer" : `Show all ${splits.length} splits`}
+        </button>
+      )}
+      <p className="mt-2 text-xs text-ink-3">Solid bars: faster than average · faded: slower</p>
     </Card>
   );
 }
@@ -484,10 +554,33 @@ function LapsTable({ d }: { d: Detail }) {
   const units = useUnits();
   if (d.laps.length < 2) return null;
   const pace = usesPace(d.sport_group);
+  const speed = (l: Detail["laps"][number]) =>
+    pace
+      ? fmtPace(l.avg_speed_mps, units, d.sport_group === "swim")
+      : fmtSpeed(l.avg_speed_mps, units);
   return (
-    <Card title="Laps">
-      <ScrollArea label="Laps table" className="max-h-[420px] overflow-auto">
-        <table className="w-full min-w-[420px] text-sm tabular">
+    <Card title="Laps" subtitle={`${d.laps.length} laps`}>
+      {/* Phones: two-line rows instead of a table that would need sideways scrolling */}
+      <ScrollArea label="Laps list" className="max-h-[420px] overflow-y-auto sm:hidden">
+        <ul className="divide-y divide-line text-sm tabular">
+          {d.laps.map((l) => (
+            <li key={l.lap_index} className="flex items-center gap-3 py-2">
+              <span className="w-6 shrink-0 text-ink-3">{l.lap_index + 1}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-ink">
+                  {fmtDistance(l.distance_m, units)} · {fmtDuration(l.duration_s)}
+                </span>
+                <span className="block text-xs text-ink-3">
+                  {titleCase(l.intensity)} · {l.avg_hr ? `${l.avg_hr} bpm` : DASH}
+                </span>
+              </span>
+              <span className="shrink-0 text-ink-2">{speed(l)}</span>
+            </li>
+          ))}
+        </ul>
+      </ScrollArea>
+      <ScrollArea label="Laps table" className="hidden max-h-[420px] overflow-auto sm:block">
+        <table className="w-full text-sm tabular">
           <thead className="sticky top-0 bg-surface text-xs text-ink-3">
             <tr>
               {["Lap", "Distance", "Time", pace ? "Pace" : "Speed", "Avg HR", "Type"].map((h) => (
@@ -503,11 +596,7 @@ function LapsTable({ d }: { d: Detail }) {
                 <td className="py-1.5 pr-3 text-ink-3">{l.lap_index + 1}</td>
                 <td className="py-1.5 pr-3 text-ink">{fmtDistance(l.distance_m, units)}</td>
                 <td className="py-1.5 pr-3 text-ink">{fmtDuration(l.duration_s)}</td>
-                <td className="py-1.5 pr-3 text-ink-2">
-                  {pace
-                    ? fmtPace(l.avg_speed_mps, units, d.sport_group === "swim")
-                    : fmtSpeed(l.avg_speed_mps, units)}
-                </td>
+                <td className="py-1.5 pr-3 text-ink-2">{speed(l)}</td>
                 <td className="py-1.5 pr-3 text-ink-2">{l.avg_hr ?? DASH}</td>
                 <td className="py-1.5 text-ink-3">{titleCase(l.intensity)}</td>
               </tr>
@@ -524,38 +613,47 @@ function BestEfforts({ d }: { d: Detail }) {
   const units = useUnits();
   const metric =
     d.sport_group === "ride" && d.avg_power_w ? "power" : d.distance_m ? "speed" : "hr";
+  // Runners think in pace: plot min/km on an inverted axis (faster = higher).
+  const asPace = metric === "speed" && usesPace(d.sport_group) && d.sport_group !== "swim";
   const q = api.useQuery("get", "/api/activities/{activity_id}/curve", {
     params: { path: { activity_id: d.activity_id }, query: { metric } },
   });
-  if (q.isPending) return <Skeleton height={240} />;
+  if (q.isPending) return <Skeleton height={280} />;
   if (q.error) return <ErrorState error={q.error} />;
   const pts = q.data.points;
   if (pts.length < 3) return null;
-  const conv = (v: number) => (metric === "speed" ? speedValue(v, units) : v);
-  const unit = metric === "power" ? "W" : metric === "hr" ? "bpm" : speedUnit(units);
+  const conv = (v: number) =>
+    asPace ? paceSeconds(v, units) : metric === "speed" ? speedValue(v, units) : v;
+  const fmtV = (v: number) => (asPace ? fmtDuration(v) : fmtNumber(v, metric === "speed" ? 1 : 0));
+  const unit = asPace
+    ? `min/${distanceUnit(units)}`
+    : metric === "power"
+      ? "W"
+      : metric === "hr"
+        ? "bpm"
+        : speedUnit(units);
+  const what = asPace
+    ? "pace"
+    : metric === "speed"
+      ? "speed"
+      : metric === "power"
+        ? "power"
+        : "heart rate";
   const durLabel = (s: number) =>
     s < 60
       ? `${s}s`
       : s < 3600
         ? `${Math.round(s / 60)}m`
         : `${fmtNumber(s / 3600, s % 3600 ? 1 : 0)}h`;
-  const c = CATEGORICAL[mode];
+  const mine = MEASURE_COLORS[mode][metric === "speed" ? "pace" : metric];
+  const best = CHROME[mode].muted;
   const option: ChartOption = {
-    grid: { ...GRID, top: 36 },
-    legend: { top: 0, left: 0 },
+    grid: { ...GRID, top: 12 },
     tooltip: axisTooltip((p) => {
       const arr = p as { seriesName: string; color: string; value: [number, number] }[];
       return (
         `<div style="margin-bottom:4px">${durLabel(arr[0]?.value[0] ?? 0)}</div>` +
-        arr
-          .map((a) =>
-            tooltipRow(
-              a.color,
-              a.seriesName,
-              `${fmtNumber(a.value[1], metric === "speed" ? 1 : 0)} ${unit}`,
-            ),
-          )
-          .join("")
+        arr.map((a) => tooltipRow(a.color, a.seriesName, `${fmtV(a.value[1])} ${unit}`)).join("")
       );
     }),
     xAxis: {
@@ -566,27 +664,35 @@ function BestEfforts({ d }: { d: Detail }) {
       axisLabel: { formatter: durLabel },
       splitLine: { show: false },
     },
-    yAxis: valueYAxis(unit, undefined, { scale: true }),
+    yAxis: valueYAxis(undefined, fmtV, { scale: true, inverse: asPace }),
     series: [
       line(
         "This activity",
         pts.map((p) => [p.duration_s, conv(p.value)]),
-        c[0]!,
+        mine,
       ),
       line(
         "All-time best",
         pts.filter((p) => p.best != null).map((p) => [p.duration_s, conv(p.best!)]),
-        CHROME[mode].muted,
+        best,
         { dashed: true },
       ),
     ],
   };
   return (
     <Card
-      title={`Best ${metric === "speed" ? "speed" : metric === "power" ? "power" : "heart rate"} by duration`}
-      subtitle="Mean-maximal curve vs your all-time bests for this sport"
+      title={`Best ${what} by duration`}
+      subtitle={`Your best ${what} held for each duration (${unit}), vs your all-time bests in ${sportLabel(d.sport_group).toLowerCase()}`}
     >
-      <Chart option={option} height={240} ariaLabel="Mean-maximal curve" />
+      <div className="mb-2 flex flex-wrap gap-4">
+        <LegendItem color={mine} label="This activity" shape="line" />
+        <LegendItem color={best} label="All-time best" shape="line" />
+      </div>
+      <Chart
+        option={option}
+        height={240}
+        ariaLabel={`Best ${what} by duration: this activity vs all-time best`}
+      />
     </Card>
   );
 }

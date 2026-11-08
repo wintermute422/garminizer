@@ -1,6 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  Check,
   CheckCircle2,
+  Copy,
   Database,
   KeyRound,
   Link2Off,
@@ -22,8 +24,8 @@ import {
   StatusPill,
 } from "@/components/ui";
 import { CHROME, SEQUENTIAL } from "@/lib/tokens";
-import { DASH, fmtDate, fmtNumber, titleCase } from "@/lib/format";
-import { useMode } from "@/lib/preferences";
+import { DASH, fmtDate, fmtMonth, fmtNumber, fmtWeight, titleCase } from "@/lib/format";
+import { useMode, useUnits } from "@/lib/preferences";
 
 type Status = Schemas["SyncStatus"];
 
@@ -144,6 +146,28 @@ function ConnectForm({ mfaPending }: { mfaPending: boolean }) {
   );
 }
 
+function CopyCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface-2 py-1.5 pr-1.5 pl-3">
+      <code className="min-w-0 flex-1 truncate font-mono text-xs text-ink">{command}</code>
+      <button
+        type="button"
+        onClick={() => {
+          void navigator.clipboard?.writeText(command).then(() => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1500);
+          });
+        }}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-ink-2 hover:bg-surface hover:text-ink"
+      >
+        {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 function Connection({ s }: { s: Status }) {
   const qc = useQueryClient();
   const run = api.useMutation("post", "/api/sync/run");
@@ -152,18 +176,19 @@ function Connection({ s }: { s: Status }) {
 
   if (s.is_demo) {
     return (
-      <Card title="Garmin connection">
+      <Card title="Garmin connection" actions={<StatusPill status={null} label="Demo data" />}>
         <div className="flex items-start gap-3">
           <Database size={20} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
           <div className="text-sm text-ink-2">
             <p className="font-medium text-ink">This database holds the synthetic demo athlete.</p>
             <p className="mt-1">
-              Real Garmin data is never mixed into it. Start the main stack (
-              <code className="rounded bg-surface-2 px-1">docker compose up -d</code>, port 8420)
-              and connect your account there.
+              Real Garmin data is never mixed into it. Start the main stack from the project folder,
+              open <span className="font-medium text-ink">localhost:8420</span> and connect your
+              account there:
             </p>
           </div>
         </div>
+        <CopyCommand command="docker compose up -d" />
       </Card>
     );
   }
@@ -178,7 +203,15 @@ function Connection({ s }: { s: Status }) {
     );
   }
   return (
-    <Card title="Garmin connection" actions={<StatusPill status="good" label="Connected" />}>
+    <Card
+      title="Garmin connection"
+      actions={
+        <StatusPill
+          status={s.running ? null : "good"}
+          label={s.running ? "Syncing…" : "Connected"}
+        />
+      }
+    >
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -207,14 +240,165 @@ function Connection({ s }: { s: Status }) {
       </div>
       {run.error && <ErrorState error={run.error} />}
       <p className="mt-3 text-xs text-ink-3">
-        Data from {fmtDate(s.first_day)} to {fmtDate(s.last_day)}. The background worker syncs
-        automatically and keeps loading older history until it reaches your first Garmin day.
+        Data from {fmtDate(s.first_day)} to {fmtDate(s.last_day)}. The background worker syncs every
+        few hours and keeps loading older history until it reaches your first Garmin day.
       </p>
     </Card>
   );
 }
 
-function Coverage() {
+function RunStatus({ status }: { status: string }) {
+  if (status === "ok")
+    return (
+      <span className="inline-flex items-center gap-1 text-ink-2">
+        <CheckCircle2 size={14} color="var(--good)" aria-hidden /> Done
+      </span>
+    );
+  if (status === "running")
+    return (
+      <span className="inline-flex items-center gap-1 text-ink-2">
+        <Loader2 size={14} className="animate-spin text-accent" aria-hidden /> Running
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 text-ink-2">
+      <TriangleAlert size={14} color="var(--critical)" aria-hidden /> {titleCase(status)}
+    </span>
+  );
+}
+
+function Runs({ runs }: { runs: Status["last_runs"] }) {
+  if (runs.length === 0) return <EmptyState title="No sync runs yet" />;
+  return (
+    <>
+      <ul className="divide-y divide-line text-sm tabular sm:hidden">
+        {runs.map((r) => (
+          <li key={r.id} className="flex items-center justify-between gap-3 py-2">
+            <span className="min-w-0">
+              <span className="block text-ink">
+                {titleCase(r.kind)} · {fmtDateTime(r.started_at)}
+              </span>
+              <span className="block text-xs text-ink-3">
+                {duration(r.started_at, r.finished_at)} · {fmtNumber(r.requests)} requests ·{" "}
+                {fmtNumber(r.items_written)} items
+              </span>
+            </span>
+            <span className="shrink-0 text-xs">
+              <RunStatus status={r.status} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      <ScrollArea label="Recent sync runs" className="hidden max-h-80 overflow-auto sm:block">
+        <table className="w-full text-sm tabular">
+          <thead className="sticky top-0 bg-surface text-xs text-ink-3">
+            <tr>
+              {["Started", "Kind", "Duration", "Requests", "Items", "Status"].map((h) => (
+                <th key={h} scope="col" className="py-1.5 pr-3 text-left font-medium last:pr-0">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((r) => (
+              <tr key={r.id} className="border-t border-line">
+                <td className="py-1.5 pr-3 whitespace-nowrap text-ink-2">
+                  {fmtDateTime(r.started_at)}
+                </td>
+                <td className="py-1.5 pr-3 text-ink">{titleCase(r.kind)}</td>
+                <td className="py-1.5 pr-3 text-ink-2">{duration(r.started_at, r.finished_at)}</td>
+                <td className="py-1.5 pr-3 text-ink-2">{fmtNumber(r.requests)}</td>
+                <td className="py-1.5 pr-3 text-ink-2">{fmtNumber(r.items_written)}</td>
+                <td className="py-1.5 text-xs whitespace-nowrap">
+                  <RunStatus status={r.status} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </ScrollArea>
+    </>
+  );
+}
+
+/** Per-dataset backfill cursor: how far back each dataset has been loaded. */
+function Progress({ cursors }: { cursors: Status["cursors"] }) {
+  if (cursors.length === 0) return null;
+  const done = cursors.filter((c) => c.complete).length;
+  return (
+    <Card
+      title="History loaded per dataset"
+      subtitle={`${done} of ${cursors.length} datasets reach your first Garmin day`}
+    >
+      <ul className="grid gap-x-6 text-sm sm:grid-cols-2">
+        {cursors.map((c) => (
+          <li
+            key={c.dataset}
+            className="flex items-center justify-between gap-3 border-t border-line py-1.5"
+          >
+            <span className="min-w-0 truncate text-ink">{titleCase(c.dataset)}</span>
+            <span className="flex shrink-0 items-center gap-2 text-xs text-ink-2 tabular">
+              {c.oldest_day ? `${fmtDate(c.oldest_day)} – ${fmtDate(c.newest_day)}` : "not yet"}
+              {c.complete ? (
+                <CheckCircle2 size={14} color="var(--good)" aria-label="complete" />
+              ) : (
+                <Loader2 size={14} className="text-ink-3" aria-label="loading older days" />
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function Profile() {
+  const meta = api.useQuery("get", "/api/meta");
+  const units = useUnits();
+  const a = meta.data?.athlete;
+  if (meta.isPending) return <Skeleton height={220} />;
+  if (!a) return null;
+  const zones = a.hr_zones?.slice(0, 5) ?? [];
+  const items: [string, string][] = [
+    ["Max heart rate", a.max_hr ? `${a.max_hr} bpm` : DASH],
+    ["Resting heart rate", a.resting_hr ? `${a.resting_hr} bpm` : DASH],
+    ["Lactate threshold", a.lactate_threshold_hr ? `${a.lactate_threshold_hr} bpm` : DASH],
+    ["Functional threshold power", a.ftp_w ? `${a.ftp_w} W` : DASH],
+    ["Weight", fmtWeight(a.weight_kg, units)],
+    ["Time zone", a.time_zone ?? DASH],
+  ];
+  return (
+    <Card
+      title="Profile used for the analysis"
+      subtitle="Read from Garmin Connect; change them there and the next sync picks them up"
+    >
+      <dl className="grid gap-x-6 text-sm sm:grid-cols-2">
+        {items.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-3 border-t border-line py-1.5">
+            <dt className="text-ink-2">{k}</dt>
+            <dd className="text-ink tabular">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {zones.length === 5 && (
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs text-ink-3">Heart-rate zones (lower limit, bpm)</p>
+          <ol className="grid grid-cols-5 gap-1 text-center text-xs tabular">
+            {zones.map((z, i) => (
+              <li key={i} className="rounded-lg bg-surface-2 py-1.5">
+                <span className="block text-ink-3">Z{i + 1}</span>
+                <span className="block font-medium text-ink">{fmtNumber(z)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Coverage({ isDemo }: { isDemo: boolean }) {
   const mode = useMode();
   const q = api.useQuery("get", "/api/sync/coverage");
   const option = useMemo<ChartOption | null>(() => {
@@ -228,12 +412,12 @@ function Coverage() {
         trigger: "item",
         formatter: (p: unknown) => {
           const v = (p as { value: [number, number, number] }).value;
-          return `${datasets[v[1]]}<br/>${months[v[0]]}: <b>${v[2]}</b> days`;
+          return `${titleCase(datasets[v[1]])}<br/>${fmtMonth(`${months[v[0]]}-01`)}: <b>${v[2]}</b> days with data`;
         },
       },
       xAxis: {
         type: "category",
-        data: months.map((m) => m.slice(0, 7)),
+        data: months.map((m) => fmtMonth(`${m}-01`)),
         axisLabel: { color: CHROME[mode].muted },
       },
       yAxis: { type: "category", data: datasets.map(titleCase) },
@@ -262,16 +446,28 @@ function Coverage() {
   }, [q.data, mode]);
   if (q.isPending) return <Skeleton height={260} />;
   if (q.isError) return <ErrorState error={q.error as unknown} />;
+  const months = new Set(q.data.months.map((r) => r.month)).size;
   return (
     <Card title="History coverage" subtitle="Days with data per dataset and month">
       {option ? (
-        <Chart
-          option={option}
-          height={Math.max(220, 26 * (q.data?.datasets.length ?? 0) + 80)}
-          ariaLabel="Synced days per dataset and month"
-        />
+        <ScrollArea label="History coverage" className="overflow-x-auto">
+          <div style={{ minWidth: Math.max(480, 160 + months * 44) }}>
+            <Chart
+              option={option}
+              height={Math.max(220, 26 * new Set(q.data.months.map((r) => r.dataset)).size + 80)}
+              ariaLabel="Synced days per dataset and month"
+            />
+          </div>
+        </ScrollArea>
+      ) : isDemo ? (
+        <EmptyState title="Not tracked for the demo athlete">
+          The demo data is generated straight into the database, so there is no download history to
+          chart. With your own account this shows which months have been loaded.
+        </EmptyState>
       ) : (
-        <EmptyState title="Nothing synced yet" />
+        <EmptyState title="Nothing downloaded yet">
+          The first sync fills this in; it starts automatically after you connect.
+        </EmptyState>
       )}
     </Card>
   );
@@ -298,59 +494,13 @@ export default function SyncPage() {
         <div className="grid gap-5 lg:grid-cols-2">
           <Connection s={status.data} />
           <Card title="Recent sync runs">
-            {status.data.last_runs.length === 0 ? (
-              <EmptyState title="No sync runs yet" />
-            ) : (
-              <ScrollArea label="Recent sync runs" className="max-h-80 overflow-auto">
-                <table className="w-full text-sm tabular">
-                  <thead className="sticky top-0 bg-surface text-xs text-ink-3">
-                    <tr>
-                      {["Started", "Kind", "Duration", "Requests", "Items", "Status"].map((h) => (
-                        <th
-                          key={h}
-                          scope="col"
-                          className="py-1.5 pr-3 text-left font-medium last:pr-0"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {status.data.last_runs.map((r) => (
-                      <tr key={r.id} className="border-t border-line">
-                        <td className="py-1.5 pr-3 whitespace-nowrap text-ink-2">
-                          {fmtDateTime(r.started_at)}
-                        </td>
-                        <td className="py-1.5 pr-3 text-ink">{titleCase(r.kind)}</td>
-                        <td className="py-1.5 pr-3 text-ink-2">
-                          {duration(r.started_at, r.finished_at)}
-                        </td>
-                        <td className="py-1.5 pr-3 text-ink-2">{fmtNumber(r.requests)}</td>
-                        <td className="py-1.5 pr-3 text-ink-2">{fmtNumber(r.items_written)}</td>
-                        <td className="py-1.5">
-                          {r.status === "ok" ? (
-                            <CheckCircle2 size={16} color="var(--good)" aria-label="ok" />
-                          ) : r.status === "running" ? (
-                            <Loader2
-                              size={16}
-                              className="animate-spin text-accent"
-                              aria-label="running"
-                            />
-                          ) : (
-                            <TriangleAlert size={16} color="var(--critical)" aria-label="error" />
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
-            )}
+            <Runs runs={status.data.last_runs} />
           </Card>
           <div className="lg:col-span-2">
-            <Coverage />
+            <Coverage isDemo={status.data.is_demo} />
           </div>
+          {!status.data.is_demo && <Progress cursors={status.data.cursors} />}
+          <Profile />
           {status.data.recent_errors.length > 0 && (
             <Card
               title="Recent problems"
@@ -358,8 +508,8 @@ export default function SyncPage() {
               className="lg:col-span-2"
             >
               <ul className="flex flex-col gap-2 text-sm">
-                {status.data.recent_errors.slice(0, 10).map((e, i) => (
-                  <li key={i} className="flex gap-2 text-ink-2">
+                {status.data.recent_errors.slice(0, 10).map((e) => (
+                  <li key={e.id} className="flex gap-2 text-ink-2">
                     <KeyRound size={14} className="mt-1 shrink-0 text-ink-3" aria-hidden />
                     <span>
                       <span className="font-medium text-ink">{titleCase(e.dataset)}</span>{" "}
