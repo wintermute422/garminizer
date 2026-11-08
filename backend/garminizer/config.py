@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     sync_request_delay_s: float = 1.0
     tz: str = "UTC"
 
-    map_style_url: str = "https://tiles.openfreemap.org/styles/liberty"
+    map_style_url: str = "https://tiles.openfreemap.org/styles/positron"
     map_style_url_dark: str = "https://tiles.openfreemap.org/styles/dark"
 
     @field_validator("app_password", "app_secret_key", "garmin_password", mode="before")

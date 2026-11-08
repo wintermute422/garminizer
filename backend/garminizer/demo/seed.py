@@ -151,7 +151,8 @@ def _summarize(
     hr = s.hr
     trimp = trimp_banister(hr, 1.0, st.hr_rest, st.hr_max)
     above = float(np.sum(_finite(hr) >= LTHR)) / 60
-    hard = float(np.sum(s.effort >= 1.0)) / 60
+    # Only structured run/ride efforts above threshold count as anaerobic work (not steep hikes).
+    hard = float(np.sum(s.effort >= 1.0)) / 60 if group in {"run", "ride"} else 0.0
     aero = float(np.clip(0.8 + trimp / 42, 0, 5.0))
     anaero = float(np.clip(0.06 * above + 0.32 * hard, 0, 4.0))
     load = trimp * float(rng.uniform(0.92, 1.12)) + 10 * anaero
