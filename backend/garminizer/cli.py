@@ -9,7 +9,35 @@ from garminizer.db import migrate
 
 app = typer.Typer(help="Garminizer: your Garmin data, in your own database.", no_args_is_help=True)
 db_app = typer.Typer(help="Database schema management.", no_args_is_help=True)
+demo_app = typer.Typer(help="Synthetic demo data.", no_args_is_help=True)
 app.add_typer(db_app, name="db")
+app.add_typer(demo_app, name="demo")
+
+
+@demo_app.command("seed")
+def demo_seed(
+    days: int = typer.Option(730, help="Number of days to simulate (ending today)."),
+    seed: int = typer.Option(42, help="Random seed (same seed = same data)."),
+    end: str | None = typer.Option(None, help="Last simulated day, YYYY-MM-DD (default: today)."),
+) -> None:
+    """Fill the database with a synthetic demo athlete (refuses if real data is present)."""
+    from datetime import date  # noqa: PLC0415 - keep CLI start-up light
+
+    from garminizer.db import session_scope  # noqa: PLC0415
+    from garminizer.demo.seed import RealDataError, seed_demo  # noqa: PLC0415
+
+    migrate.upgrade()
+    try:
+        with session_scope() as session:
+            report = seed_demo(
+                session, days=days, seed=seed, end=date.fromisoformat(end) if end else None
+            )
+    except RealDataError as exc:
+        typer.echo(f"refused: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    typer.echo(f"demo: {report.activities} activities over {report.days} days in {report.seconds}s")
+    for table, n in sorted(report.rows.items()):
+        typer.echo(f"  {table:<22} {n:>10,}")
 
 
 @app.command()
