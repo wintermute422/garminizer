@@ -26,8 +26,8 @@ import {
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
-import { BLUE, CHROME, NEUTRAL, type Mode } from "@/lib/tokens";
-import { halo, jitter, periodLabel, periodTitle, zoneRamp } from "./util";
+import { BLUE, CHROME, INTENSITY_BANDS, NEUTRAL, type Mode } from "@/lib/tokens";
+import { halo, jitter, periodLabel, periodTitle } from "./util";
 
 type Period = "week" | "month";
 type VolumeMetric = "distance" | "time" | "load";
@@ -218,6 +218,21 @@ export function VolumeCard({ query, ready }: { query: Query; ready: boolean }) {
 
 const ZONES = [1, 2, 3, 4, 5] as const;
 const ZONE_NAMES = ["Warm-up", "Easy", "Aerobic", "Threshold", "Maximum"];
+/** Stacks show three bands; five blue steps cannot be told apart in thin columns. */
+const BANDS = [
+  { label: "Easy", range: "Z1–2", zones: [1, 2] },
+  { label: "Moderate", range: "Z3", zones: [3] },
+  { label: "Hard", range: "Z4–5", zones: [4, 5] },
+] as const;
+type IntensityRow = Schemas["TrainingIntensityPoint"];
+
+function zoneSeconds(r: IntensityRow, n: (typeof ZONES)[number]): number {
+  return r[`zone_${n}_s` as `zone_${typeof n}_s`] ?? 0;
+}
+
+function bandSeconds(r: IntensityRow, b: (typeof BANDS)[number]): number {
+  return b.zones.reduce((s, n) => s + zoneSeconds(r, n), 0);
+}
 
 /** Time in heart-rate zones per period, absolute hours or 100 % share. */
 export function IntensityCard({ query, ready }: { query: Query; ready: boolean }) {
@@ -242,13 +257,15 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
 
   const option = useMemo<ChartOption>(() => {
     const share = scale === "share";
-    const values = ZONES.map((n) =>
+    const values = BANDS.map((b) =>
       rows.map((r) => {
-        const s = r[`zone_${n}_s` as `zone_${typeof n}_s`];
+        const s = bandSeconds(r, b);
         return share ? (s / r.total_s) * 100 : s / 3600;
       }),
     );
-    const ramp = zoneRamp(mode);
+    const ramp = INTENSITY_BANDS[mode];
+    const bandOf = (n: number) =>
+      BANDS.findIndex((b) => (b.zones as readonly number[]).includes(n));
     const c = CHROME[mode];
     return {
       grid: GRID,
@@ -259,9 +276,9 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
         return (
           tooltipTitle(periodTitle(r.period_start, period)) +
           ZONES.map((n, i) => {
-            const s = r[`zone_${n}_s` as `zone_${typeof n}_s`];
+            const s = zoneSeconds(r, n);
             return tooltipRow(
-              ramp[i]!,
+              ramp[bandOf(n)]!,
               `Zone ${n} · ${ZONE_NAMES[i]}`,
               `${fmtHours(s)} · ${fmtPercent((s / r.total_s) * 100)}`,
             );
@@ -279,9 +296,9 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
       },
       yAxis: valueYAxis(share ? "%" : "hours", (v) => fmtNumber(v), share ? { max: 100 } : {}),
       series: roundStackTops(
-        ZONES.map((n, i) => ({
+        BANDS.map((b, i) => ({
           type: "bar",
-          name: `Zone ${n}`,
+          name: `${b.label} (${b.range})`,
           stack: "zones",
           barMaxWidth: 24,
           data: values[i]!.map((v) => v || null),
@@ -338,11 +355,11 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
         {() => (
           <>
             <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1.5">
-              {ZONES.map((n, i) => (
+              {BANDS.map((b, i) => (
                 <LegendItem
-                  key={n}
-                  color={zoneRamp(mode)[i]!}
-                  label={`Z${n} ${ZONE_NAMES[i]!.toLowerCase()}`}
+                  key={b.label}
+                  color={INTENSITY_BANDS[mode][i]!}
+                  label={`${b.label} (${b.range})`}
                 />
               ))}
             </div>

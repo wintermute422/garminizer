@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
-from pydantic import AfterValidator
+from pydantic import AfterValidator, Field
 from sqlalchemy.orm import Session
 
 from garminizer.analytics.stats import streaks
@@ -123,7 +123,7 @@ class OverviewSportWeek(Model):
     sport_group: str
     activities: int
     distance_m: R1 | None
-    duration_s: R1 | None
+    duration_s: R1 | None = Field(description="Moving time (elapsed when an activity has none)")
 
 
 class OverviewWeek(Model):
@@ -189,7 +189,8 @@ def _week(session: Session, day: date) -> OverviewWeek:
         session,
         """
         SELECT start_time_local >= :monday AS this_week, sport_group, count(*) AS activities,
-               sum(distance_m) AS distance_m, sum(duration_s) AS duration_s
+               sum(distance_m) AS distance_m,
+               sum(coalesce(moving_s, duration_s)) AS duration_s  -- moving time
         FROM garmin.activity
         WHERE start_time_local >= :last_monday AND start_time_local < :day_excl
         GROUP BY 1, 2 ORDER BY 1, count(*) DESC, sport_group

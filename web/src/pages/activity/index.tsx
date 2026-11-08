@@ -22,7 +22,6 @@ import {
   EmptyState,
   ErrorState,
   LegendItem,
-  ScrollArea,
   Segmented,
   Skeleton,
   StatTile,
@@ -320,7 +319,7 @@ function StreamCharts({
   return (
     <Card
       title="Streams"
-      subtitle="Hover to follow the route on the map"
+      subtitle="Hover or tap a chart to follow the route on the map"
       actions={
         d.distance_m ? (
           <Segmented
@@ -512,14 +511,14 @@ function SplitsTable({ d }: { d: Detail }) {
                 <td className="w-full py-1.5">
                   <div className="flex items-center gap-2">
                     <span className="w-12 shrink-0 text-ink">{fmtV(v)}</span>
-                    <span className="h-2 flex-1" aria-hidden>
+                    <span className="relative h-2 flex-1" aria-hidden>
                       <span
                         className="block h-2 rounded-full"
-                        style={{
-                          width: `${width(v)}%`,
-                          background: color,
-                          opacity: v >= avg ? 0.95 : 0.5,
-                        }}
+                        style={{ width: `${width(v)}%`, background: color }}
+                      />
+                      <span
+                        className="absolute -top-1 h-4 w-px bg-ink-2"
+                        style={{ left: `${width(avg)}%` }}
                       />
                     </span>
                   </div>
@@ -545,14 +544,20 @@ function SplitsTable({ d }: { d: Detail }) {
           {all ? "Show fewer" : `Show all ${splits.length} splits`}
         </button>
       )}
-      <p className="mt-2 text-xs text-ink-3">Solid bars: faster than average · faded: slower</p>
+      <p className="mt-2 text-xs text-ink-3">
+        Longer bar = faster · the thin line marks your average {pace ? "pace" : "speed"}
+      </p>
     </Card>
   );
 }
 
+const LAPS_COLLAPSED = 12;
+
 function LapsTable({ d }: { d: Detail }) {
   const units = useUnits();
+  const [all, setAll] = useState(false);
   if (d.laps.length < 2) return null;
+  const laps = all ? d.laps : d.laps.slice(0, LAPS_COLLAPSED);
   const pace = usesPace(d.sport_group);
   const speed = (l: Detail["laps"][number]) =>
     pace
@@ -561,9 +566,9 @@ function LapsTable({ d }: { d: Detail }) {
   return (
     <Card title="Laps" subtitle={`${d.laps.length} laps`}>
       {/* Phones: two-line rows instead of a table that would need sideways scrolling */}
-      <ScrollArea label="Laps list" className="max-h-[420px] overflow-y-auto sm:hidden">
+      <div className="sm:hidden">
         <ul className="divide-y divide-line text-sm tabular">
-          {d.laps.map((l) => (
+          {laps.map((l) => (
             <li key={l.lap_index} className="flex items-center gap-3 py-2">
               <span className="w-6 shrink-0 text-ink-3">{l.lap_index + 1}</span>
               <span className="min-w-0 flex-1">
@@ -578,10 +583,10 @@ function LapsTable({ d }: { d: Detail }) {
             </li>
           ))}
         </ul>
-      </ScrollArea>
-      <ScrollArea label="Laps table" className="hidden max-h-[420px] overflow-auto sm:block">
+      </div>
+      <div className="hidden sm:block">
         <table className="w-full text-sm tabular">
-          <thead className="sticky top-0 bg-surface text-xs text-ink-3">
+          <thead className="text-xs text-ink-3">
             <tr>
               {["Lap", "Distance", "Time", pace ? "Pace" : "Speed", "Avg HR", "Type"].map((h) => (
                 <th key={h} scope="col" className="py-1.5 pr-3 text-left font-medium last:pr-0">
@@ -591,7 +596,7 @@ function LapsTable({ d }: { d: Detail }) {
             </tr>
           </thead>
           <tbody>
-            {d.laps.map((l) => (
+            {laps.map((l) => (
               <tr key={l.lap_index} className="border-t border-line">
                 <td className="py-1.5 pr-3 text-ink-3">{l.lap_index + 1}</td>
                 <td className="py-1.5 pr-3 text-ink">{fmtDistance(l.distance_m, units)}</td>
@@ -603,10 +608,23 @@ function LapsTable({ d }: { d: Detail }) {
             ))}
           </tbody>
         </table>
-      </ScrollArea>
+      </div>
+      {d.laps.length > LAPS_COLLAPSED && (
+        <button
+          type="button"
+          onClick={() => setAll((v) => !v)}
+          aria-expanded={all}
+          className="mt-2 w-full rounded-xl border border-line py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+        >
+          {all ? "Show fewer" : `Show all ${d.laps.length} laps`}
+        </button>
+      )}
     </Card>
   );
 }
+
+/** Round durations for the log-scaled x axis of the best-effort curve (seconds). */
+const DURATION_TICKS = [1, 5, 15, 30, 60, 120, 300, 600, 1200, 1800, 3600, 7200, 10800, 18000];
 
 function BestEfforts({ d }: { d: Detail }) {
   const mode = useMode();
@@ -647,33 +665,43 @@ function BestEfforts({ d }: { d: Detail }) {
         : `${fmtNumber(s / 3600, s % 3600 ? 1 : 0)}h`;
   const mine = MEASURE_COLORS[mode][metric === "speed" ? "pace" : metric];
   const best = CHROME[mode].muted;
+  const maxDur = pts[pts.length - 1]!.duration_s;
+  const span = DURATION_TICKS.filter((t) => t <= maxDur);
+  // At most ~6 labels: thin the list evenly, keep the longest one.
+  const step = Math.ceil(span.length / 6);
+  const ticks = span.filter((_, i) => i % step === 0 || i === span.length - 1).map(Math.log10);
   const option: ChartOption = {
     grid: { ...GRID, top: 12 },
     tooltip: axisTooltip((p) => {
       const arr = p as { seriesName: string; color: string; value: [number, number] }[];
       return (
-        `<div style="margin-bottom:4px">${durLabel(arr[0]?.value[0] ?? 0)}</div>` +
+        `<div style="margin-bottom:4px">${durLabel(Math.round(10 ** (arr[0]?.value[0] ?? 0)))}</div>` +
         arr.map((a) => tooltipRow(a.color, a.seriesName, `${fmtV(a.value[1])} ${unit}`)).join("")
       );
     }),
+    // log10(seconds) on a value axis, so the ticks can sit on round durations
     xAxis: {
-      type: "log",
-      logBase: 10,
-      min: 1,
-      max: pts[pts.length - 1]!.duration_s,
-      axisLabel: { formatter: durLabel },
+      type: "value",
+      min: 0,
+      max: Math.log10(maxDur),
+      axisTick: { customValues: ticks },
+      axisLabel: {
+        customValues: ticks,
+        formatter: (v: number) => durLabel(Math.round(10 ** v)),
+        hideOverlap: true,
+      },
       splitLine: { show: false },
     },
     yAxis: valueYAxis(undefined, fmtV, { scale: true, inverse: asPace }),
     series: [
       line(
         "This activity",
-        pts.map((p) => [p.duration_s, conv(p.value)]),
+        pts.map((p) => [Math.log10(p.duration_s), conv(p.value)]),
         mine,
       ),
       line(
         "All-time best",
-        pts.filter((p) => p.best != null).map((p) => [p.duration_s, conv(p.best!)]),
+        pts.filter((p) => p.best != null).map((p) => [Math.log10(p.duration_s), conv(p.best!)]),
         best,
         { dashed: true },
       ),

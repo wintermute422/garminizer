@@ -249,7 +249,7 @@ export function FitnessCard({
   return (
     <Card
       title="Fitness & form"
-      subtitle="Weighted load averages: fitness over 42 days, fatigue over 7 · last 90 days"
+      subtitle="Weighted load averages: fitness over 42 days, fatigue over 7. Form = yesterday's fitness − fatigue, so it can differ from today's two numbers"
       className={clsx("flex flex-col", className)}
       bodyClassName="flex flex-1 flex-col"
     >

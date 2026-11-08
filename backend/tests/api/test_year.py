@@ -49,7 +49,7 @@ def test_year_list(client: TestClient, sql: Session) -> None:
     this = next(y for y in years if y["year"] == YEAR)
     e = _one(
         sql,
-        "SELECT count(*) AS n, sum(distance_m) AS dist, sum(duration_s) AS dur "
+        "SELECT count(*) AS n, sum(distance_m) AS dist, sum(coalesce(moving_s, duration_s)) AS dur "
         f"FROM garmin.activity WHERE {IN_YEAR}",
     )
     assert this["activities"] == e["n"] > 0
@@ -61,7 +61,7 @@ def test_totals_match_sql(review: dict[str, Any], sql: Session) -> None:
     e = _one(
         sql,
         "SELECT count(*) AS activities, sum(distance_m) AS distance_m, "
-        "sum(duration_s) AS duration_s, sum(moving_s) AS moving_s, "
+        "sum(duration_s) AS duration_s, sum(coalesce(moving_s, duration_s)) AS moving_s, "
         "sum(elevation_gain_m::float8) AS elevation_gain_m, "
         "sum(calories::float8) AS calories, sum(training_load::float8) AS training_load, "
         "count(DISTINCT start_time_local::date) AS active_days "
@@ -76,7 +76,10 @@ def test_totals_match_sql(review: dict[str, Any], sql: Session) -> None:
     assert sum(s["activities"] for s in review["by_sport"]) == t["activities"]
     assert sum(s["distance_m"] for s in review["by_sport"]) == pytest.approx(t["distance_m"], abs=1)
     assert len(review["days"]) == t["active_days"]
-    assert sum(d["duration_s"] for d in review["days"]) == pytest.approx(t["duration_s"], abs=1)
+    # every breakdown is moving time (elapsed when none) and adds up to the moving total
+    assert sum(d["duration_s"] for d in review["days"]) == pytest.approx(t["moving_s"], abs=1)
+    assert sum(s["duration_s"] for s in review["by_sport"]) == pytest.approx(t["moving_s"], abs=1)
+    assert sum(m["duration_s"] for m in review["monthly"]) == pytest.approx(t["moving_s"], abs=1)
 
 
 def test_monthly_and_best_month(review: dict[str, Any]) -> None:

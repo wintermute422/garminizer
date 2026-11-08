@@ -130,7 +130,7 @@ def test_week_totals_match_activities(overview: dict[str, Any], sql: Session) ->
         expected = _rows(
             sql,
             "SELECT sport_group, count(*) AS n, coalesce(sum(distance_m), 0) AS dist, "
-            "sum(duration_s) AS dur FROM garmin.activity "
+            "sum(coalesce(moving_s, duration_s)) AS dur FROM garmin.activity "
             "WHERE start_time_local >= :a AND start_time_local < :b GROUP BY 1",
             a=a,
             b=b,

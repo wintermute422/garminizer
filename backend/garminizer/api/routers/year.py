@@ -1,4 +1,8 @@
-"""Year in review: totals, sports, highlights, months, streaks, best efforts and health."""
+"""Year in review: totals, sports, highlights, months, streaks, best efforts and health.
+
+Activity time is moving time everywhere (elapsed time when an activity has none), so the
+totals, sports, months and days add up to the same figure.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,7 @@ from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Path
-from pydantic import AfterValidator
+from pydantic import AfterValidator, Field
 from sqlalchemy.orm import Session
 
 from garminizer.analytics.pipeline import TILE_ZOOM
@@ -51,7 +55,7 @@ class YearSport(Model):
     sport_group: str
     activities: int
     distance_m: R1
-    duration_s: R1
+    duration_s: R1 = Field(description="Moving time (elapsed time when an activity has none)")
     elevation_gain_m: R1
 
 
@@ -66,7 +70,7 @@ class YearMonth(Model):
     month: int  # 1-12
     activities: int
     distance_m: R1
-    duration_s: R1
+    duration_s: R1 = Field(description="Moving time (elapsed time when an activity has none)")
 
 
 class YearBestMonth(Model):
@@ -105,7 +109,7 @@ class YearRestingHr(Model):
 
 class YearDay(Model):
     day: date
-    duration_s: R1
+    duration_s: R1 = Field(description="Moving time (elapsed time when an activity has none)")
     training_load: R1
 
 
@@ -139,7 +143,7 @@ def years(session: SessionDep) -> list[YearSummary]:
         )
         SELECT y.year, count(a.activity_id) AS activities,
                coalesce(sum(a.distance_m), 0) AS distance_m,
-               coalesce(sum(a.duration_s), 0) AS duration_s
+               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s
         FROM years y
         LEFT JOIN garmin.activity a
           ON a.start_time_local >= make_date(y.year, 1, 1)
@@ -172,7 +176,7 @@ def _monthly(session: Session, p: dict[str, Any]) -> list[YearMonth]:
         f"""
         SELECT extract(month FROM a.start_time_local)::int AS month, count(*) AS activities,
                coalesce(sum(a.distance_m), 0) AS distance_m,
-               coalesce(sum(a.duration_s), 0) AS duration_s
+               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s
         FROM garmin.activity a WHERE {YEAR_WHERE} GROUP BY 1
         """,  # noqa: S608 - constant WHERE
         **p,
@@ -227,7 +231,7 @@ def year_review(session: SessionDep, year: Annotated[int, Path(ge=1900, le=2200)
         f"""
         SELECT count(*) AS activities, coalesce(sum(a.distance_m), 0) AS distance_m,
                coalesce(sum(a.duration_s), 0) AS duration_s,
-               coalesce(sum(a.moving_s), 0) AS moving_s,
+               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS moving_s,
                coalesce(sum(a.elevation_gain_m), 0)::float8 AS elevation_gain_m,
                coalesce(sum(a.calories), 0)::float8 AS calories,
                coalesce(sum(a.training_load), 0)::float8 AS training_load,
@@ -244,7 +248,7 @@ def year_review(session: SessionDep, year: Annotated[int, Path(ge=1900, le=2200)
         f"""
         SELECT a.sport_group, count(*) AS activities,
                coalesce(sum(a.distance_m), 0) AS distance_m,
-               coalesce(sum(a.duration_s), 0) AS duration_s,
+               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s,
                coalesce(sum(a.elevation_gain_m), 0)::float8 AS elevation_gain_m
         FROM garmin.activity a WHERE {YEAR_WHERE}
         GROUP BY 1 ORDER BY count(*) DESC, 1
@@ -254,7 +258,8 @@ def year_review(session: SessionDep, year: Annotated[int, Path(ge=1900, le=2200)
     days = rows(
         session,
         f"""
-        SELECT a.start_time_local::date AS day, coalesce(sum(a.duration_s), 0) AS duration_s,
+        SELECT a.start_time_local::date AS day,
+               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s,
                coalesce(sum(a.training_load), 0)::float8 AS training_load
         FROM garmin.activity a WHERE {YEAR_WHERE} GROUP BY 1 ORDER BY 1
         """,  # noqa: S608 - constant WHERE

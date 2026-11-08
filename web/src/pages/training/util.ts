@@ -1,15 +1,7 @@
 /** Training page helpers: day ↔ time-axis conversion, Garmin status swatches, load zones. */
 import { titleCase } from "@/lib/format";
 import { addDays } from "@/lib/range";
-import {
-  CATEGORICAL,
-  CHROME,
-  NEUTRAL,
-  STATUS,
-  ZONE_RAMP,
-  type Mode,
-  type Status,
-} from "@/lib/tokens";
+import { CATEGORICAL, CHROME, NEUTRAL, STATUS, type Mode, type Status } from "@/lib/tokens";
 
 /** Local midnight of an ISO day (time-axis bounds). */
 export function dayStartMs(day: string): number {
@@ -107,11 +99,6 @@ export function formZone(tsb: number): string {
   if (tsb >= -10) return "Neutral";
   if (tsb >= -30) return "Productive";
   return "Overload risk";
-}
-
-/** HR-zone ramp (shared; every step clears 3:1 against the card). */
-export function zoneRamp(mode: Mode): readonly string[] {
-  return ZONE_RAMP[mode];
 }
 
 /** "Oct 27" for weeks, "Nov 2025" for months. */

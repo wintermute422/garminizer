@@ -24,7 +24,7 @@ import {
   titleCase,
 } from "@/lib/format";
 import type { UnitSystem } from "@/lib/format";
-import { CHROME, STATUS, ZONE_RAMP, wash, type Mode } from "@/lib/tokens";
+import { CHROME, STATUS, STRESS_LEVELS, wash, type Mode } from "@/lib/tokens";
 import {
   cased,
   DAY_MS,
@@ -410,8 +410,7 @@ const STRESS_CLASSES = [
 ] as const;
 
 export function stressWeeklyOption(rows: Day[], mode: Mode, ext: Extent): ChartOption {
-  const ramp = ZONE_RAMP[mode];
-  const colors = [ramp[0]!, ramp[1]!, ramp[3]!, ramp[4]!];
+  const colors = STRESS_LEVELS[mode];
   const perClass = STRESS_CLASSES.map((c) =>
     weekly(
       rows,

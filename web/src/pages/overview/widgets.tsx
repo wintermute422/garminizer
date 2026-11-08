@@ -56,7 +56,7 @@ export function MiniStat({
 }) {
   return (
     <div className={clsx("min-w-0", className)}>
-      <p className="truncate text-xs text-ink-3">{label}</p>
+      <p className="text-xs leading-tight text-ink-3">{label}</p>
       <p className="mt-1 flex items-baseline gap-1">
         <span className="text-lg leading-none font-semibold text-ink">{value}</span>
         {unit && <span className="text-xs text-ink-3">{unit}</span>}
