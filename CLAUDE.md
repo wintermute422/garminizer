@@ -74,13 +74,14 @@ progress.md's "Next step".
   hook lints/type-checks after every single edit and reports the half-finished state.
 - Edits made through shell scripts/sed bypass the post-edit hook: run `ruff format` / `ruff check`
   on the touched files right after (check.sh catches it otherwise).
-- Python scripts that rewrite files on Windows must use `write_text(..., newline="
-")`; the
-  default writes CRLF.
+- Python on Windows defaults to cp1252 and CRLF: every `read_text`/`write_text`/`open` in a
+  script must pass `encoding="utf-8"` (and `newline="\n"` when writing). A cp1252 write once put
+  a stray byte into CLAUDE.md and a failed write truncated checks.md. Prefer the Edit/Write tools
+  for docs; use scripts only for code refactors.
 - Long multi-line Python heredocs inside one Bash call can get mangled; put the script in the
   scratchpad and run it with `python -I script.py <args>`.
 - Calibrate synthetic data against known physiology before building on it (check pace/HR,
-  sleep-stage shares, race times vs predictions) — the first demo run had 30 % deep sleep and
+  sleep-stage shares, race times vs predictions) â€” the first demo run had 30 % deep sleep and
   marathon HR of 183 bpm.
 - Never put a blocked command string literally into a shell command (even inside a JSON test
   payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
