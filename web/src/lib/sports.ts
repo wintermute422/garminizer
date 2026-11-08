@@ -13,31 +13,32 @@ import {
 } from "lucide-react";
 import { CATEGORICAL, NEUTRAL, type Mode } from "./tokens";
 
+/** Fixed order = stack order: the most common sports get the most distinct hues first. */
 export const SPORT_GROUPS = [
   "run",
   "ride",
   "swim",
-  "walk",
-  "cardio",
   "hike",
   "strength",
+  "cardio",
   "winter",
   "water",
+  "walk",
   "other",
 ] as const;
 export type SportGroup = (typeof SPORT_GROUPS)[number];
 
 /** Fixed categorical slot per sport (colour follows the entity, never its rank). */
 const SLOT: Record<SportGroup, number | null> = {
-  run: 0,
-  ride: 1,
-  swim: 2,
-  walk: 3,
-  cardio: 4,
-  hike: 5,
-  strength: 6,
-  winter: 7,
-  water: null,
+  run: 0, // blue
+  ride: 1, // orange
+  swim: 2, // aqua
+  hike: 3, // yellow
+  strength: 4, // magenta
+  cardio: 5, // green
+  winter: 6, // violet (kept away from cycling orange)
+  water: 7, // red
+  walk: null, // everyday movement: neutral
   other: null,
 };
 

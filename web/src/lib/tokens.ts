@@ -32,8 +32,69 @@ export const BLUE: Record<number, string> = {
 
 /** Ordinal ramp for 5 HR zones (zone 1 → 5); the step nearest the surface still clears 2:1. */
 export const ZONE_RAMP: Record<Mode, readonly string[]> = {
-  light: [BLUE[250]!, BLUE[350]!, BLUE[450]!, BLUE[550]!, BLUE[650]!],
-  dark: [BLUE[600]!, BLUE[500]!, BLUE[400]!, BLUE[300]!, BLUE[200]!],
+  light: [BLUE[250]!, BLUE[400]!, BLUE[500]!, BLUE[600]!, BLUE[700]!],
+  dark: [BLUE[650]!, BLUE[500]!, BLUE[350]!, BLUE[250]!, BLUE[100]!],
+};
+
+/**
+ * One fixed colour per measure across all pages (metric charts, not sports). Measures that
+ * share a chart never share a colour; text still uses ink tokens.
+ */
+export const MEASURE_COLORS: Record<
+  Mode,
+  Record<
+    | "fitness"
+    | "fatigue"
+    | "hr"
+    | "pace"
+    | "power"
+    | "cadence"
+    | "elevation"
+    | "hrv"
+    | "stress"
+    | "bodyBattery"
+    | "sleep"
+    | "spo2"
+    | "respiration"
+    | "weight"
+    | "steps",
+    string
+  >
+> = {
+  light: {
+    fitness: "#2a78d6",
+    fatigue: "#e87ba4",
+    hr: "#e34948",
+    pace: "#2a78d6",
+    power: "#eb6834",
+    cadence: "#6250d6",
+    elevation: "#898781",
+    hrv: "#1baf7a",
+    stress: "#eda100",
+    bodyBattery: "#2a78d6",
+    sleep: "#6250d6",
+    spo2: "#1baf7a",
+    respiration: "#6250d6",
+    weight: "#2a78d6",
+    steps: "#1baf7a",
+  },
+  dark: {
+    fitness: "#3987e5",
+    fatigue: "#d55181",
+    hr: "#e66767",
+    pace: "#3987e5",
+    power: "#d95926",
+    cadence: "#9085e9",
+    elevation: "#9a9890",
+    hrv: "#199e70",
+    stress: "#c98500",
+    bodyBattery: "#3987e5",
+    sleep: "#9085e9",
+    spo2: "#199e70",
+    respiration: "#9085e9",
+    weight: "#3987e5",
+    steps: "#199e70",
+  },
 };
 
 /** Continuous sequential ramp (heatmaps), low → high. */

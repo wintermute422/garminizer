@@ -222,7 +222,7 @@ export default function ActivitiesPage() {
                           {fmtDate(a.start_time_local, {
                             day: "numeric",
                             month: "short",
-                            year: "2-digit",
+                            year: "numeric",
                           })}
                           <span className="ml-1.5 text-xs text-ink-3">
                             {fmtLocalTime(a.start_time_local)}

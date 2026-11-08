@@ -136,7 +136,7 @@ export function StatTile({
             <span className="text-[26px] leading-none font-semibold text-ink">{value}</span>
             {unit && <span className="text-sm text-ink-3">{unit}</span>}
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-3">
+          <div className="mt-1.5 flex min-h-4 flex-wrap items-center gap-2 text-xs text-ink-3">
             {delta}
             {sub}
           </div>

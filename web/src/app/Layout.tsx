@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/api/client";
 import { usePreferences, type ThemeChoice } from "@/lib/preferences";
 import { FilterBar } from "./FilterBar";
-import { NAV, navItemFor } from "./nav";
+import { NAV, isDetailPage, navItemFor } from "./nav";
 
 function Logo() {
   return (
@@ -197,10 +197,12 @@ export function Layout() {
               <Menu size={18} />
             </button>
             <div className="min-w-0 flex-1">
-              {item?.filters ? (
+              {item?.filters && !isDetailPage(pathname) ? (
                 <FilterBar
-                  withSport={item.filters === "range+sport"}
+                  withRange={item.filters !== "sport"}
+                  withSport={item.filters !== "range"}
                   fallback={item.defaultPreset}
+                  defaultSport={item.defaultSport}
                 />
               ) : (
                 <span className="text-sm font-medium text-ink-2 lg:hidden">Garminizer</span>

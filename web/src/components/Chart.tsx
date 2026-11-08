@@ -176,6 +176,8 @@ export function Chart({
   }, [mode, group]);
 
   useEffect(() => {
+    // Not ready again until this option has finished rendering (and animating).
+    el.current?.setAttribute("data-chart-ready", "false");
     chart.current?.setOption(withAria(option, latest.current.ariaLabel), true);
   }, [option]);
 
@@ -194,7 +196,15 @@ export function Chart({
 
 /** ECharts' aria module replaces the container label; feed it ours as the description. */
 function withAria(option: ChartOption, label: string): ChartOption {
-  return { aria: { enabled: true, label: { description: label } }, ...option };
+  const reduced =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  return {
+    aria: { enabled: true, label: { description: label } },
+    animationDuration: 450,
+    ...(reduced ? { animation: false } : {}),
+    ...option,
+  };
 }
 
 /** Number of data points across all series/datasets (e2e asserts charts are not empty). */

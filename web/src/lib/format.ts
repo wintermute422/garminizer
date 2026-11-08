@@ -131,6 +131,21 @@ export function fmtDate(iso: string | null | undefined, opts?: Intl.DateTimeForm
   );
 }
 
+/** "Nov 2024" — month labels always carry the full year. */
+export function fmtMonth(iso: string | null | undefined): string {
+  return fmtDate(iso, { month: "short", year: "numeric" });
+}
+
+/**
+ * Signed change with unit: "+1.2 kg", "−3 bpm"; zero (after rounding) reads "no change" so a
+ * flat value never shows a coloured arrow.
+ */
+export function fmtDelta(v: number | null | undefined, digits = 0, unit = ""): string {
+  if (!ok(v)) return DASH;
+  if (Math.abs(v) < 0.5 * 10 ** -digits) return "no change";
+  return `${signed(v, digits)}${unit ? ` ${unit}` : ""}`;
+}
+
 export function fmtShortDate(iso: string | null | undefined): string {
   return fmtDate(iso, { day: "numeric", month: "short" });
 }

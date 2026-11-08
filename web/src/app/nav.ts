@@ -22,15 +22,17 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   /** Pages that react to the global date range / sport filter show the filter bar. */
-  filters?: "range" | "range+sport";
+  filters?: "range" | "range+sport" | "sport";
   /** Default range preset when the URL has none (must match the page's useRange fallback). */
   defaultPreset?: PresetKey;
+  /** The page always shows one sport (no "All sports"); this one when none is chosen. */
+  defaultSport?: string;
 }
 
 export const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Today",
-    items: [{ to: "/", label: "Overview", icon: LayoutDashboard }],
+    items: [{ to: "/", label: "Today", icon: LayoutDashboard }],
   },
   {
     section: "Training",
@@ -38,7 +40,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
       { to: "/activities", label: "Activities", icon: ListOrdered, filters: "range+sport" },
       { to: "/training", label: "Training load", icon: TrendingUp, filters: "range+sport" },
       { to: "/performance", label: "Performance", icon: Gauge, filters: "range" },
-      { to: "/records", label: "Records", icon: Trophy, filters: "range+sport" },
+      { to: "/records", label: "Records", icon: Trophy, filters: "sport", defaultSport: "run" },
       {
         to: "/calendar",
         label: "Calendar",
@@ -72,6 +74,11 @@ export const NAV: { section: string; items: NavItem[] }[] = [
 ];
 
 export const ALL_NAV: NavItem[] = NAV.flatMap((s) => s.items);
+
+/** Detail pages (one activity) show no global filters. */
+export function isDetailPage(pathname: string): boolean {
+  return /^\/activities\/[^/]+/.test(pathname);
+}
 
 export function navItemFor(pathname: string): NavItem | undefined {
   if (pathname === "/") return ALL_NAV[0];
