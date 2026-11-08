@@ -1,0 +1,89 @@
+/**
+ * Chart palette (validated with the dataviz validator for both modes):
+ * - categorical slots in a fixed order (never cycled); sports map to fixed slots
+ * - sequential = one hue (blue) light→dark; HR zones use it as an ordinal ramp
+ * - diverging = blue ↔ red with a gray midpoint
+ * - status colours are reserved and always paired with an icon + label
+ */
+export type Mode = "light" | "dark";
+
+export const CATEGORICAL: Record<Mode, readonly string[]> = {
+  light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
+  dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
+};
+
+export const NEUTRAL: Record<Mode, string> = { light: "#898781", dark: "#898781" };
+
+export const BLUE: Record<number, string> = {
+  100: "#cde2fb",
+  150: "#b7d3f6",
+  200: "#9ec5f4",
+  250: "#86b6ef",
+  300: "#6da7ec",
+  350: "#5598e7",
+  400: "#3987e5",
+  450: "#2a78d6",
+  500: "#256abf",
+  550: "#1c5cab",
+  600: "#184f95",
+  650: "#104281",
+  700: "#0d366b",
+};
+
+/** Ordinal ramp for 5 HR zones (zone 1 → 5); the step nearest the surface still clears 2:1. */
+export const ZONE_RAMP: Record<Mode, readonly string[]> = {
+  light: [BLUE[250]!, BLUE[350]!, BLUE[450]!, BLUE[550]!, BLUE[650]!],
+  dark: [BLUE[600]!, BLUE[500]!, BLUE[400]!, BLUE[300]!, BLUE[200]!],
+};
+
+/** Continuous sequential ramp (heatmaps), low → high. */
+export const SEQUENTIAL: Record<Mode, readonly string[]> = {
+  light: [BLUE[100]!, BLUE[250]!, BLUE[400]!, BLUE[550]!, BLUE[700]!],
+  dark: ["#1f2a38", BLUE[650]!, BLUE[500]!, BLUE[350]!, BLUE[150]!],
+};
+
+export const DIVERGING: Record<Mode, { negative: string; mid: string; positive: string }> = {
+  light: { negative: "#2a78d6", mid: "#f0efec", positive: "#e34948" },
+  dark: { negative: "#3987e5", mid: "#383835", positive: "#e66767" },
+};
+
+export const STATUS = {
+  good: "#0ca30c",
+  warning: "#fab219",
+  serious: "#ec835a",
+  critical: "#d03b3b",
+} as const;
+export type Status = keyof typeof STATUS;
+
+export const SLEEP_STAGES: Record<Mode, Record<"deep" | "light" | "rem" | "awake", string>> = {
+  light: { deep: "#256abf", light: "#1baf7a", rem: "#6250d6", awake: "#e87ba4" },
+  dark: { deep: "#256abf", light: "#199e70", rem: "#9085e9", awake: "#d55181" },
+};
+
+export const CHROME: Record<
+  Mode,
+  { surface: string; text: string; text2: string; muted: string; grid: string; axis: string }
+> = {
+  light: {
+    surface: "#fcfcfb",
+    text: "#0b0b0b",
+    text2: "#52514e",
+    muted: "#6f6d68",
+    grid: "#e1e0d9",
+    axis: "#c3c2b7",
+  },
+  dark: {
+    surface: "#1a1a19",
+    text: "#f0efec",
+    text2: "#c3c2b7",
+    muted: "#9a9890",
+    grid: "#2c2c2a",
+    axis: "#383835",
+  },
+};
+
+/** Area fills: the series hue as a ~10 % wash. */
+export function wash(hex: string, alpha = 0.1): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}

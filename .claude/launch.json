@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": ".venv/Scripts/garminizer.exe",
+      "runtimeArgs": ["serve"],
+      "port": 8420
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-C", "web", "dev"],
+      "port": 5180
+    }
+  ]
+}

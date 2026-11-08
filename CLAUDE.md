@@ -45,6 +45,11 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `.githooks/pre-commit` | blocks `.env*`, `data/`, FIT/dump/key files, git-ignored files, unmanifested screenshots; ruff + prettier on staged files; secret scan + gitleaks staged |
 | `.githooks/pre-push` | branches `feat/ fix/ docs/ chore/ ci/` only (main only for bootstrap), fast-forward only, no deletions, new `v*` tags only; scans the pushed range |
 | `scripts/bootstrap_remote.sh` | one-time: create the private GitHub repo and push `main`; refuses once origin has `main` |
+| `scripts/check_utf8.py` | every text file is UTF-8 with LF endings (pre-commit on staged files, check.sh on all) |
+| `scripts/devdb.sh` | dev/test Postgres 17 (`garminizer-dev`, 127.0.0.1:55432): up/down/status/reset/psql |
+| `scripts/gen_api_types.sh` | OpenAPI → `web/src/api/schema.d.ts`; `--check` fails when stale (check.sh) |
+| `scripts/e2e.sh` | A9/A10: production build + FastAPI on 8421 + deterministic `garminizer_e2e` demo DB; Playwright on every page × desktop/mobile × dark/light: charts drawn with data, maps loaded, no console errors, no horizontal overflow, axe serious/critical = 0; screenshots → `artifacts/screenshots/` |
+| `scripts/e2e_dev.sh API_PORT WEB_PORT "page x"` | same checks against Vite dev on private ports (parallel page work, no shared build) |
 
 ## Git workflow
 - Repo-local identity `wintermute422` + GitHub noreply e-mail (never the personal address).
@@ -83,6 +88,17 @@ progress.md's "Next step".
 - Calibrate synthetic data against known physiology before building on it (check pace/HR,
   sleep-stage shares, race times vs predictions) — the first demo run had 30 % deep sleep and
   marathon HR of 183 bpm.
+- Use absolute paths in every shell command: a `cd dir && …` once silently ran in the repo root
+  and scattered new files there.
+- React compiler lint (eslint-plugin-react-hooks 7): never write `ref.current` during render
+  (update "latest" refs in an effect) and never pick a component at render time
+  (`const Icon = f()`); use `createElement` (see `SportIcon`).
+- ECharts 6: no `grid.containLabel` (default outerBounds already contains labels). MapLibre 6:
+  pass the Vite-bundled worker via `setWorkerUrl` (see MapView), dev pre-bundling breaks it.
+- e2e readiness = no `.animate-pulse` skeletons + `data-chart-ready`/`data-map-ready`; never
+  `networkidle` (map tiles keep streaming).
+- New pages must add every chart through `<Chart>` (it exposes data-points for the e2e "chart
+  has data" check) and scrollable regions through `<ScrollArea>` (keyboard focusable, axe).
 - Never put a blocked command string literally into a shell command (even inside a JSON test
   payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
 - Project hooks in `.claude/settings.json` take effect immediately in the running session.

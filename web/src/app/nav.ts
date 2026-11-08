@@ -1,0 +1,70 @@
+import {
+  Award,
+  CalendarDays,
+  Gauge,
+  HeartPulse,
+  LayoutDashboard,
+  Lightbulb,
+  ListOrdered,
+  Map,
+  Moon,
+  Package,
+  RefreshCw,
+  Scale,
+  TrendingUp,
+  Trophy,
+  type LucideIcon,
+} from "lucide-react";
+
+export interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  /** Pages that react to the global date range / sport filter show the filter bar. */
+  filters?: "range" | "range+sport";
+}
+
+export const NAV: { section: string; items: NavItem[] }[] = [
+  {
+    section: "Today",
+    items: [{ to: "/", label: "Overview", icon: LayoutDashboard }],
+  },
+  {
+    section: "Training",
+    items: [
+      { to: "/activities", label: "Activities", icon: ListOrdered, filters: "range+sport" },
+      { to: "/training", label: "Training load", icon: TrendingUp, filters: "range+sport" },
+      { to: "/performance", label: "Performance", icon: Gauge, filters: "range" },
+      { to: "/records", label: "Records", icon: Trophy, filters: "range+sport" },
+      { to: "/calendar", label: "Calendar", icon: CalendarDays, filters: "range+sport" },
+      { to: "/map", label: "Map", icon: Map, filters: "range+sport" },
+      { to: "/gear", label: "Gear", icon: Package },
+    ],
+  },
+  {
+    section: "Health",
+    items: [
+      { to: "/health", label: "Health & recovery", icon: HeartPulse, filters: "range" },
+      { to: "/sleep", label: "Sleep", icon: Moon, filters: "range" },
+      { to: "/body", label: "Body", icon: Scale, filters: "range" },
+    ],
+  },
+  {
+    section: "Discover",
+    items: [
+      { to: "/insights", label: "Insights", icon: Lightbulb, filters: "range" },
+      { to: "/year", label: "Year in review", icon: Award },
+    ],
+  },
+  {
+    section: "System",
+    items: [{ to: "/sync", label: "Sync & settings", icon: RefreshCw }],
+  },
+];
+
+export const ALL_NAV: NavItem[] = NAV.flatMap((s) => s.items);
+
+export function navItemFor(pathname: string): NavItem | undefined {
+  if (pathname === "/") return ALL_NAV[0];
+  return ALL_NAV.filter((i) => i.to !== "/").find((i) => pathname.startsWith(i.to));
+}
