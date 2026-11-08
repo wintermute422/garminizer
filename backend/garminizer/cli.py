@@ -121,6 +121,29 @@ def serve(
     )
 
 
+@app.command("mcp")
+def mcp_command(
+    env_file: str | None = typer.Option(
+        None,
+        help="Read DATABASE_URL and TZ from this .env file (for Claude Desktop, which starts "
+        "the server outside the Garminizer folder).",
+    ),
+) -> None:
+    """MCP server for Claude Desktop (stdio): log meals, calories and macros.
+
+    Claude Desktop starts this command itself; see docs/claude-desktop.md. It prints nothing
+    on stdout except the MCP protocol (logs go to stderr).
+    """
+    from pathlib import Path  # noqa: PLC0415 - keep CLI start-up light
+
+    from garminizer import mcp_server  # noqa: PLC0415
+
+    path = Path(env_file) if env_file else None
+    if path is not None and not path.is_file():
+        _fail(f"--env-file {env_file}: no such file", 2)
+    mcp_server.main(env_file=path)
+
+
 @app.command()
 def version() -> None:
     """Print the Garminizer version."""

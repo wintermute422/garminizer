@@ -21,6 +21,7 @@ computer, and turns it into fast, interactive dashboards.
 ## Contents
 - [What you get](#what-you-get) · [Screenshots](#screenshots) · [Quick start](#quick-start) ·
   [Try the demo](#try-the-demo-no-garmin-account-needed) · [How it works](#how-it-works) ·
+  [Meal logging](#log-meals-with-claude-desktop) ·
   [Your data, your database](#your-data-your-database) · [Privacy](#privacy--security) ·
   [Documentation](#documentation) · [Development](#development) · [FAQ](docs/faq.md)
 
@@ -36,6 +37,7 @@ computer, and turns it into fast, interactive dashboards.
 | **Health & recovery** | resting HR, HRV with baseline band, readiness, stress composition, Body Battery ranges, SpO2, respiration, steps, hour × day heatmaps with drill-down into any day |
 | **Sleep** | stages per night, sleep score, bed/wake-time consistency, weekday vs weekend, hypnogram with overnight HR/SpO2/respiration, sleep debt |
 | **Body** | weight with trend line, body fat, muscle mass, blood pressure |
+| **Nutrition** | meals logged through Claude Desktop: eaten vs Garmin's burn per day, energy balance, macros, protein per kg, targets, week-by-week balance next to weight |
 | **Calendar** | multi-year activity heatmap, streaks, weekday × hour punchcard |
 | **Map** | every route you ever recorded, a heatmap, and explorer tiles with your max square |
 | **Insights** | auto-generated findings, correlation matrix between daily metrics (with lag), scatter explorer, weekday patterns |
@@ -81,6 +83,19 @@ Open **http://localhost:8430** — two years of a simulated athlete (training pl
 illness and holidays; sleep, HRV and readiness respond to training load). The demo uses its own
 database and never mixes with your real data.
 
+## Log meals with Claude Desktop
+Tell [Claude Desktop](https://claude.ai/download) what you ate, or send it a photo of your plate.
+Claude estimates portions, calories and macros and hands them to your local Garminizer over the
+Model Context Protocol; Garminizer stores the meal and answers with your day so far against
+Garmin's calorie burn. One entry in Claude Desktop's config connects them:
+
+```json
+{ "mcpServers": { "garminizer": { "command": "docker",
+  "args": ["exec", "-i", "garminizer-app-1", "garminizer", "mcp"] } } }
+```
+
+Setup, tools, accuracy and privacy: [Claude Desktop guide](docs/claude-desktop.md).
+
 ## How it works
 ```
 Garmin Connect ──read-only──▶ worker ──▶ raw JSON ──▶ typed tables ──▶ analytics ──▶ API ──▶ dashboards
@@ -113,11 +128,14 @@ GROUP BY 1 ORDER BY 1 DESC LIMIT 12;
   access with a password.
 - Your Garmin password is never stored — only Garmin's tokens, in `data/tokens`.
 - Read-only access to Garmin. Nothing is sent anywhere except requests to Garmin and map tiles.
+  (If you use meal logging, what you ask Claude Desktop, and the tool answers it reads, are part
+  of your Claude conversation; see the [guide](docs/claude-desktop.md#privacy).)
 - See [SECURITY.md](SECURITY.md).
 
 ## Documentation
 [Architecture](docs/architecture.md) · [Data model](docs/data-model.md) ·
 [Metrics](docs/metrics.md) · [Configuration & operations](docs/configuration.md) ·
+[Claude Desktop meal logging](docs/claude-desktop.md) ·
 [FAQ](docs/faq.md) · [Development harness](docs/development.md) · [Contributing](CONTRIBUTING.md)
 
 ## Development

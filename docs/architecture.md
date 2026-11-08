@@ -13,6 +13,9 @@ Garmin Connect ──(garminconnect, read-only, throttled)──▶ worker / app
                                    │
                                    ▼
                 FastAPI  /api/*  (SI units, OpenAPI)  ──▶  React SPA (ECharts, MapLibre)
+
+Claude Desktop ──(MCP over stdio: docker exec … garminizer mcp)──▶ meal, meal_item
+                 (Claude estimates foods and nutrients; Garminizer validates and stores)
 ```
 
 ## Services (`compose.yml`)
@@ -32,7 +35,9 @@ Garmin Connect ──(garminconnect, read-only, throttled)──▶ worker / app
 | `sync/` | dataset registry, parsers, FIT decoding, sync engine (incremental, backfill, reparse), verify |
 | `analytics/` | pure numpy functions (TRIMP, mean-max, PMC, LTTB, tiles, …) and the pipeline that writes derived tables |
 | `api/` | FastAPI app, auth, one router per dashboard |
-| `demo/` | the synthetic athlete simulator behind `garminizer demo seed` |
+| `demo/` | the synthetic athlete simulator behind `garminizer demo seed` (including a meal diary) |
+| `nutrition/` | meal log: validation, totals and plausibility warnings, day/period summaries against Garmin's energy burn, targets |
+| `mcp_server.py` | `garminizer mcp`: Model Context Protocol server over stdio for Claude Desktop (log/correct meals, day summaries, energy context); see [claude-desktop.md](claude-desktop.md) |
 | `worker.py`, `backup.py` | scheduler and pg_dump/pg_restore |
 
 ### Why raw-first?

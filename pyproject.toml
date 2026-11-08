@@ -32,6 +32,7 @@ dependencies = [
   "fitdecode>=0.10",
   "itsdangerous>=2.2",
   "tzdata>=2024.1",  # IANA time zones on Windows
+  "mcp>=2.3,<3",  # MCP server for Claude Desktop meal logging (`garminizer mcp`)
 ]
 
 [project.optional-dependencies]

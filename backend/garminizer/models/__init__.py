@@ -18,6 +18,7 @@ from garminizer.models.analytics import (
 )
 from garminizer.models.body import Badge, BloodPressure, BodyComposition, Goal, PersonalRecord
 from garminizer.models.core import ActivityGear, AppSetting, Athlete, Device, Gear, RawPayload
+from garminizer.models.nutrition import Meal, MealItem
 from garminizer.models.performance import (
     EnduranceScore,
     HillScore,
@@ -69,6 +70,8 @@ __all__ = [
     "HrSample",
     "HrvDaily",
     "MaxMetric",
+    "Meal",
+    "MealItem",
     "PersonalRecord",
     "RacePrediction",
     "RawPayload",

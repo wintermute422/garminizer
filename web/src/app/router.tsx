@@ -34,6 +34,7 @@ const routeTree = rootRoute.addChildren([
   page("/health", () => import("@/pages/health")),
   page("/sleep", () => import("@/pages/sleep")),
   page("/body", () => import("@/pages/body")),
+  page("/nutrition", () => import("@/pages/nutrition")),
   page("/calendar", () => import("@/pages/calendar")),
   page("/map", () => import("@/pages/map")),
   page("/insights", () => import("@/pages/insights")),

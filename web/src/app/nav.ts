@@ -14,6 +14,7 @@ import {
   Scale,
   TrendingUp,
   Trophy,
+  Utensils,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
       { to: "/health", label: "Health & recovery", icon: HeartPulse, filters: "range" },
       { to: "/sleep", label: "Sleep", icon: Moon, filters: "range" },
       { to: "/body", label: "Body", icon: Scale, filters: "range", defaultPreset: "365d" },
+      { to: "/nutrition", label: "Nutrition", icon: Utensils, filters: "range" },
     ],
   },
   {

@@ -4,13 +4,16 @@
  * intraday charts, floating range bars and per-measure colours.
  */
 import { useSyncExternalStore } from "react";
+import { DAY_MS, dayAxis, dayOfPoint, weekStart } from "@/lib/charts";
 import { addDays } from "@/lib/range";
 import { CATEGORICAL, CHROME, MEASURE_COLORS, NEUTRAL, type Mode, type Status } from "@/lib/tokens";
 
 type Obj = Record<string, unknown>;
 
+// Shared day-axis helpers live in lib/charts; re-exported for this page family.
+export { DAY_MS, dayAxis, dayOfPoint, weekStart };
+
 export const HOUR_MS = 3_600_000;
-export const DAY_MS = 24 * HOUR_MS;
 
 const NARROW = "(max-width: 640px)";
 
@@ -77,12 +80,6 @@ export function quantile(values: readonly (number | null | undefined)[], q: numb
 /** Difference of two optional numbers (null when either is missing). */
 export function diff(a: number | null | undefined, b: number | null | undefined): number | null {
   return a == null || b == null ? null : a - b;
-}
-
-/** Monday of the ISO week that contains `day`. */
-export function weekStart(day: string): string {
-  const d = new Date(`${day}T12:00:00`);
-  return addDays(day, -((d.getDay() + 6) % 7));
 }
 
 /** Aggregate rows per ISO week (mean of the non-null values by default). */
@@ -213,62 +210,6 @@ export function fmtWallDate(ms: number, opts?: Intl.DateTimeFormatOptions): stri
     ...(opts ?? { weekday: "short", day: "numeric", month: "short" }),
     timeZone: "UTC",
   });
-}
-
-/** ISO day ("2026-10-31") of a chart x value made with `dayPoint` (local noon). */
-export function dayOfPoint(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-/**
- * Calm date ticks for a day-based time axis: Mondays (weekly / fortnightly), month starts or
- * quarter starts depending on the span, labelled "3 Aug", "Sep" or the year at January.
- * ECharts' own time ticks mix day and month levels ("29Sep 5 8") at these widths.
- */
-export function dayAxis(min: number, max: number): Obj {
-  const span = (max - min) / DAY_MS;
-  const first = dayOfPoint(min + DAY_MS / 2);
-  const last = dayOfPoint(max - DAY_MS / 2);
-  const values: number[] = [];
-  const noon = (iso: string) => new Date(`${iso}T12:00:00`).getTime();
-  let fmt: (v: number) => string;
-  if (span <= 120) {
-    const every = span <= 35 ? 7 : 14;
-    let d = weekStart(first);
-    if (d < first) d = addDays(d, 7);
-    for (; d <= last; d = addDays(d, every)) values.push(noon(d));
-    fmt = (v) => new Date(v).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-  } else {
-    const months = span <= 400 ? 1 : span <= 800 ? 3 : 12;
-    const [y0, m0] = first.split("-").map(Number);
-    let y = y0!;
-    let m = m0! - 1;
-    if (first.slice(8) !== "01") m += 1;
-    while (m % months !== 0) m += 1;
-    for (;;) {
-      y += Math.floor(m / 12);
-      m %= 12;
-      const iso = `${y}-${pad(m + 1)}-01`;
-      if (iso > last) break;
-      values.push(noon(iso));
-      m += months;
-    }
-    fmt = (v) => {
-      const d = new Date(v);
-      return d.getMonth() === 0
-        ? String(d.getFullYear())
-        : d.toLocaleDateString(undefined, { month: "short" });
-    };
-  }
-  return {
-    type: "time",
-    min,
-    max,
-    splitLine: { show: false },
-    axisTick: { show: false, customValues: values },
-    axisLabel: { customValues: values, formatter: fmt, hideOverlap: true },
-  };
 }
 
 // ---------------------------------------------------------------- colours

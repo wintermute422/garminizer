@@ -80,6 +80,9 @@ METRICS: tuple[InsightMetric, ...] = (
     _metric("weight_kg", "Weight", "kg", None),
     _metric("active_kcal", "Active calories", "kcal", None),
     _metric("vigorous_intensity_min", "Vigorous intensity minutes", "min", True),
+    _metric("intake_kcal", "Energy intake (logged meals)", "kcal", None),
+    _metric("protein_g", "Protein intake", "g", None),
+    _metric("energy_balance_kcal", "Energy balance (intake - Garmin burn)", "kcal", None),
 )
 METRIC_KEYS = tuple(m.key for m in METRICS)
 WEEKDAY_COLUMNS = ("sleep_s", "steps", "avg_stress", "hrv_ms", "load", "readiness")
@@ -210,8 +213,10 @@ def metrics() -> list[InsightMetric]:
 
 @router.get("/correlations", response_model=InsightCorrelations)
 def correlations(session: SessionDep, rng: RangeDep, lag: LagQuery = 0) -> InsightCorrelations:
-    keys = list(METRIC_KEYS)
-    grid = _grid(session, rng.start, rng.end, keys)
+    grid = _grid(session, rng.start, rng.end, METRIC_KEYS)
+    # Metrics with too few days in the range (e.g. nutrition before meals are logged) stay out
+    # instead of showing as empty rows.
+    keys = [k for k in METRIC_KEYS if int(np.isfinite(grid.cols[k]).sum()) >= MIN_PAIRS]
     size = len(keys)
     r_out: list[list[float | None]] = [[None] * size for _ in keys]
     n_out = [[0] * size for _ in keys]

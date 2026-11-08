@@ -35,6 +35,9 @@ V_DAILY_KEYS = {
     "weight_kg",
     "active_kcal",
     "vigorous_intensity_min",
+    "intake_kcal",
+    "protein_g",
+    "energy_balance_kcal",
 }
 
 
@@ -83,6 +86,14 @@ def test_correlation_matrix_without_lag(client: TestClient, sql: Session) -> Non
         f"SELECT {', '.join(f'count({k}) AS {k}' for k in keys)} FROM garmin.v_daily",
     )[0]
     assert [n[i][i] for i in range(size)] == [counts[k] for k in keys]
+
+
+def test_correlation_matrix_leaves_out_sparse_metrics(client: TestClient) -> None:
+    last = client.get("/api/meta").json()["last_day"]
+    start = (date.fromisoformat(last) - timedelta(days=9)).isoformat()
+    body = client.get("/api/insights/correlations", params={"start": start, "end": last}).json()
+    assert body["metrics"] == []  # 10 days < MIN_PAIRS for every metric
+    assert body["r"] == body["n"] == []
 
 
 def test_correlation_with_lag_matches_numpy(client: TestClient, sql: Session) -> None:

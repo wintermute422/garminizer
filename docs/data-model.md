@@ -9,6 +9,11 @@ Three layers: `raw_payload` keeps every Garmin response verbatim (re-parse at an
 without re-downloading), typed tables hold the parsed values, and the *computed* tables
 and views are rebuilt by `garminizer analytics refresh`.
 
+The *Nutrition* tables are the exception: they hold your own input, not Garmin data.
+Meals arrive from Claude Desktop through the MCP server (`garminizer mcp`, see
+[claude-desktop.md](claude-desktop.md)) or from the dashboard; daily targets live in
+`app_setting` under the key `nutrition_targets`.
+
 ## Contents
 
 - [Athlete, devices & gear](#athlete-devices--gear)
@@ -17,6 +22,7 @@ and views are rebuilt by `garminizer analytics refresh`.
 - [All-day (intraday) series](#all-day-intraday-series)
 - [Training & performance](#training--performance)
 - [Body, records & goals](#body-records--goals)
+- [Nutrition](#nutrition)
 - [Computed by Garminizer](#computed-by-garminizer)
 - [Sync bookkeeping & raw data](#sync-bookkeeping--raw-data)
 - [Views](#views)
@@ -44,7 +50,7 @@ The athlete profile (one row; id is always 1).
 | ftp_w | smallint | yes | Functional threshold power (cycling) |
 | vo2max_running | real | yes |  |
 | vo2max_cycling | real | yes |  |
-| unit_system | text | no | metric | statute |
+| unit_system | text | no | metric \| statute |
 | time_zone | text | yes | IANA zone, e.g. Europe/Berlin |
 | hr_zones | jsonb | yes | Heart-rate zone floors (bpm) |
 | power_zones | jsonb | yes | Power zone floors (W) |
@@ -72,11 +78,11 @@ Shoes, bikes and other equipment tracked in Garmin Connect.
 | Column | Type | Null | Description |
 |---|---|---|---|
 | **uuid** | text | no |  |
-| gear_type | text | no | shoes | bike | other |
+| gear_type | text | no | shoes \| bike \| other |
 | display_name | text | yes |  |
 | make | text | yes |  |
 | model | text | yes |  |
-| status | text | no | active | retired |
+| status | text | no | active \| retired |
 | date_begin | date | yes |  |
 | date_end | date | yes |  |
 | max_distance_m | double | yes | Retirement threshold |
@@ -104,7 +110,7 @@ One row per recorded activity (summary values).
 | name | text | yes |  |
 | description | text | yes |  |
 | sport_type | text | no | Garmin typeKey, e.g. trail_running |
-| sport_group | text | no | run | ride | swim | walk | hike | strength | cardio | winter | water | other |
+| sport_group | text | no | run \| ride \| swim \| walk \| hike \| strength \| cardio \| winter \| water \| other |
 | start_time_utc | datetime | no |  |
 | start_time_local | datetime | no |  |
 | duration_s | double | yes |  |
@@ -190,7 +196,7 @@ Laps (manual or auto) as recorded by the device.
 | elevation_gain_m | real | yes |  |
 | elevation_loss_m | real | yes |  |
 | calories | real | yes |  |
-| intensity | text | yes | active | rest | warmup | cooldown ... |
+| intensity | text | yes | active \| rest \| warmup \| cooldown ... |
 
 ### `activity_split`
 
@@ -199,7 +205,7 @@ Even km/mile splits computed by Garminizer from samples.
 | Column | Type | Null | Description |
 |---|---|---|---|
 | **activity_id** | bigint | no |  |
-| **unit** | text | no | km | mi |
+| **unit** | text | no | km \| mi |
 | **split_index** | smallint | no |  |
 | distance_m | double | no |  |
 | duration_s | double | no |  |
@@ -239,7 +245,7 @@ Time spent in heart-rate / power zones per activity.
 | Column | Type | Null | Description |
 |---|---|---|---|
 | **activity_id** | bigint | no |  |
-| **kind** | text | no | hr | power |
+| **kind** | text | no | hr \| power |
 | **zone** | smallint | no | 1-5 (or 1-7 for power) |
 | seconds | double | no |  |
 | low_value | real | yes | Zone floor in bpm or W |
@@ -335,7 +341,7 @@ One row per night, keyed by the wake-up day.
 | awake_s | integer | yes |  |
 | unmeasurable_s | integer | yes |  |
 | score | smallint | yes | Overall sleep score 0-100 |
-| score_quality | text | yes | EXCELLENT | GOOD | FAIR | POOR |
+| score_quality | text | yes | EXCELLENT \| GOOD \| FAIR \| POOR |
 | score_duration | smallint | yes |  |
 | score_deep | smallint | yes |  |
 | score_rem | smallint | yes |  |
@@ -366,7 +372,7 @@ Hypnogram: sleep stage intervals per night.
 | **day** | date | no |  |
 | **start_utc** | datetime | no |  |
 | end_utc | datetime | no |  |
-| stage | text | no | deep | light | rem | awake |
+| stage | text | no | deep \| light \| rem \| awake |
 
 ### `hrv_daily`
 
@@ -381,7 +387,7 @@ Overnight heart-rate variability summary.
 | baseline_low_ms | real | yes |  |
 | baseline_balanced_low_ms | real | yes |  |
 | baseline_balanced_upper_ms | real | yes |  |
-| status | text | yes | BALANCED | UNBALANCED | LOW | POOR |
+| status | text | yes | BALANCED \| UNBALANCED \| LOW \| POOR |
 | feedback | text | yes |  |
 
 ## All-day (intraday) series
@@ -440,7 +446,7 @@ Steps per 15-minute interval with activity level.
 | **start_utc** | datetime | no |  |
 | end_utc | datetime | no |  |
 | steps | integer | no |  |
-| activity_level | text | yes | sedentary | active | highlyActive | sleeping | none |
+| activity_level | text | yes | sedentary \| active \| highlyActive \| sleeping \| none |
 
 ## Training & performance
 
@@ -452,7 +458,7 @@ Morning training readiness score and its factors.
 |---|---|---|---|
 | **day** | date | no |  |
 | score | smallint | yes |  |
-| level | text | yes | PRIME | HIGH | MODERATE | LOW | POOR |
+| level | text | yes | PRIME \| HIGH \| MODERATE \| LOW \| POOR |
 | sleep_score_factor | smallint | yes |  |
 | recovery_time_min | smallint | yes |  |
 | recovery_factor | smallint | yes |  |
@@ -469,7 +475,7 @@ Garmin training status and load balance per day.
 | Column | Type | Null | Description |
 |---|---|---|---|
 | **day** | date | no |  |
-| status | text | yes | PEAKING | PRODUCTIVE | MAINTAINING | RECOVERY | UNPRODUCTIVE | DETRAINING ... |
+| status | text | yes | PEAKING \| PRODUCTIVE \| MAINTAINING \| RECOVERY \| UNPRODUCTIVE \| DETRAINING ... |
 | acute_load | real | yes |  |
 | chronic_load | real | yes |  |
 | acwr | real | yes | Acute:chronic workload ratio |
@@ -601,6 +607,53 @@ Goals set in Garmin Connect.
 | end_day | date | yes |  |
 | status | text | yes |  |
 
+## Nutrition
+
+### `meal`
+
+Meals and drinks with energy and macros (user input, e.g. Claude Desktop).
+
+| Column | Type | Null | Description |
+|---|---|---|---|
+| **meal_id** | bigint | no | Meal number (generated) |
+| eaten_at | datetime | no | When the meal was eaten |
+| day | date | no | Athlete's local calendar date of eaten_at |
+| meal_type | text | no | breakfast \| lunch \| dinner \| snack \| drink |
+| name | text | no | Short description, e.g. 'Pasta with tomato sauce' |
+| kcal | real | no | Energy (kcal) |
+| protein_g | real | yes | Protein (g) |
+| carbs_g | real | yes | Carbohydrates incl. sugar (g) |
+| fat_g | real | yes | Fat (g) |
+| fiber_g | real | yes | Dietary fibre (g) |
+| sugar_g | real | yes | Sugars, part of carbs_g (g) |
+| saturated_fat_g | real | yes | Saturated fat, part of fat_g (g) |
+| sodium_mg | real | yes | Sodium (mg); salt = sodium x 2.5 |
+| alcohol_g | real | yes | Alcohol (g, 7 kcal/g) |
+| water_ml | real | yes | Water from drinks and food (ml) |
+| notes | text | yes | Assumptions behind the estimate |
+| source | text | no | claude \| manual \| demo |
+| confidence | text | yes | How sure the estimate is: low \| medium \| high |
+| created_at | datetime | no | When the meal was logged |
+| updated_at | datetime | no | Last change of the meal or its items |
+
+### `meal_item`
+
+Foods of a meal with portion and nutrients (meal totals are their sum).
+
+| Column | Type | Null | Description |
+|---|---|---|---|
+| **meal_id** | bigint | no | Meal this food belongs to |
+| **idx** | smallint | no | Position in the meal (0-based) |
+| food | text | no | Food, e.g. 'Cooked spaghetti' |
+| amount | real | yes | Portion in `unit`, e.g. 1.5 |
+| unit | text | yes | Unit of amount, e.g. g, ml, piece, slice, tbsp |
+| grams | real | yes | Portion weight (g) |
+| kcal | real | no | Energy (kcal) |
+| protein_g | real | yes | Protein (g) |
+| carbs_g | real | yes | Carbohydrates (g) |
+| fat_g | real | yes | Fat (g) |
+| fiber_g | real | yes | Dietary fibre (g) |
+
 ## Computed by Garminizer
 
 ### `daily_load`
@@ -627,7 +680,7 @@ Mean-max: best average power/speed/HR over standard durations per activity.
 | Column | Type | Null | Description |
 |---|---|---|---|
 | **activity_id** | bigint | no |  |
-| **metric** | text | no | power (W) | speed (m/s) | hr |
+| **metric** | text | no | power (W) \| speed (m/s) \| hr |
 | **duration_s** | integer | no |  |
 | value | real | no |  |
 
@@ -690,10 +743,10 @@ One row per sync/backfill/reparse run.
 | Column | Type | Null | Description |
 |---|---|---|---|
 | **id** | bigint | no |  |
-| kind | text | no | incremental | backfill | reparse | demo |
+| kind | text | no | incremental \| backfill \| reparse \| demo |
 | started_at | datetime | no |  |
 | finished_at | datetime | yes |  |
-| status | text | no | running | ok | error |
+| status | text | no | running \| ok \| error |
 | requests | integer | no |  |
 | items_written | integer | no |  |
 | message | text | yes |  |
@@ -741,4 +794,4 @@ Key/value settings changed from the UI.
 | `garmin.weekly_volume` | Training volume per ISO week and sport group. |
 | `garmin.monthly_volume` | Training volume per calendar month and sport group. |
 | `garmin.explorer_tile` | Every visited map tile with visit count and first/last visit. |
-| `garmin.v_daily` | One row per day with every daily metric side by side (for correlations). |
+| `garmin.v_daily` | One row per day with every daily metric side by side (for correlations), ending with the logged intake (`intake_kcal`, `protein_g`, `carbs_g`, `fat_g`) and `energy_balance_kcal` = intake - `daily_summary.total_kcal` (null without meals). |

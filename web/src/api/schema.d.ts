@@ -351,7 +351,7 @@ export interface paths {
         };
         /**
          * Places
-         * @description Activity start points rounded to 3 decimals (about 100 m), most used first.
+         * @description Favourite start places: activity starts within 150 m of each other, most used first.
          */
         get: operations["places_api_map_places_get"];
         put?: never;
@@ -406,6 +406,140 @@ export interface paths {
         /** Meta */
         get: operations["meta_api_meta_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/nutrition/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Daily
+         * @description Per day: intake (kcal, macros, fibre), Garmin total/active burn, balance, meal count.
+         *
+         *     Only days with logged meals or Garmin calories are listed.
+         */
+        get: operations["daily_api_nutrition_daily_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/nutrition/day": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Day
+         * @description One day: meals with items, totals, targets and what is left, Garmin burn, balance.
+         */
+        get: operations["day_api_nutrition_day_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/nutrition/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Meals
+         * @description Meals with their items, oldest first (``day`` or ``start``/``end``).
+         */
+        get: operations["meals_api_nutrition_meals_get"];
+        put?: never;
+        /**
+         * Create Meal
+         * @description Log a meal by hand (source ``manual``); totals are the sum of the items unless given.
+         */
+        post: operations["create_meal_api_nutrition_meals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/nutrition/meals/{meal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Meal
+         * @description Delete a meal and its items.
+         */
+        delete: operations["remove_meal_api_nutrition_meals__meal_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Meal
+         * @description Change a meal; ``items`` replaces all items and recomputes kcal and macros.
+         */
+        patch: operations["patch_meal_api_nutrition_meals__meal_id__patch"];
+        trace?: never;
+    };
+    "/api/nutrition/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summary
+         * @description Averages per logged day, macro energy split, protein per kg, targets, weekly means.
+         */
+        get: operations["summary_api_nutrition_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/nutrition/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Targets
+         * @description Daily targets; null fields have no target.
+         */
+        get: operations["get_targets_api_nutrition_targets_get"];
+        /**
+         * Put Targets
+         * @description Replace all targets (omitted fields are cleared).
+         */
+        put: operations["put_targets_api_nutrition_targets_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1671,6 +1805,552 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** NutritionDailyPoint */
+        NutritionDailyPoint: {
+            /**
+             * Active Kcal
+             * @description Garmin active burn
+             */
+            active_kcal: number | null;
+            /** Alcohol G */
+            alcohol_g: number | null;
+            /**
+             * Balance Kcal
+             * @description intake_kcal - total_kcal
+             */
+            balance_kcal: number | null;
+            /** Carbs G */
+            carbs_g: number | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Fat G */
+            fat_g: number | null;
+            /** Fiber G */
+            fiber_g: number | null;
+            /** Intake Kcal */
+            intake_kcal: number | null;
+            /** Meals */
+            meals: number;
+            /** Protein G */
+            protein_g: number | null;
+            /**
+             * Total Kcal
+             * @description Garmin total burn
+             */
+            total_kcal: number | null;
+        };
+        /** NutritionDay */
+        NutritionDay: {
+            /**
+             * Balance Kcal
+             * @description Intake minus Garmin total burn; null without meals or Garmin data
+             */
+            balance_kcal: number | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            garmin: components["schemas"]["NutritionGarminEnergy"];
+            /**
+             * Is Today
+             * @description Today: intake and Garmin burn are still growing
+             */
+            is_today: boolean;
+            /** Meals */
+            meals: components["schemas"]["NutritionMeal"][];
+            /** Protein G Per Kg */
+            protein_g_per_kg: number | null;
+            /**
+             * Protein Target G
+             * @description protein_g target, or protein_g_per_kg x weight
+             */
+            protein_target_g: number | null;
+            remaining: components["schemas"]["NutritionRemaining"];
+            targets: components["schemas"]["NutritionTargets"];
+            totals: components["schemas"]["NutritionTotals"];
+            /**
+             * Weight Kg
+             * @description Latest weigh-in on or before the day
+             */
+            weight_kg: number | null;
+        };
+        /**
+         * NutritionGarminEnergy
+         * @description Energy expenditure from Garmin's daily summary (so far, for today).
+         */
+        NutritionGarminEnergy: {
+            /** Active Kcal */
+            active_kcal: number | null;
+            /** Bmr Kcal */
+            bmr_kcal: number | null;
+            /** Total Kcal */
+            total_kcal: number | null;
+        };
+        /**
+         * NutritionItemIn
+         * @description One food or drink of a meal: portion and the nutrients of that portion.
+         */
+        NutritionItemIn: {
+            /**
+             * Amount
+             * @description Portion in `unit`, e.g. 1.5 (slices)
+             */
+            amount?: number | null;
+            /**
+             * Carbs G
+             * @description Carbohydrates (g)
+             */
+            carbs_g?: number | null;
+            /**
+             * Fat G
+             * @description Fat (g)
+             */
+            fat_g?: number | null;
+            /**
+             * Fiber G
+             * @description Dietary fibre (g)
+             */
+            fiber_g?: number | null;
+            /**
+             * Food
+             * @description Food, e.g. 'cooked spaghetti'
+             */
+            food: string;
+            /**
+             * Grams
+             * @description Estimated portion weight in grams
+             */
+            grams?: number | null;
+            /**
+             * Kcal
+             * @description Energy of this portion (kcal)
+             */
+            kcal: number;
+            /**
+             * Protein G
+             * @description Protein (g)
+             */
+            protein_g?: number | null;
+            /**
+             * Unit
+             * @description Unit of amount: g, ml, piece, slice, cup, tbsp
+             */
+            unit?: string | null;
+        };
+        /**
+         * NutritionMacroSplit
+         * @description Share of the energy from protein (4 kcal/g), carbs (4), fat (9) and alcohol (7), in %.
+         */
+        NutritionMacroSplit: {
+            /** Alcohol Pct */
+            alcohol_pct: number | null;
+            /** Carbs Pct */
+            carbs_pct: number | null;
+            /** Fat Pct */
+            fat_pct: number | null;
+            /** Protein Pct */
+            protein_pct: number | null;
+        };
+        /** NutritionMeal */
+        NutritionMeal: {
+            /** Alcohol G */
+            alcohol_g: number | null;
+            /** Carbs G */
+            carbs_g: number | null;
+            /** Confidence */
+            confidence: ("low" | "medium" | "high") | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Eaten At
+             * Format: date-time
+             * @description With the athlete's local UTC offset
+             */
+            eaten_at: string;
+            /** Fat G */
+            fat_g: number | null;
+            /** Fiber G */
+            fiber_g: number | null;
+            /** Items */
+            items: components["schemas"]["NutritionMealItem"][];
+            /** Kcal */
+            kcal: number;
+            /** Meal Id */
+            meal_id: number;
+            /**
+             * Meal Type
+             * @enum {string}
+             */
+            meal_type: "breakfast" | "lunch" | "dinner" | "snack" | "drink";
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
+            /** Protein G */
+            protein_g: number | null;
+            /** Saturated Fat G */
+            saturated_fat_g: number | null;
+            /** Sodium Mg */
+            sodium_mg: number | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "claude" | "manual" | "demo";
+            /** Sugar G */
+            sugar_g: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Warnings */
+            warnings: components["schemas"]["NutritionWarning"][];
+            /** Water Ml */
+            water_ml: number | null;
+        };
+        /**
+         * NutritionMealIn
+         * @description A meal to log: either items (totals are their sum) or totals.kcal, or both.
+         */
+        NutritionMealIn: {
+            /** Confidence */
+            confidence?: ("low" | "medium" | "high") | null;
+            /**
+             * Eaten At
+             * @description When it was eaten; without a UTC offset it is the athlete's local time (default: now)
+             */
+            eaten_at?: string | null;
+            /** Items */
+            items?: components["schemas"]["NutritionItemIn"][];
+            /**
+             * Meal Type
+             * @description Inferred from the local time of day when missing
+             */
+            meal_type?: ("breakfast" | "lunch" | "dinner" | "snack" | "drink") | null;
+            /**
+             * Name
+             * @description Short name of the meal
+             */
+            name: string;
+            /**
+             * Notes
+             * @description Assumptions made
+             */
+            notes?: string | null;
+            totals?: components["schemas"]["NutritionTotalsIn"] | null;
+        };
+        /** NutritionMealItem */
+        NutritionMealItem: {
+            /** Amount */
+            amount: number | null;
+            /** Carbs G */
+            carbs_g: number | null;
+            /** Fat G */
+            fat_g: number | null;
+            /** Fiber G */
+            fiber_g: number | null;
+            /** Food */
+            food: string;
+            /** Grams */
+            grams: number | null;
+            /** Idx */
+            idx: number;
+            /** Kcal */
+            kcal: number;
+            /** Protein G */
+            protein_g: number | null;
+            /** Unit */
+            unit: string | null;
+        };
+        /**
+         * NutritionMealPatch
+         * @description Changes to a meal; fields left out stay as they are.
+         *
+         *     ``items`` replaces all items and recomputes kcal and macros from them (unless given in
+         *     ``totals``); an empty list removes the items but keeps the totals. ``notes`` and
+         *     ``confidence`` can be cleared with null.
+         */
+        NutritionMealPatch: {
+            /** Confidence */
+            confidence?: ("low" | "medium" | "high") | null;
+            /** Eaten At */
+            eaten_at?: string | null;
+            /** Items */
+            items?: components["schemas"]["NutritionItemIn"][] | null;
+            /** Meal Type */
+            meal_type?: ("breakfast" | "lunch" | "dinner" | "snack" | "drink") | null;
+            /** Name */
+            name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            totals?: components["schemas"]["NutritionTotalsIn"] | null;
+        };
+        /** NutritionMealTypeStat */
+        NutritionMealTypeStat: {
+            /**
+             * Kcal Pct
+             * @description Share of all logged energy in the range (%)
+             */
+            kcal_pct: number;
+            /**
+             * Meal Type
+             * @enum {string}
+             */
+            meal_type: "breakfast" | "lunch" | "dinner" | "snack" | "drink";
+            /** Meals */
+            meals: number;
+        };
+        /**
+         * NutritionRemaining
+         * @description Target minus intake (negative = above the target); null without a target.
+         */
+        NutritionRemaining: {
+            /** Carbs G */
+            carbs_g: number | null;
+            /** Fat G */
+            fat_g: number | null;
+            /** Fiber G */
+            fiber_g: number | null;
+            /** Kcal */
+            kcal: number | null;
+            /** Protein G */
+            protein_g: number | null;
+        };
+        /** NutritionSummary */
+        NutritionSummary: {
+            /** Avg Active Kcal */
+            avg_active_kcal: number | null;
+            /**
+             * Avg Balance Kcal
+             * @description Over logged days with Garmin data
+             */
+            avg_balance_kcal: number | null;
+            /** Avg Carbs G */
+            avg_carbs_g: number | null;
+            /** Avg Fat G */
+            avg_fat_g: number | null;
+            /** Avg Fiber G */
+            avg_fiber_g: number | null;
+            /**
+             * Avg Intake Kcal
+             * @description Per logged day
+             */
+            avg_intake_kcal: number | null;
+            /** Avg Protein G */
+            avg_protein_g: number | null;
+            /**
+             * Avg Total Kcal
+             * @description Garmin total burn on logged days
+             */
+            avg_total_kcal: number | null;
+            /** By Meal Type */
+            by_meal_type: components["schemas"]["NutritionMealTypeStat"][];
+            /** Days */
+            days: number;
+            /** Days Logged */
+            days_logged: number;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            macro_split: components["schemas"]["NutritionMacroSplit"];
+            /** Meals */
+            meals: number;
+            /**
+             * Protein G Per Kg
+             * @description avg_protein_g / weight_kg
+             */
+            protein_g_per_kg: number | null;
+            /** Protein Target G */
+            protein_target_g: number | null;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            targets: components["schemas"]["NutritionTargets"];
+            /** Weeks */
+            weeks: components["schemas"]["NutritionWeek"][];
+            /**
+             * Weight Kg
+             * @description Latest weigh-in on or before the end
+             */
+            weight_kg: number | null;
+        };
+        /**
+         * NutritionTargets
+         * @description Daily targets (app setting ``nutrition_targets``); null = no target.
+         */
+        NutritionTargets: {
+            /**
+             * Carbs G
+             * @description Carbs (g/day)
+             */
+            carbs_g?: number | null;
+            /**
+             * Fat G
+             * @description Fat (g/day)
+             */
+            fat_g?: number | null;
+            /**
+             * Fiber G
+             * @description Fibre (g/day)
+             */
+            fiber_g?: number | null;
+            /**
+             * Kcal
+             * @description Energy (kcal/day)
+             */
+            kcal?: number | null;
+            /**
+             * Protein G
+             * @description Protein (g/day)
+             */
+            protein_g?: number | null;
+            /**
+             * Protein G Per Kg
+             * @description Protein per kg body weight; used when protein_g is not set
+             */
+            protein_g_per_kg?: number | null;
+        };
+        /**
+         * NutritionTotals
+         * @description Sum over the meals of a day (macros: null when no meal has a value).
+         */
+        NutritionTotals: {
+            /** Alcohol G */
+            alcohol_g: number | null;
+            /** Carbs G */
+            carbs_g: number | null;
+            /** Fat G */
+            fat_g: number | null;
+            /** Fiber G */
+            fiber_g: number | null;
+            /** Kcal */
+            kcal: number;
+            /** Meals */
+            meals: number;
+            /** Protein G */
+            protein_g: number | null;
+            /** Saturated Fat G */
+            saturated_fat_g: number | null;
+            /** Sodium Mg */
+            sodium_mg: number | null;
+            /** Sugar G */
+            sugar_g: number | null;
+            /** Water Ml */
+            water_ml: number | null;
+        };
+        /**
+         * NutritionTotalsIn
+         * @description Meal totals; every value given here wins over the sum of the items.
+         */
+        NutritionTotalsIn: {
+            /**
+             * Alcohol G
+             * @description Alcohol (g)
+             */
+            alcohol_g?: number | null;
+            /**
+             * Carbs G
+             * @description Carbohydrates (g)
+             */
+            carbs_g?: number | null;
+            /**
+             * Fat G
+             * @description Fat (g)
+             */
+            fat_g?: number | null;
+            /**
+             * Fiber G
+             * @description Dietary fibre (g)
+             */
+            fiber_g?: number | null;
+            /**
+             * Kcal
+             * @description Energy (kcal)
+             */
+            kcal?: number | null;
+            /**
+             * Protein G
+             * @description Protein (g)
+             */
+            protein_g?: number | null;
+            /**
+             * Saturated Fat G
+             * @description Saturated fat (g)
+             */
+            saturated_fat_g?: number | null;
+            /**
+             * Sodium Mg
+             * @description Sodium (mg)
+             */
+            sodium_mg?: number | null;
+            /**
+             * Sugar G
+             * @description Sugars (g)
+             */
+            sugar_g?: number | null;
+            /**
+             * Water Ml
+             * @description Water (ml)
+             */
+            water_ml?: number | null;
+        };
+        /** NutritionWarning */
+        NutritionWarning: {
+            /**
+             * Code
+             * @description macro_kcal_mismatch | items_kcal_mismatch
+             */
+            code: string;
+            /** Message */
+            message: string;
+        };
+        /**
+         * NutritionWeek
+         * @description Averages per logged day of an ISO week (Monday first), for correlations.
+         */
+        NutritionWeek: {
+            /** Balance Kcal */
+            balance_kcal: number | null;
+            /** Carbs G */
+            carbs_g: number | null;
+            /** Days Logged */
+            days_logged: number;
+            /** Fat G */
+            fat_g: number | null;
+            /** Intake Kcal */
+            intake_kcal: number | null;
+            /** Protein G */
+            protein_g: number | null;
+            /** Total Kcal */
+            total_kcal: number | null;
+            /**
+             * Week
+             * Format: date
+             */
+            week: string;
+            /**
+             * Weight Kg
+             * @description Mean of the week's weigh-ins
+             */
+            weight_kg: number | null;
+        };
         /** OverviewBodyBattery */
         OverviewBodyBattery: {
             /** At Wake */
@@ -1790,7 +2470,10 @@ export interface components {
             activities: number;
             /** Distance M */
             distance_m: number | null;
-            /** Duration S */
+            /**
+             * Duration S
+             * @description Moving time (elapsed when an activity has none)
+             */
             duration_s: number | null;
             /** Sport Group */
             sport_group: string;
@@ -2967,7 +3650,10 @@ export interface components {
              * Format: date
              */
             day: string;
-            /** Duration S */
+            /**
+             * Duration S
+             * @description Moving time (elapsed time when an activity has none)
+             */
             duration_s: number;
             /** Training Load */
             training_load: number;
@@ -2985,7 +3671,10 @@ export interface components {
             activities: number;
             /** Distance M */
             distance_m: number;
-            /** Duration S */
+            /**
+             * Duration S
+             * @description Moving time (elapsed time when an activity has none)
+             */
             duration_s: number;
             /** Month */
             month: number;
@@ -3037,7 +3726,10 @@ export interface components {
             activities: number;
             /** Distance M */
             distance_m: number;
-            /** Duration S */
+            /**
+             * Duration S
+             * @description Moving time (elapsed time when an activity has none)
+             */
             duration_s: number;
             /** Elevation Gain M */
             elevation_gain_m: number;
@@ -3817,6 +4509,293 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Meta"];
+                };
+            };
+        };
+    };
+    daily_api_nutrition_daily_get: {
+        parameters: {
+            query?: {
+                /** @description Last day (default: last day with Garmin data or meals) */
+                end?: string | null;
+                /** @description First day (default: 1 year before end) */
+                start?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionDailyPoint"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    day_api_nutrition_day_get: {
+        parameters: {
+            query?: {
+                /** @description Day (default: today, athlete's time) */
+                day?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionDay"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    meals_api_nutrition_meals_get: {
+        parameters: {
+            query?: {
+                /** @description Only this day */
+                day?: string | null;
+                /** @description Last day (default: last day with Garmin data or meals) */
+                end?: string | null;
+                limit?: number;
+                /** @description First day (default: end - 6 days) */
+                start?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionMeal"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_meal_api_nutrition_meals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NutritionMealIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionMeal"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_meal_api_nutrition_meals__meal_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_meal_api_nutrition_meals__meal_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NutritionMealPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionMeal"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    summary_api_nutrition_summary_get: {
+        parameters: {
+            query?: {
+                /** @description Last day (default: last day with Garmin data or meals) */
+                end?: string | null;
+                /** @description First day (default: 1 year before end) */
+                start?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_targets_api_nutrition_targets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionTargets"];
+                };
+            };
+        };
+    };
+    put_targets_api_nutrition_targets_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NutritionTargets"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NutritionTargets"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -28,6 +28,7 @@ from garminizer.db.bulk import copy_rows
 from garminizer.demo import physiology as phys
 from garminizer.demo.calendar import Calendar, Workout, build_calendar
 from garminizer.demo.daily import build_daily_rows
+from garminizer.demo.meals import write_demo_meals
 from garminizer.demo.streams import AthleteState, Places, Synth, synthesize
 from garminizer.sports import sport_group
 
@@ -467,6 +468,10 @@ def seed_demo(
         if values:
             session.execute(insert(table), values)
         report.rows[table.__tablename__] = len(values)
+    weights = {st.day: st.weight for st in sim.states}
+    report.rows.update(
+        write_demo_meals(session, rows[m.DailySummary], sim.act_rows, weights, tz, seed)
+    )
     _write_profile(session, sim.states, sim.act_rows, sim.best_runs, rng, report)
     session.flush()
     derived = pipeline.run(session, force=True, today=end)

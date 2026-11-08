@@ -37,6 +37,25 @@ export const ZONE_RAMP: Record<Mode, readonly string[]> = {
 };
 
 /**
+ * Three intensity bands (easy Z1–2, moderate Z3, hard Z4–5) for stacked time-in-zone charts:
+ * five blue steps are not tellable apart in thin stacks, three are (validated: adjacent
+ * ΔE ≥ 17 normal and CVD, every step ≥ 3:1 on the card).
+ */
+export const INTENSITY_BANDS: Record<Mode, readonly [string, string, string]> = {
+  light: ["#3987e5", "#184f95", "#0a2547"],
+  dark: ["#256abf", "#6da7ec", "#cde2fb"],
+};
+
+/**
+ * Garmin stress levels: rest in blue, low → high in a warm ramp (Garmin's own convention;
+ * validated: adjacent ΔE ≥ 15.6 normal and CVD, every step ≥ 3:1 on the card).
+ */
+export const STRESS_LEVELS: Record<Mode, readonly [string, string, string, string]> = {
+  light: ["#3987e5", "#e0702a", "#a8400f", "#5e1f05"],
+  dark: ["#3987e5", "#b35217", "#ec8a44", "#fcd2ad"],
+};
+
+/**
  * One fixed colour per measure across all pages (metric charts, not sports). Measures that
  * share a chart never share a colour; text still uses ink tokens.
  */
@@ -57,7 +76,12 @@ export const MEASURE_COLORS: Record<
     | "spo2"
     | "respiration"
     | "weight"
-    | "steps",
+    | "steps"
+    | "intake"
+    | "burn"
+    | "protein"
+    | "carbs"
+    | "fat",
     string
   >
 > = {
@@ -77,6 +101,12 @@ export const MEASURE_COLORS: Record<
     respiration: "#6250d6",
     weight: "#2a78d6",
     steps: "#1baf7a",
+    // Nutrition page (validated together: burn, intake, protein, carbs, fat)
+    intake: "#eb6834",
+    burn: "#2a78d6",
+    protein: "#6250d6",
+    carbs: "#eda100",
+    fat: "#e87ba4",
   },
   dark: {
     fitness: "#3987e5",
@@ -94,6 +124,11 @@ export const MEASURE_COLORS: Record<
     respiration: "#9085e9",
     weight: "#3987e5",
     steps: "#199e70",
+    intake: "#d95926",
+    burn: "#3987e5",
+    protein: "#9085e9",
+    carbs: "#c98500",
+    fat: "#d55181",
   },
 };
 

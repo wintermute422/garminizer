@@ -3,6 +3,7 @@
  * bars ≤ 24px with 4px rounded data-ends, 2px surface gaps in stacks, recessive axes,
  * crosshair tooltips, one y-axis per chart (never dual axes).
  */
+import { addDays } from "./range";
 import { CHROME, type Mode, wash } from "./tokens";
 
 type Obj = Record<string, unknown>;
@@ -160,4 +161,70 @@ export function tooltipTitle(text: string): string {
 /** [epochMillis, value] pairs from ISO days (noon local avoids DST edge cases). */
 export function dayPoint(day: string, value: number | null | undefined): [number, number | null] {
   return [new Date(`${day}T12:00:00`).getTime(), value ?? null];
+}
+
+export const DAY_MS = 86_400_000;
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** ISO day ("2026-10-31") of a chart x value made with `dayPoint` (local noon). */
+export function dayOfPoint(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Monday of the ISO week that contains `day`. */
+export function weekStart(day: string): string {
+  const d = new Date(`${day}T12:00:00`);
+  return addDays(day, -((d.getDay() + 6) % 7));
+}
+
+/**
+ * Calm date ticks for a day-based time axis: Mondays (weekly / fortnightly), month starts or
+ * quarter starts depending on the span, labelled "3 Aug", "Sep" or the year at January.
+ * ECharts' own time ticks mix day and month levels ("29Sep 5 8") at these widths.
+ */
+export function dayAxis(min: number, max: number): Obj {
+  const span = (max - min) / DAY_MS;
+  const first = dayOfPoint(min + DAY_MS / 2);
+  const last = dayOfPoint(max - DAY_MS / 2);
+  const values: number[] = [];
+  const noon = (iso: string) => new Date(`${iso}T12:00:00`).getTime();
+  let fmt: (v: number) => string;
+  if (span <= 120) {
+    const every = span <= 35 ? 7 : 14;
+    let d = weekStart(first);
+    if (d < first) d = addDays(d, 7);
+    for (; d <= last; d = addDays(d, every)) values.push(noon(d));
+    fmt = (v) => new Date(v).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  } else {
+    const months = span <= 400 ? 1 : span <= 800 ? 3 : 12;
+    const [y0, m0] = first.split("-").map(Number);
+    let y = y0!;
+    let m = m0! - 1;
+    if (first.slice(8) !== "01") m += 1;
+    while (m % months !== 0) m += 1;
+    for (;;) {
+      y += Math.floor(m / 12);
+      m %= 12;
+      const iso = `${y}-${pad(m + 1)}-01`;
+      if (iso > last) break;
+      values.push(noon(iso));
+      m += months;
+    }
+    fmt = (v) => {
+      const d = new Date(v);
+      return d.getMonth() === 0
+        ? String(d.getFullYear())
+        : d.toLocaleDateString(undefined, { month: "short" });
+    };
+  }
+  return {
+    type: "time",
+    min,
+    max,
+    splitLine: { show: false },
+    axisTick: { show: false, customValues: values },
+    axisLabel: { customValues: values, formatter: fmt, hideOverlap: true },
+  };
 }

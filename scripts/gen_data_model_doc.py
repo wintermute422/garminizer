@@ -60,6 +60,7 @@ GROUPS: list[tuple[str, list[str]]] = [
         "Body, records & goals",
         ["body_composition", "blood_pressure", "personal_record", "badge", "goal"],
     ),
+    ("Nutrition", ["meal", "meal_item"]),
     (
         "Computed by Garminizer",
         [
@@ -80,7 +81,12 @@ VIEWS = [
     ("weekly_volume", "Training volume per ISO week and sport group."),
     ("monthly_volume", "Training volume per calendar month and sport group."),
     ("explorer_tile", "Every visited map tile with visit count and first/last visit."),
-    ("v_daily", "One row per day with every daily metric side by side (for correlations)."),
+    (
+        "v_daily",
+        "One row per day with every daily metric side by side (for correlations), ending with "
+        "the logged intake (`intake_kcal`, `protein_g`, `carbs_g`, `fat_g`) and "
+        "`energy_balance_kcal` = intake - `daily_summary.total_kcal` (null without meals).",
+    ),
 ]
 
 
@@ -101,7 +107,8 @@ def _table_md(t: Table) -> str:
             .replace("double precision", "double")
             .replace("timestamp with time zone", "timestamptz")
         )
-        lines.append(f"| {name} | {ctype} | {'yes' if c.nullable else 'no'} | {c.comment or ''} |")
+        comment = (c.comment or "").replace("|", r"\|")  # a bare | would split the cell
+        lines.append(f"| {name} | {ctype} | {'yes' if c.nullable else 'no'} | {comment} |")
     return "\n".join(lines) + "\n"
 
 
@@ -122,6 +129,11 @@ def render() -> str:
         "Three layers: `raw_payload` keeps every Garmin response verbatim (re-parse at any time",
         "without re-downloading), typed tables hold the parsed values, and the *computed* tables",
         "and views are rebuilt by `garminizer analytics refresh`.",
+        "",
+        "The *Nutrition* tables are the exception: they hold your own input, not Garmin data.",
+        "Meals arrive from Claude Desktop through the MCP server (`garminizer mcp`, see",
+        "[claude-desktop.md](claude-desktop.md)) or from the dashboard; daily targets live in",
+        "`app_setting` under the key `nutrition_targets`.",
         "",
         "## Contents",
         "",
