@@ -132,3 +132,6 @@ progress.md's "Next step".
   the hook tests in throwaway repos (no remote) caught this.
 - A user's Garmin display name can equal their GitHub handle: the scan then flags the repo's own
   URLs. Ask the user before exempting anything from the secret scan.
+- Git Bash's `sha256sum` writes `hash *name` (binary marker), Linux writes `hash  name`: a
+  manifest check written for one blocked the other on the first real screenshot commit. Match
+  `[ *]` and normalise when writing; test both formats.
