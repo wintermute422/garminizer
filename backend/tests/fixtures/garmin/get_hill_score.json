@@ -1,0 +1,24 @@
+{
+  "userProfilePK": 1234567890,
+  "startDate": "2024-05-01",
+  "endDate": "2024-05-31",
+  "periodAvgScore": {
+    "OVERALL": 55
+  },
+  "maxScore": 56,
+  "hillScoreDTOList": [
+    {
+      "userProfilePK": 1234567890,
+      "deviceId": 3400000001,
+      "calendarDate": "2024-05-01",
+      "strengthScore": 48,
+      "enduranceScore": 60,
+      "hillScoreClassificationId": 3,
+      "overallScore": 55,
+      "hillScoreFeedbackPhraseId": 4,
+      "vo2Max": 52.0,
+      "vo2MaxPreciseValue": 52.4,
+      "primaryTrainingDevice": true
+    }
+  ]
+}

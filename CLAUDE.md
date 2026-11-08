@@ -99,6 +99,11 @@ progress.md's "Next step".
   `networkidle` (map tiles keep streaming).
 - New pages must add every chart through `<Chart>` (it exposes data-points for the e2e "chart
   has data" check) and scrollable regions through `<ScrollArea>` (keyboard focusable, axe).
+- Prove every check can fail: give each harness check a self-test or mutation. The e2e
+  overflow check compared against `innerWidth`, which mobile emulation widens to fit oversized
+  content, so a 590 px-wide page passed until a self-test injected a 2000 px element.
+- Brief parallel agents with exact formatter paths (`prettier --write src/pages/<mine>`); a
+  broad `prettier --write src/pages` touched other agents' directories.
 - Never put a blocked command string literally into a shell command (even inside a JSON test
   payload): the pre-bash hook blocks the whole call. Test hook rules through pytest instead.
 - Project hooks in `.claude/settings.json` take effect immediately in the running session.

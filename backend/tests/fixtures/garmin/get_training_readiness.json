@@ -1,0 +1,42 @@
+[
+  {
+    "userProfilePK": 1234567890,
+    "calendarDate": "2024-05-01",
+    "timestamp": "2024-05-01T12:00:00.0",
+    "timestampLocal": "2024-05-01T07:10:00.0",
+    "deviceId": 3400000001,
+    "level": "MODERATE",
+    "feedbackLong": "WELL_RECOVERED_LONG",
+    "feedbackShort": "WELL_RECOVERED",
+    "score": 60,
+    "sleepScore": 84,
+    "sleepScoreFactorPercent": 85,
+    "recoveryTime": 240,
+    "recoveryTimeFactorPercent": 90,
+    "acwrFactorPercent": 80,
+    "hrvFactorPercent": 95,
+    "stressHistoryFactorPercent": 75,
+    "sleepHistoryFactorPercent": 82,
+    "inputContext": "UPDATE_REALTIME_VARIABLES"
+  },
+  {
+    "userProfilePK": 1234567890,
+    "calendarDate": "2024-05-01",
+    "timestamp": "2024-05-01T05:10:00.0",
+    "timestampLocal": "2024-05-01T07:10:00.0",
+    "deviceId": 3400000001,
+    "level": "HIGH",
+    "feedbackLong": "WELL_RECOVERED_LONG",
+    "feedbackShort": "WELL_RECOVERED",
+    "score": 78,
+    "sleepScore": 84,
+    "sleepScoreFactorPercent": 85,
+    "recoveryTime": 240,
+    "recoveryTimeFactorPercent": 90,
+    "acwrFactorPercent": 80,
+    "hrvFactorPercent": 95,
+    "stressHistoryFactorPercent": 75,
+    "sleepHistoryFactorPercent": 82,
+    "inputContext": "AFTER_WAKEUP_RESET"
+  }
+]

@@ -1,0 +1,87 @@
+{
+  "userId": 1234567890,
+  "mostRecentVO2Max": {
+    "userId": 1234567890,
+    "generic": {
+      "calendarDate": "2024-05-01",
+      "vo2MaxPreciseValue": 52.4,
+      "vo2MaxValue": 52.0
+    },
+    "cycling": null,
+    "heatAltitudeAcclimation": {
+      "calendarDate": "2024-05-01",
+      "altitudeAcclimation": 0,
+      "heatAcclimationPercentage": 35,
+      "heatTrend": "ACCLIMATIZING",
+      "altitudeTrend": null,
+      "currentAltitude": 230
+    }
+  },
+  "mostRecentTrainingLoadBalance": {
+    "userId": 1234567890,
+    "metricsTrainingLoadBalanceDTOMap": {
+      "3400000001": {
+        "calendarDate": "2024-05-01",
+        "deviceId": 3400000001,
+        "monthlyLoadAerobicLow": 410.5,
+        "monthlyLoadAerobicHigh": 520.0,
+        "monthlyLoadAnaerobic": 95.0,
+        "monthlyLoadAerobicLowTargetMin": 300,
+        "monthlyLoadAerobicLowTargetMax": 600,
+        "monthlyLoadAerobicHighTargetMin": 350,
+        "monthlyLoadAerobicHighTargetMax": 650,
+        "monthlyLoadAnaerobicTargetMin": 80,
+        "monthlyLoadAnaerobicTargetMax": 250,
+        "trainingBalanceFeedbackPhrase": "BALANCED_1",
+        "primaryTrainingDevice": true
+      }
+    },
+    "recordedDevices": [
+      {
+        "deviceId": 3400000001,
+        "deviceName": "Forerunner Demo"
+      }
+    ]
+  },
+  "mostRecentTrainingStatus": {
+    "userId": 1234567890,
+    "latestTrainingStatusData": {
+      "3400000001": {
+        "calendarDate": "2024-05-01",
+        "sinceDate": "2024-04-20",
+        "weeklyTrainingLoad": null,
+        "trainingStatus": 7,
+        "timestamp": 1714564800000,
+        "deviceId": 3400000001,
+        "loadTunnelMin": null,
+        "loadTunnelMax": null,
+        "loadLevelTrend": null,
+        "sport": "RUNNING",
+        "subSport": "GENERIC",
+        "fitnessTrendSport": "RUNNING",
+        "fitnessTrend": 2,
+        "trainingStatusFeedbackPhrase": "PRODUCTIVE_1",
+        "trainingPaused": false,
+        "acuteTrainingLoadDTO": {
+          "acwrPercent": 55,
+          "acwrStatus": "OPTIMAL",
+          "acwrStatusFeedback": "FEEDBACK_2",
+          "dailyTrainingLoadAcute": 512,
+          "maxTrainingLoadChronic": 640,
+          "minTrainingLoadChronic": 340,
+          "dailyTrainingLoadChronic": 455,
+          "dailyAcuteChronicWorkloadRatio": 1.1
+        },
+        "primaryTrainingDevice": true
+      }
+    },
+    "recordedDevices": [
+      {
+        "deviceId": 3400000001,
+        "deviceName": "Forerunner Demo"
+      }
+    ],
+    "showSelector": false,
+    "lastPrimarySyncDate": "2024-05-01"
+  }
+}

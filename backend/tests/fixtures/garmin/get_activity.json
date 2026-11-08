@@ -1,0 +1,54 @@
+{
+  "activityId": 1234567890,
+  "activityName": "Morning Run",
+  "description": "Easy tempo loop",
+  "locationName": "Demo Town",
+  "activityTypeDTO": {
+    "typeId": 1,
+    "typeKey": "running",
+    "parentTypeId": 17
+  },
+  "summaryDTO": {
+    "startTimeLocal": "2024-05-01T09:00:00.0",
+    "startTimeGMT": "2024-05-01T07:00:00.0",
+    "startLatitude": 45.0012,
+    "startLongitude": 7.0021,
+    "distance": 10050.0,
+    "duration": 3015.5,
+    "movingDuration": 3000.0,
+    "elapsedDuration": 3080.0,
+    "elevationGain": 85.0,
+    "elevationLoss": 84.0,
+    "maxElevation": 262.0,
+    "minElevation": 210.0,
+    "averageSpeed": 3.333,
+    "averageMovingSpeed": 3.35,
+    "maxSpeed": 4.6,
+    "calories": 690.0,
+    "averageHR": 152.0,
+    "maxHR": 171.0,
+    "averageRunCadence": 172.5,
+    "maxRunCadence": 186.0,
+    "averageTemperature": 18.5,
+    "maxTemperature": 22.0,
+    "minTemperature": 14.0,
+    "strideLength": 116.2,
+    "verticalOscillation": 8.9,
+    "groundContactTime": 248.0,
+    "verticalRatio": 7.6,
+    "trainingEffect": 3.2,
+    "anaerobicTrainingEffect": 0.8,
+    "activityTrainingLoad": 112.0,
+    "waterEstimated": 750.0,
+    "differenceBodyBattery": -14
+  },
+  "metadataDTO": {
+    "lapCount": 2,
+    "hasSplits": true,
+    "manualActivity": false,
+    "deviceMetaDataDTO": {
+      "deviceId": "3400000001",
+      "deviceTypePk": 31337
+    }
+  }
+}

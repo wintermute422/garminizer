@@ -1,0 +1,27 @@
+{
+  "userProfilePk": 1234567890,
+  "hrvSummary": {
+    "calendarDate": "2024-05-01",
+    "weeklyAvg": 58,
+    "lastNightAvg": 62,
+    "lastNight5MinHigh": 85,
+    "baseline": {
+      "lowUpper": 48,
+      "balancedLow": 52,
+      "balancedUpper": 68,
+      "markerValue": 0.6
+    },
+    "status": "BALANCED",
+    "feedbackPhrase": "HRV_BALANCED_2",
+    "createTimeStamp": "2024-05-01T05:10:00.0"
+  },
+  "hrvReadings": [
+    {
+      "hrvValue": 60,
+      "readingTimeGMT": "2024-05-01T01:00:00.0",
+      "readingTimeLocal": "2024-05-01T03:00:00.0"
+    }
+  ],
+  "startTimestampGMT": "2024-04-30T21:15:00.0",
+  "endTimestampGMT": "2024-05-01T05:00:00.0"
+}

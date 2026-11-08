@@ -1,0 +1,22 @@
+[
+  {
+    "gearPk": 10,
+    "uuid": "0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "userProfilePk": 1234567890,
+    "gearMakeName": "Demo Shoes",
+    "gearModelName": "Trainer 3",
+    "gearTypeName": "Shoes",
+    "gearStatusName": "active",
+    "displayName": "Trainer 3 (pair 1)",
+    "customMakeModel": null,
+    "imageNameLarge": null,
+    "imageNameMedium": null,
+    "imageNameSmall": null,
+    "dateBegin": "2024-01-10T00:00:00.0",
+    "dateEnd": null,
+    "maximumMeters": 800000.0,
+    "notified": false,
+    "createDate": "2024-01-10T08:00:00.0",
+    "updateDate": "2024-04-01T08:00:00.0"
+  }
+]

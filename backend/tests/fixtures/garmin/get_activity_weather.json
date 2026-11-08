@@ -1,0 +1,23 @@
+{
+  "issueDate": "2024-05-01T07:00:00+0000",
+  "temp": 61,
+  "apparentTemp": 61,
+  "dewPoint": 48,
+  "relativeHumidity": 62,
+  "windDirection": 220,
+  "windDirectionCompassPoint": "sw",
+  "windSpeed": 7,
+  "windGust": 12,
+  "latitude": 45.0,
+  "longitude": 7.0,
+  "weatherStationDTO": {
+    "id": "DEMO",
+    "name": "Demo Station",
+    "timezone": null
+  },
+  "weatherTypeDTO": {
+    "weatherTypePk": 3,
+    "desc": "Partly Cloudy",
+    "image": null
+  }
+}

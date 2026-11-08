@@ -1,0 +1,10 @@
+{
+  "userProfilePK": 1234567890,
+  "calendarDate": "2024-05-01",
+  "weeklyModerate": 80,
+  "weeklyVigorous": 95,
+  "weeklyTotal": 270,
+  "weekGoal": 150,
+  "moderateMinutes": 20,
+  "vigorousMinutes": 45
+}

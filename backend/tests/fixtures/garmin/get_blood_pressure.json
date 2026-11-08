@@ -1,0 +1,27 @@
+{
+  "from": "2024-05-01",
+  "until": "2024-05-31",
+  "measurementSummaries": [
+    {
+      "startDate": "2024-05-01",
+      "endDate": "2024-05-01",
+      "highSystolic": 118,
+      "lowSystolic": 118,
+      "category": "NORMAL",
+      "measurements": [
+        {
+          "version": 1,
+          "systolic": 118,
+          "diastolic": 76,
+          "pulse": 52,
+          "notes": null,
+          "sourceType": "MANUAL",
+          "measurementTimestampLocal": "2024-05-01T08:00:00.0",
+          "measurementTimestampGMT": "2024-05-01T06:00:00.0",
+          "category": "NORMAL"
+        }
+      ]
+    }
+  ],
+  "categoryStats": null
+}

@@ -1,0 +1,32 @@
+{
+  "userProfilePK": 1234567890,
+  "calendarDate": "2024-05-01",
+  "lowestRespirationValue": 11.0,
+  "highestRespirationValue": 21.0,
+  "avgWakingRespirationValue": 15.0,
+  "avgSleepRespirationValue": 13.5,
+  "respirationValueDescriptorsDTOList": [
+    {
+      "key": "timestamp",
+      "index": 0
+    },
+    {
+      "key": "respiration",
+      "index": 1
+    }
+  ],
+  "respirationValuesArray": [
+    [
+      1714557600000,
+      14.0
+    ],
+    [
+      1714557720000,
+      13.5
+    ],
+    [
+      1714557840000,
+      -1.0
+    ]
+  ]
+}

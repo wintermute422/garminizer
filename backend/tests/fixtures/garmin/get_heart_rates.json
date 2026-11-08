@@ -1,0 +1,42 @@
+{
+  "userProfilePK": 1234567890,
+  "calendarDate": "2024-05-01",
+  "startTimestampGMT": "2024-04-30T22:00:00.0",
+  "endTimestampGMT": "2024-05-01T22:00:00.0",
+  "maxHeartRate": 172,
+  "minHeartRate": 45,
+  "restingHeartRate": 48,
+  "lastSevenDaysAvgRestingHeartRate": 49,
+  "heartRateValueDescriptors": [
+    {
+      "key": "timestamp",
+      "index": 0
+    },
+    {
+      "key": "heartrate",
+      "index": 1
+    }
+  ],
+  "heartRateValues": [
+    [
+      1714521600000,
+      52
+    ],
+    [
+      1714521720000,
+      51
+    ],
+    [
+      1714521840000,
+      null
+    ],
+    [
+      1714543200000,
+      64
+    ],
+    [
+      1714543320000,
+      70
+    ]
+  ]
+}

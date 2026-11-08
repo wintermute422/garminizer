@@ -630,6 +630,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect
+         * @description Log in to Garmin; answers needs_mfa when Garmin sends a code (then POST /mfa).
+         */
+        post: operations["connect_api_sync_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Coverage
+         * @description Per daily dataset and month: days fetched and days with a non-empty response.
+         */
+        get: operations["coverage_api_sync_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disconnect
+         * @description Delete the local Garmin tokens (does not touch the Garmin account).
+         */
+        post: operations["disconnect_api_sync_disconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mfa
+         * @description Finish the pending login with the MFA code Garmin sent.
+         */
+        post: operations["mfa_api_sync_mfa_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run
+         * @description Start an incremental sync or a backfill in the background (see GET /status).
+         */
+        post: operations["run_api_sync_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Status
+         * @description Connection state, recent runs, per-dataset progress and recent (redacted) errors.
+         */
+        get: operations["status_api_sync_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/training/effects": {
         parameters: {
             query?: never;
@@ -1325,6 +1445,8 @@ export interface components {
             delta: number | null;
             /** Id */
             id: string;
+            /** Lag */
+            lag?: number | null;
             /** Metric */
             metric: string | null;
             /**
@@ -1345,6 +1467,12 @@ export interface components {
             unit: string | null;
             /** Value */
             value: number | null;
+            /** Value Label */
+            value_label?: string | null;
+            /** X Metric */
+            x_metric?: string | null;
+            /** Y Metric */
+            y_metric?: string | null;
         };
         /**
          * InsightCorrelations
@@ -2224,6 +2352,163 @@ export interface components {
             t_s: number[];
             /** Temperature C */
             temperature_c: (number | null)[];
+        };
+        /** SyncConnectRequest */
+        SyncConnectRequest: {
+            /** Email */
+            email: string;
+            /**
+             * Password
+             * Format: password
+             */
+            password: string;
+        };
+        /** SyncConnectResult */
+        SyncConnectResult: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "needs_mfa";
+        };
+        /** SyncCoverage */
+        SyncCoverage: {
+            /** Datasets */
+            datasets: string[];
+            /** Months */
+            months: components["schemas"]["SyncCoverageMonth"][];
+        };
+        /** SyncCoverageMonth */
+        SyncCoverageMonth: {
+            /** Dataset */
+            dataset: string;
+            /**
+             * Days
+             * @description Days fetched from Garmin
+             */
+            days: number;
+            /**
+             * Days With Data
+             * @description Days whose response was not empty
+             */
+            days_with_data: number;
+            /**
+             * Month
+             * @description YYYY-MM
+             */
+            month: string;
+        };
+        /** SyncCursorOut */
+        SyncCursorOut: {
+            /** Complete */
+            complete: boolean;
+            /** Dataset */
+            dataset: string;
+            /** Newest Day */
+            newest_day: string | null;
+            /** Oldest Day */
+            oldest_day: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SyncDisconnectResult */
+        SyncDisconnectResult: {
+            /** Connected */
+            connected: boolean;
+        };
+        /** SyncErrorOut */
+        SyncErrorOut: {
+            /** Dataset */
+            dataset: string;
+            /** Error */
+            error: string;
+            /** Id */
+            id: number;
+            /** Key */
+            key: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Run Id */
+            run_id: number | null;
+        };
+        /** SyncMfaRequest */
+        SyncMfaRequest: {
+            /** Code */
+            code: string;
+        };
+        /** SyncRunAccepted */
+        SyncRunAccepted: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "incremental" | "backfill";
+            /**
+             * Status
+             * @constant
+             */
+            status: "started";
+        };
+        /** SyncRunOut */
+        SyncRunOut: {
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: number;
+            /** Items Written */
+            items_written: number;
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string | null;
+            /** Requests */
+            requests: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Status */
+            status: string;
+        };
+        /** SyncRunRequest */
+        SyncRunRequest: {
+            /**
+             * Kind
+             * @default incremental
+             * @enum {string}
+             */
+            kind: "incremental" | "backfill";
+        };
+        /** SyncStatus */
+        SyncStatus: {
+            /**
+             * Connected
+             * @description Garmin tokens are present and look valid
+             */
+            connected: boolean;
+            /** Cursors */
+            cursors: components["schemas"]["SyncCursorOut"][];
+            /** First Day */
+            first_day: string | null;
+            /** Is Demo */
+            is_demo: boolean;
+            /** Last Day */
+            last_day: string | null;
+            /** Last Runs */
+            last_runs: components["schemas"]["SyncRunOut"][];
+            /** Mfa Pending */
+            mfa_pending: boolean;
+            /** Recent Errors */
+            recent_errors: components["schemas"]["SyncErrorOut"][];
+            /** Running */
+            running: boolean;
         };
         /** SystemHealth */
         SystemHealth: {
@@ -3108,6 +3393,8 @@ export interface operations {
             query?: {
                 /** @description Last day (default: last day with data) */
                 end?: string | null;
+                /** @description Sport group: one of run, ride, swim, walk, hike, strength, cardio, winter, water, other */
+                sport?: string | null;
                 /** @description First day (default: 1 year before end) */
                 start?: string | null;
             };
@@ -3883,6 +4170,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_api_sync_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncConnectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncConnectResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coverage_api_sync_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncCoverage"];
+                };
+            };
+        };
+    };
+    disconnect_api_sync_disconnect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncDisconnectResult"];
+                };
+            };
+        };
+    };
+    mfa_api_sync_mfa_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncMfaRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncConnectResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_api_sync_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncRunAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    status_api_sync_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncStatus"];
                 };
             };
         };
