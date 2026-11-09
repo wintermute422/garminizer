@@ -57,8 +57,9 @@ jobs:
           cache: pip
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
-      - run: corepack enable
+          node-version: "26"
+      - name: pnpm (version pinned in web/package.json)
+        run: npm install -g "$(node -p 'require("./web/package.json").packageManager')"
       - run: pip install -e ".[dev]"
       - run: pnpm -C web install --frozen-lockfile
       - run: pnpm -C web run lint
@@ -92,8 +93,9 @@ jobs:
           cache: pip
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
-      - run: corepack enable
+          node-version: "26"
+      - name: pnpm (version pinned in web/package.json)
+        run: npm install -g "$(node -p 'require("./web/package.json").packageManager')"
       - run: pip install -e ".[dev]"
       - run: pnpm -C web install --frozen-lockfile
       - run: pnpm -C web exec playwright install --with-deps chromium

@@ -2,10 +2,11 @@
 # Garminizer: one image for the web app (API + dashboards) and the background worker.
 
 # ---- web: build the SPA ---------------------------------------------------------------
-FROM node:24-slim AS web
+FROM node:26-slim AS web
 WORKDIR /src/web
-RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+# Node 25+ no longer bundles corepack: install the pnpm pinned in package.json (packageManager).
+RUN npm install -g "$(node -p 'require("./package.json").packageManager')"
 RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
