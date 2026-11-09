@@ -14,8 +14,9 @@ Thanks for helping! Garminizer handles personal health data, so a few rules are 
   The hooks and CI reject commits whose author or committer e-mail is not a noreply address.
 
 ## Setup
-Requirements: Python 3.12+, Node 24 with pnpm (`corepack enable`), Docker (for PostgreSQL and the
-gitleaks scanner), Git Bash on Windows for the `scripts/*.sh`.
+Requirements: Python 3.12+, Node 26 with pnpm 12 (`npm install -g pnpm@12.15.0`, the version pinned
+in `web/package.json`), Docker (for PostgreSQL and the gitleaks scanner), Git Bash on Windows for
+the `scripts/*.sh`.
 
 ```bash
 git config core.hooksPath .githooks          # enable the pre-commit / pre-push hooks
