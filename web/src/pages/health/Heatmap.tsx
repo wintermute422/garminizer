@@ -58,7 +58,7 @@ function heatOption(
   const lo = metric.value === "steps" ? 0 : (quantile(all, 0.02) ?? 0);
   const hi = Math.max(quantile(all, metric.value === "steps" ? 0.97 : 0.98) ?? 1, lo + 1);
   const sel = selected ? data.days.indexOf(selected) : -1;
-  const gapFill = mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(11,11,11,0.025)";
+  const gapFill = CHROME[mode].wash;
   const dense = data.days.length > (narrow ? 40 : 120);
   const short = (v: number) => (metric.value === "steps" ? fmtCompact(v) : fmtNumber(v));
   return {
@@ -263,7 +263,7 @@ export function HourHeatmap({
           />
           <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-3">
             <span
-              className="inline-block size-2.5 rounded-[2px] border"
+              className="inline-block size-2.5 rounded-swatch border"
               style={{ borderColor: mode === "dark" ? CHROME.dark.muted : CHROME.light.axis }}
               aria-hidden
             />

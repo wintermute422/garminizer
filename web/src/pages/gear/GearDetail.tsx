@@ -154,7 +154,7 @@ export function GearDetail({ uuid, color }: { uuid: string; color: (uuid: string
                 <Link
                   to="/activities/$activityId"
                   params={{ activityId: String(a.activity_id) }}
-                  className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-2"
+                  className="flex items-center gap-3 rounded-control px-2 py-2 hover:bg-hover"
                 >
                   <SportBadge group={a.sport_group} size={30} />
                   <span className="min-w-0 flex-1">

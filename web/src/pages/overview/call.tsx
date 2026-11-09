@@ -10,7 +10,7 @@ export function TodayCall({ call }: { call: TodaysCall }) {
   return (
     <section
       aria-label="Today's call"
-      className="mb-5 flex flex-col gap-1 rounded-2xl border border-line bg-surface px-4 py-3 shadow-card sm:px-5 lg:flex-row lg:items-center lg:gap-4"
+      className="mb-5 flex flex-col gap-1 rounded-card border border-line bg-surface px-4 py-3 shadow-card sm:px-5 lg:flex-row lg:items-center lg:gap-4"
     >
       <p className="flex min-w-0 items-start gap-2.5 text-sm lg:flex-1">
         {createElement(ICON[call.tone], {

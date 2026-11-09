@@ -6,6 +6,7 @@ import { api, queryClient } from "@/api/client";
 import { AuthGate } from "@/app/AuthGate";
 import { router } from "@/app/router";
 import { PreferencesProvider } from "@/lib/preferences";
+import "@fontsource-variable/inter";
 import "./styles.css";
 
 /** The athlete's Garmin unit setting is the default until the viewer picks one. */

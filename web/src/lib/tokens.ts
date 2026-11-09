@@ -14,6 +14,21 @@ export const CATEGORICAL: Record<Mode, readonly string[]> = {
 
 export const NEUTRAL: Record<Mode, string> = { light: "#898781", dark: "#898781" };
 
+/** Chart typography: the UI family (bundled Inter), so canvas text matches the DOM. */
+export const FONT_SANS =
+  '"Inter Variable", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif';
+
+/** Mark geometry, mirroring the CSS radius tokens: bars end near-square, cells too. */
+export const MARK_RADIUS = 2;
+/** Corner radii for a bar's data end, growing up / down / right / left. */
+export function barEnd(dir: "up" | "down" | "right" | "left" = "up"): number[] {
+  const r = MARK_RADIUS;
+  if (dir === "down") return [0, 0, r, r];
+  if (dir === "right") return [0, r, r, 0];
+  if (dir === "left") return [r, 0, 0, r];
+  return [r, r, 0, 0];
+}
+
 export const BLUE: Record<number, string> = {
   100: "#cde2fb",
   150: "#b7d3f6",
@@ -115,7 +130,7 @@ export const MEASURE_COLORS: Record<
     pace: "#3987e5",
     power: "#d95926",
     cadence: "#9085e9",
-    elevation: "#9a9890",
+    elevation: "#969696",
     hrv: "#199e70",
     stress: "#c98500",
     bodyBattery: "#3987e5",
@@ -132,6 +147,12 @@ export const MEASURE_COLORS: Record<
   },
 };
 
+/** Route colouring on activity maps, low → high (cool → warm, matches the HR hue at the top). */
+export const ROUTE_RAMP: Record<Mode, readonly [string, string, string]> = {
+  light: [BLUE[450]!, "#eda100", "#e34948"],
+  dark: [BLUE[400]!, "#eda100", "#e66767"],
+};
+
 /** Continuous sequential ramp (heatmaps), low → high. */
 export const SEQUENTIAL: Record<Mode, readonly string[]> = {
   light: [BLUE[100]!, BLUE[250]!, BLUE[400]!, BLUE[550]!, BLUE[700]!],
@@ -139,8 +160,8 @@ export const SEQUENTIAL: Record<Mode, readonly string[]> = {
 };
 
 export const DIVERGING: Record<Mode, { negative: string; mid: string; positive: string }> = {
-  light: { negative: "#2a78d6", mid: "#f0efec", positive: "#e34948" },
-  dark: { negative: "#3987e5", mid: "#383835", positive: "#e66767" },
+  light: { negative: "#2a78d6", mid: "#f0f0f0", positive: "#e34948" },
+  dark: { negative: "#3987e5", mid: "#3a3a3a", positive: "#e66767" },
 };
 
 export const STATUS = {
@@ -156,25 +177,49 @@ export const SLEEP_STAGES: Record<Mode, Record<"deep" | "light" | "rem" | "awake
   dark: { deep: "#256abf", light: "#199e70", rem: "#9085e9", awake: "#d55181" },
 };
 
+/** Chart chrome: mirrors the CSS ink/surface tokens in src/styles.css (keep in sync). */
 export const CHROME: Record<
   Mode,
-  { surface: string; text: string; text2: string; muted: string; grid: string; axis: string }
+  {
+    surface: string;
+    text: string;
+    text2: string;
+    muted: string;
+    grid: string;
+    axis: string;
+    /** Hairline around floating chart layers (tooltips). */
+    border: string;
+    /** Faint fill behind a selected/hovered band or an empty cell. */
+    wash: string;
+    /** Data-zoom window fill (accent wash). */
+    zoom: string;
+    /** Tooltip elevation, as CSS. */
+    overlay: string;
+  }
 > = {
   light: {
-    surface: "#fcfcfb",
-    text: "#0b0b0b",
-    text2: "#52514e",
-    muted: "#6f6d68",
-    grid: "#e1e0d9",
-    axis: "#c3c2b7",
+    surface: "#ffffff",
+    text: "#0a0a0a",
+    text2: "#474747",
+    muted: "#666666",
+    grid: "#ebebeb",
+    axis: "#c7c7c7",
+    border: "rgba(10, 10, 10, 0.12)",
+    wash: "rgba(10, 10, 10, 0.05)",
+    zoom: "rgba(42, 120, 214, 0.12)",
+    overlay: "0 12px 32px -8px rgba(10, 10, 10, 0.2)",
   },
   dark: {
-    surface: "#1a1a19",
-    text: "#f0efec",
-    text2: "#c3c2b7",
-    muted: "#9a9890",
-    grid: "#2c2c2a",
-    axis: "#383835",
+    surface: "#151515",
+    text: "#f5f5f5",
+    text2: "#c2c2c2",
+    muted: "#969696",
+    grid: "#262626",
+    axis: "#3a3a3a",
+    border: "rgba(255, 255, 255, 0.12)",
+    wash: "rgba(255, 255, 255, 0.06)",
+    zoom: "rgba(57, 135, 229, 0.15)",
+    overlay: "0 12px 32px -8px rgba(0, 0, 0, 0.7)",
   },
 };
 

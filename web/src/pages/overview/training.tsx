@@ -72,16 +72,16 @@ function FocusRow({
           <span className="font-semibold text-ink tabular">{fmtNumber(value)}</span>
         </span>
       </div>
-      <div aria-hidden className="relative h-3.5 rounded-full bg-surface-2">
+      <div aria-hidden className="relative h-3.5 rounded-bar bg-surface-2">
         {min !== null && max !== null && (
           <div
-            className="absolute inset-y-0 rounded-full border border-dashed border-ink-3/70 bg-surface-3/60"
+            className="absolute inset-y-0 rounded-bar border border-dashed border-ink-3/70 bg-surface-3/60"
             style={{ left: pct(min), width: `calc(${pct(max)} - ${pct(min)})` }}
           />
         )}
         {value !== null && (
           <div
-            className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-full"
+            className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-bar"
             style={{ width: pct(value), background: color }}
           />
         )}

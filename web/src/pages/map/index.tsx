@@ -270,7 +270,7 @@ function Legend({
           <LegendItem color={CATEGORICAL[mode][0]!} label="Route" shape="line" />
           {hasSelection && (
             <span className="inline-flex items-center gap-1.5 text-xs text-ink-2">
-              <span aria-hidden className="inline-block h-0.5 w-4 rounded bg-ink" />
+              <span aria-hidden className="inline-block h-0.5 w-4 rounded-bar bg-ink" />
               Selected
             </span>
           )}
@@ -294,7 +294,7 @@ function Legend({
           <span>Rarely</span>
           <span
             aria-hidden
-            className="h-2 w-28 rounded-full"
+            className="h-2 w-28 rounded-bar"
             style={{ background: `linear-gradient(90deg, ${ramp.slice(1).join(", ")})` }}
           />
           <span>Often</span>
@@ -305,7 +305,10 @@ function Legend({
           <LegendItem color={wash(tc.visited, 0.75)} label="Visited tile" />
           <LegendItem color={tc.cluster} label="Max cluster" />
           <span className="inline-flex items-center gap-1.5 text-xs text-ink-2">
-            <span aria-hidden className="inline-block size-2.5 rounded-[3px] border-2 border-ink" />
+            <span
+              aria-hidden
+              className="inline-block size-2.5 rounded-swatch border-2 border-ink"
+            />
             Max square
           </span>
         </div>
@@ -317,7 +320,7 @@ function Legend({
 function RoutePanel({ track, onClose }: { track: Track; onClose: () => void }) {
   const units = useUnits();
   return (
-    <div className="absolute top-2 left-2 w-[min(18rem,calc(100%-4rem))] rounded-xl border border-line bg-surface p-3 shadow-card">
+    <div className="absolute top-2 left-2 w-[min(18rem,calc(100%-4rem))] rounded-card border border-line bg-surface p-3 shadow-overlay">
       <div className="flex items-start gap-2.5">
         <SportBadge group={track.sport_group} size={34} />
         <div className="min-w-0 flex-1">
@@ -338,7 +341,7 @@ function RoutePanel({ track, onClose }: { track: Track; onClose: () => void }) {
           type="button"
           onClick={onClose}
           aria-label="Close route details"
-          className="-mt-1 -mr-1 rounded-lg p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="-mt-1 -mr-1 rounded-control p-1.5 text-ink-3 hover:bg-hover hover:text-ink"
         >
           <X size={15} aria-hidden />
         </button>
@@ -346,7 +349,7 @@ function RoutePanel({ track, onClose }: { track: Track; onClose: () => void }) {
       <Link
         to="/activities/$activityId"
         params={{ activityId: String(track.activity_id) }}
-        className="mt-2.5 inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+        className="mt-2.5 inline-flex items-center gap-1 rounded-control border border-line px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"
       >
         Open activity <ArrowUpRight size={14} aria-hidden className="text-accent" />
       </Link>
@@ -376,7 +379,7 @@ function TilePanel({
     inSquare ? "inside your max square" : null,
   ].filter(Boolean);
   return (
-    <div className="absolute top-2 left-2 w-[min(17rem,calc(100%-4rem))] rounded-xl border border-line bg-surface p-3 shadow-card">
+    <div className="absolute top-2 left-2 w-[min(17rem,calc(100%-4rem))] rounded-card border border-line bg-surface p-3 shadow-overlay">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-ink">
@@ -395,7 +398,7 @@ function TilePanel({
           type="button"
           onClick={onClose}
           aria-label="Close tile details"
-          className="-mt-1 -mr-1 rounded-lg p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="-mt-1 -mr-1 rounded-control p-1.5 text-ink-3 hover:bg-hover hover:text-ink"
         >
           <X size={15} aria-hidden />
         </button>
@@ -432,7 +435,7 @@ function SportsCard({ rows, active }: { rows: SportRow[]; active: string | null 
                   aria-pressed={pressed}
                   onClick={() => range.setSport(pressed ? null : r.group)}
                   className={clsx(
-                    "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface-2",
+                    "flex w-full items-center gap-3 rounded-control px-2 py-2 text-left transition-colors hover:bg-hover",
                     pressed && "bg-surface-2",
                   )}
                 >
@@ -447,10 +450,10 @@ function SportsCard({ rows, active }: { rows: SportRow[]; active: string | null 
                       </span>
                     </span>
                     <span className="mt-1 flex items-center gap-2">
-                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-bar bg-surface-3">
                         <span
                           aria-hidden
-                          className="block h-full rounded-full"
+                          className="block h-full rounded-bar"
                           style={{ width: `${(r.distance / total) * 100}%`, background: color }}
                         />
                       </span>
@@ -502,14 +505,14 @@ function PlacesCard({
                       {fmtNumber(p.activities)} {p.activities === 1 ? "start" : "starts"}
                     </span>
                   </span>
-                  <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-surface-3">
+                  <span className="mt-1 block h-1.5 overflow-hidden rounded-bar bg-surface-3">
                     <span
                       aria-hidden
-                      className="block h-full rounded-full bg-accent"
+                      className="block h-full rounded-bar bg-accent"
                       style={{ width: `${(p.activities / max) * 100}%` }}
                     />
                   </span>
-                  <span className="mt-1 block truncate text-[11px] text-ink-3 tabular">
+                  <span className="mt-1 block truncate text-2xs text-ink-3 tabular">
                     {coordText(p.lat, p.lon)}
                   </span>
                 </span>
@@ -520,7 +523,7 @@ function PlacesCard({
                   aria-pressed={isFocused}
                   title="Show on the map"
                   className={clsx(
-                    "rounded-lg p-1.5 hover:bg-surface-2 hover:text-ink",
+                    "rounded-control p-1.5 hover:bg-hover hover:text-ink",
                     isFocused ? "text-accent" : "text-ink-3",
                   )}
                 >
@@ -798,7 +801,7 @@ export default function MapPage() {
                 }}
               />
               {view !== "explorer" && (tracks?.length ?? 0) === 0 && (
-                <div className="absolute inset-x-0 top-1/3 mx-auto w-fit max-w-[80%] rounded-xl border border-line bg-surface px-4 py-3 text-center text-sm text-ink-2 shadow-card">
+                <div className="absolute inset-x-0 top-1/3 mx-auto w-fit max-w-[80%] rounded-card border border-line bg-surface px-4 py-3 text-center text-sm text-ink-2 shadow-overlay">
                   No GPS tracks in this period. Try a longer range or the Explorer view.
                 </div>
               )}
@@ -818,7 +821,7 @@ export default function MapPage() {
                 bySport={geo.bySport}
                 hasSelection={!!selectedTrack}
                 mode={mode}
-                className="pointer-events-none absolute bottom-2 left-2 hidden max-w-[calc(100%-4rem)] rounded-xl border border-line bg-surface px-3 py-2 shadow-card sm:block"
+                className="pointer-events-none absolute bottom-2 left-2 hidden max-w-[calc(100%-4rem)] rounded-card border border-line bg-surface px-3 py-2 shadow-overlay sm:block"
               />
             </div>
           )}

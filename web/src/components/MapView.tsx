@@ -158,7 +158,7 @@ export function MapView({
       aria-label={ariaLabel}
       data-testid="map"
       className={className}
-      style={{ height, width: "100%", borderRadius: 14, overflow: "hidden" }}
+      style={{ height, width: "100%", borderRadius: "var(--radius-card)", overflow: "hidden" }}
     />
   );
 }

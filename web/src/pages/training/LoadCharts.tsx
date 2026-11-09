@@ -34,6 +34,7 @@ import {
   ZONE_RAMP,
   type Mode,
   type Status,
+  barEnd,
 } from "@/lib/tokens";
 import { loadBalanceState, trainingState } from "@/lib/status";
 import {
@@ -181,7 +182,7 @@ export function PmcCard({
           name: "Daily load",
           data: data.map((d) => [dayMs(d.day), d.load]),
           barMaxWidth: 12,
-          itemStyle: { color: loadColor, borderRadius: [2, 2, 0, 0] },
+          itemStyle: { color: loadColor, borderRadius: barEnd("up") },
         },
       ],
     };
@@ -201,7 +202,7 @@ export function PmcCard({
             value: [dayMs(d.day), d.tsb],
             itemStyle: {
               color: d.tsb >= 0 ? div.negative : div.positive,
-              borderRadius: d.tsb >= 0 ? [2, 2, 0, 0] : [0, 0, 2, 2],
+              borderRadius: barEnd(d.tsb >= 0 ? "up" : "down"),
             },
           })),
           markArea: {
@@ -509,7 +510,7 @@ export function StatusCard({
                 <li key={s.key} className="inline-flex items-center gap-1.5 text-xs text-ink-2">
                   <span
                     aria-hidden
-                    className="inline-block size-2.5 rounded-[3px]"
+                    className="inline-block size-2.5 rounded-swatch"
                     style={{ background: statusSwatch(s.key, mode) }}
                   />
                   <StatusIcon status={trainingState(s.key).status} />
@@ -579,15 +580,15 @@ function FocusRow({
           <span className="font-semibold text-ink tabular">{fmtNumber(value)}</span>
         </span>
       </div>
-      <div aria-hidden className="relative h-3.5 rounded-full bg-surface-2">
+      <div aria-hidden className="relative h-3.5 rounded-bar bg-surface-2">
         {min !== null && max !== null && (
           <div
-            className="absolute inset-y-0 rounded-full border border-dashed border-ink-3/70 bg-surface-3/60"
+            className="absolute inset-y-0 rounded-bar border border-dashed border-ink-3/70 bg-surface-3/60"
             style={{ left: pct(min), width: `calc(${pct(max)} - ${pct(min)})` }}
           />
         )}
         <div
-          className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-full"
+          className="absolute top-1/2 left-0 h-2 -translate-y-1/2 rounded-bar"
           style={{ width: pct(value), background: color }}
         />
       </div>

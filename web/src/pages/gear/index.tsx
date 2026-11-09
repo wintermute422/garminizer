@@ -70,7 +70,7 @@ function Group({
       )}
       {retired.length > 0 && (
         <details className="group mt-3">
-          <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-lg py-1 text-sm font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-control py-1 text-sm font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
             <ChevronRight
               size={16}
               aria-hidden

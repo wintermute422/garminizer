@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui";
 import { categoryXAxis, itemTooltip, refLine, tooltipTitle, valueYAxis } from "@/lib/charts";
 import { fmtCompact, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { BLUE, CHROME } from "@/lib/tokens";
+import { BLUE, CHROME, barEnd } from "@/lib/tokens";
 import type { MetricView } from "./metrics";
 
 type Weekday = Schemas["InsightWeekday"];
@@ -64,7 +64,7 @@ function Multiple({ rows, mv, k }: { rows: Weekday[]; mv: MetricView; k: Weekday
               ? null
               : {
                   value: mv.value(v),
-                  itemStyle: { color: i === peak ? strong : soft, borderRadius: [4, 4, 0, 0] },
+                  itemStyle: { color: i === peak ? strong : soft, borderRadius: barEnd("up") },
                   label:
                     i === peak
                       ? {
@@ -100,7 +100,7 @@ function Multiple({ rows, mv, k }: { rows: Weekday[]; mv: MetricView; k: Weekday
       {option ? (
         <Chart option={option} height={140} ariaLabel={`Average ${mv.label} by weekday`} />
       ) : (
-        <div className="flex h-[140px] items-center justify-center rounded-xl border border-dashed border-line text-xs text-ink-3">
+        <div className="flex h-[140px] items-center justify-center rounded-card border border-dashed border-line-strong text-xs text-ink-3">
           No data in this period
         </div>
       )}

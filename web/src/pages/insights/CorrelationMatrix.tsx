@@ -4,7 +4,7 @@ import { Chart, type ChartOption } from "@/components/Chart";
 import { itemTooltip, tooltipTitle } from "@/lib/charts";
 import { fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { CHROME, DIVERGING } from "@/lib/tokens";
+import { CHROME, DIVERGING, MARK_RADIUS } from "@/lib/tokens";
 import type { Pair } from "./InsightCards";
 import {
   correlationPairs,
@@ -133,7 +133,7 @@ export function CorrelationMatrix({
           type: "heatmap",
           name: "Correlation",
           data: cells,
-          itemStyle: { borderColor: c.surface, borderWidth: 2, borderRadius: 4 },
+          itemStyle: { borderColor: c.surface, borderWidth: 2, borderRadius: MARK_RADIUS },
           label: {
             show: true,
             fontSize: 10,
@@ -149,7 +149,7 @@ export function CorrelationMatrix({
           name: "Not compared",
           data: [...muted, ...diagonal],
           // Empty outlined cells with a dash: "not compared", clearly unlike a weak r.
-          itemStyle: { borderColor: c.grid, borderWidth: 1, borderRadius: 4 },
+          itemStyle: { borderColor: c.grid, borderWidth: 1, borderRadius: MARK_RADIUS },
           label: { show: true, formatter: () => "–", color: c.muted, fontSize: 11 },
           emphasis: { disabled: true },
         },
@@ -158,7 +158,7 @@ export function CorrelationMatrix({
           name: "Selected",
           data: sel,
           silent: true,
-          itemStyle: { borderColor: c.text, borderWidth: 2, borderRadius: 4 },
+          itemStyle: { borderColor: c.text, borderWidth: 2, borderRadius: MARK_RADIUS },
           label: { show: false },
           z: 3,
         },
@@ -185,7 +185,7 @@ export function CorrelationMatrix({
           <span>−1 move opposite</span>
           <span
             aria-hidden
-            className="h-2 w-40 rounded-full"
+            className="h-2 w-40 rounded-bar"
             style={{
               background: `linear-gradient(90deg, ${DIVERGING[mode].negative}, ${DIVERGING[mode].mid}, ${DIVERGING[mode].positive})`,
             }}
@@ -196,7 +196,7 @@ export function CorrelationMatrix({
         <span className="inline-flex items-center gap-1.5">
           <span
             aria-hidden
-            className="inline-flex size-3.5 items-center justify-center rounded-[3px] border border-line-strong text-[10px] leading-none"
+            className="inline-flex size-3.5 items-center justify-center rounded-swatch border border-line-strong text-2xs leading-none"
           >
             –
           </span>

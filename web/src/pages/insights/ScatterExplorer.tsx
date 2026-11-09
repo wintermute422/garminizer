@@ -49,7 +49,7 @@ function MetricSelect({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-line bg-surface-2 px-2.5 py-1.5 text-sm text-ink"
+        className="w-full rounded-control border border-line bg-surface-2 px-2.5 py-1.5 text-sm text-ink"
       >
         {metrics.map((m) => (
           <option key={m.key} value={m.key}>
@@ -85,7 +85,7 @@ export function ScatterControls({
           onClick={() => onChange({ ...pair, x: pair.y, y: pair.x })}
           aria-label="Swap X and Y"
           title="Swap X and Y"
-          className="mb-px rounded-xl border border-line bg-surface-2 p-2 text-ink-2 hover:text-ink"
+          className="mb-px rounded-control border border-line bg-surface-2 p-2 text-ink-2 hover:text-ink"
         >
           <ArrowLeftRight size={15} aria-hidden />
         </button>
@@ -118,15 +118,15 @@ function RScale({ r }: { r: number }) {
   return (
     <div className="mt-3" aria-hidden>
       <div
-        className="relative h-2 rounded-full"
+        className="relative h-2 rounded-bar"
         style={{ background: `linear-gradient(90deg, ${d.negative}, ${d.mid}, ${d.positive})` }}
       >
         <span
-          className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-ink shadow-card"
+          className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-ink shadow-overlay"
           style={{ left: `${((Math.max(-1, Math.min(1, r)) + 1) / 2) * 100}%` }}
         />
       </div>
-      <div className="mt-1 flex justify-between text-[11px] text-ink-3 tabular">
+      <div className="mt-1 flex justify-between text-2xs text-ink-3 tabular">
         <span>−1</span>
         <span>0</span>
         <span>+1</span>
@@ -155,9 +155,7 @@ function Reading({ data, xv, yv }: { data: Scatter; xv: MetricView; yv: MetricVi
     <div className="flex flex-col gap-4">
       <div>
         <p className="text-xs font-medium text-ink-3">Correlation (Pearson r)</p>
-        <p className="mt-1 text-[40px] leading-none font-semibold tracking-tight text-ink">
-          {fmtR(r)}
-        </p>
+        <p className="mt-1 text-metric-lg font-semibold text-ink">{fmtR(r)}</p>
         <RScale r={r} />
         <p className="mt-2 text-sm font-semibold text-ink">{linkText(r)}</p>
         <p className="text-xs text-ink-3">{fmtNumber(data.n)} days with both values</p>

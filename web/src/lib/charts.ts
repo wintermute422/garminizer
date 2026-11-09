@@ -4,7 +4,7 @@
  * crosshair tooltips, one y-axis per chart (never dual axes).
  */
 import { addDays } from "./range";
-import { CHROME, type Mode, wash } from "./tokens";
+import { CHROME, type Mode, barEnd, wash } from "./tokens";
 
 type Obj = Record<string, unknown>;
 
@@ -79,7 +79,7 @@ export function bars(
   mode: Mode,
   opts: { stack?: string; horizontal?: boolean; barMaxWidth?: number } = {},
 ): Obj {
-  const radius = opts.horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0];
+  const radius = barEnd(opts.horizontal ? "right" : "up");
   return {
     type: "bar",
     name,
@@ -122,7 +122,7 @@ export function roundStackTops(series: Obj[], mode: Mode): Obj[] {
       top[i] === k
         ? {
             value: d && typeof d === "object" && "value" in d ? (d as { value: unknown }).value : d,
-            itemStyle: { borderRadius: [4, 4, 0, 0], borderColor: CHROME[mode].surface },
+            itemStyle: { borderRadius: barEnd("up"), borderColor: CHROME[mode].surface },
           }
         : d,
     ),

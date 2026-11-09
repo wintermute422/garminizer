@@ -1,6 +1,6 @@
 /** Performance page helpers: race distances, endurance classes, deltas over a series. */
 import { fmtDuration, titleCase } from "@/lib/format";
-import { CHROME, type Mode } from "@/lib/tokens";
+import { CHROME, type Mode, MARK_RADIUS } from "@/lib/tokens";
 
 export function dayMs(day: string): number {
   return new Date(`${day}T12:00:00`).getTime();
@@ -106,5 +106,5 @@ export function ageOn(birth: string, day: string): number {
 
 /** Text label halo so reference labels stay legible where they cross data. */
 export function halo(mode: Mode): Record<string, unknown> {
-  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: 3 };
+  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: MARK_RADIUS };
 }

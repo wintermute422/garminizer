@@ -199,7 +199,7 @@ export function CurveCard({ sport }: { sport: string }) {
                   return (
                     <div
                       key={k.t}
-                      className="rounded-xl border border-line bg-surface-2 px-3 py-2.5"
+                      className="rounded-card border border-line bg-surface-2 px-3 py-2.5"
                     >
                       <dt className="text-xs text-ink-3">{durText(k.t)}</dt>
                       <dd className="mt-0.5 text-base font-semibold text-ink tabular">

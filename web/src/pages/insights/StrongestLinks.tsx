@@ -18,10 +18,10 @@ function MiniBar({ r }: { r: number }) {
   const mode = useMode();
   const w = Math.min(Math.abs(r), 1) * 50;
   return (
-    <span aria-hidden className="relative block h-2 w-16 shrink-0 rounded-full bg-surface-3">
+    <span aria-hidden className="relative block h-2 w-16 shrink-0 rounded-bar bg-surface-3">
       <span className="absolute inset-y-[-2px] left-1/2 w-px bg-line-strong" />
       <span
-        className="absolute inset-y-0 rounded-full"
+        className="absolute inset-y-0 rounded-bar"
         style={{
           left: r >= 0 ? "50%" : `${50 - w}%`,
           width: `${w}%`,
@@ -59,7 +59,7 @@ export function StrongestLinks({
             <button
               type="button"
               onClick={() => onSelect({ x: p.x, y: p.y, lag: p.lag })}
-              className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-surface-2"
+              className="flex w-full items-center gap-3 rounded-control px-2 py-2.5 text-left hover:bg-hover"
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium text-ink">
@@ -80,7 +80,7 @@ export function StrongestLinks({
         <button
           type="button"
           onClick={() => setLimit((l) => l + PAGE)}
-          className="mt-2 w-full rounded-xl border border-line px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+          className="mt-2 w-full rounded-control border border-line px-3 py-2 text-sm font-medium text-ink-2 hover:bg-hover hover:text-ink"
         >
           Show more links
         </button>

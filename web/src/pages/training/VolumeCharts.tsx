@@ -26,7 +26,7 @@ import {
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
-import { BLUE, CHROME, INTENSITY_BANDS, NEUTRAL, type Mode } from "@/lib/tokens";
+import { BLUE, CHROME, INTENSITY_BANDS, NEUTRAL, type Mode, barEnd } from "@/lib/tokens";
 import { halo, jitter, periodLabel, periodTitle } from "./util";
 
 type Period = "week" | "month";
@@ -544,7 +544,7 @@ export function EffectsCard({ query, ready }: { query: Query; ready: boolean }) 
           barMaxWidth: 16,
           data: labels.map((l) => ({
             value: l.activities,
-            itemStyle: { color: benefitColor(l.label, mode), borderRadius: [0, 4, 4, 0] },
+            itemStyle: { color: benefitColor(l.label, mode), borderRadius: barEnd("right") },
           })),
           label: {
             show: true,

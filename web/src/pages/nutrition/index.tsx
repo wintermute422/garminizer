@@ -30,7 +30,7 @@ import { DASH, fmtDate, fmtNumber, fmtShortDate, signed, titleCase } from "@/lib
 import { useMode } from "@/lib/preferences";
 import { useRange } from "@/lib/range";
 import { useMediaQuery } from "@/lib/useMediaQuery";
-import { CHROME, DIVERGING, MEASURE_COLORS, type Mode } from "@/lib/tokens";
+import { CHROME, DIVERGING, MEASURE_COLORS, type Mode, barEnd } from "@/lib/tokens";
 import { DayCard } from "./DayCard";
 import { Setup } from "./Setup";
 
@@ -127,7 +127,7 @@ function balanceOption(points: Point[], mode: Mode, ext: Ext): ChartOption {
             value: dayPoint(p.day, p.balance_kcal),
             itemStyle: {
               color: p.balance_kcal! < 0 ? d.negative : d.positive,
-              borderRadius: p.balance_kcal! < 0 ? [0, 0, 4, 4] : [4, 4, 0, 0],
+              borderRadius: barEnd(p.balance_kcal! < 0 ? "down" : "up"),
             },
           })),
           d.negative,
@@ -263,7 +263,7 @@ function weeklyOption(
               value: dayPoint(w.week, w.balance_kcal),
               itemStyle: {
                 color: w.balance_kcal! < 0 ? d.negative : d.positive,
-                borderRadius: w.balance_kcal! < 0 ? [0, 0, 4, 4] : [4, 4, 0, 0],
+                borderRadius: barEnd(w.balance_kcal! < 0 ? "down" : "up"),
               },
             })),
             d.negative,
@@ -308,7 +308,7 @@ function EnergySplit({ s }: { s: Summary }) {
         <EmptyState title="No macros logged in this period" />
       ) : (
         <>
-          <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+          <div className="flex h-3 gap-0.5 overflow-hidden rounded-bar" aria-hidden>
             {parts.map((p) => (
               <div key={p.key} style={{ width: `${p.pct}%`, background: p.color }} />
             ))}
@@ -318,7 +318,7 @@ function EnergySplit({ s }: { s: Summary }) {
               <div key={p.key}>
                 <dt className="flex items-center gap-1.5 text-xs text-ink-2">
                   <span
-                    className="inline-block size-2.5 rounded-[3px]"
+                    className="inline-block size-2.5 rounded-swatch"
                     style={{ background: p.color }}
                     aria-hidden
                   />
@@ -353,9 +353,9 @@ function MealTypes({ s }: { s: Summary }) {
         {rows.map((r) => (
           <li key={r.meal_type} className="grid grid-cols-[6rem_1fr_auto] items-center gap-3">
             <span className="text-ink-2">{titleCase(r.meal_type)}</span>
-            <span className="h-2 rounded-full" style={{ background: "var(--surface-2)" }}>
+            <span className="h-2 rounded-bar" style={{ background: "var(--surface-2)" }}>
               <span
-                className="block h-2 rounded-full"
+                className="block h-2 rounded-bar"
                 style={{ width: `${(r.kcal_pct / max) * 100}%`, background: color }}
               />
             </span>

@@ -290,7 +290,7 @@ export function DayView({
                 key={a.activity_id}
                 to="/activities/$activityId"
                 params={{ activityId: String(a.activity_id) }}
-                className="inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-xs text-ink-2 hover:bg-surface-2 hover:text-ink"
+                className="inline-flex items-center gap-1.5 rounded-control px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"
               >
                 <SportIcon group={a.sport_group} size={13} colored />
                 <span className="font-medium text-ink">{a.name ?? sportLabel(a.sport_group)}</span>

@@ -13,7 +13,7 @@ import {
 } from "@/lib/charts";
 import { distanceUnit, distanceValue, fmtDate, fmtMonth, fmtNumber } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
-import { CHROME } from "@/lib/tokens";
+import { CHROME, barEnd } from "@/lib/tokens";
 import { gearName, slotColor, type Gear } from "./gear";
 
 interface Stack {
@@ -114,7 +114,7 @@ export function UsageChart({
           if (!v) return null;
           return {
             value: distanceValue(v, units),
-            ...(top[mi] === si ? { itemStyle: { borderRadius: [4, 4, 0, 0] } } : {}),
+            ...(top[mi] === si ? { itemStyle: { borderRadius: barEnd("up") } } : {}),
           };
         }),
       };
@@ -161,7 +161,7 @@ export function UsageChart({
                   aria-pressed={isSel}
                   onClick={() => onSelect(st.id)}
                   className={clsx(
-                    "rounded-lg border px-1.5 py-0.5 hover:bg-surface-2",
+                    "rounded-control border px-1.5 py-0.5 hover:bg-hover",
                     isSel ? "border-line-strong bg-surface-2" : "border-transparent",
                   )}
                 >

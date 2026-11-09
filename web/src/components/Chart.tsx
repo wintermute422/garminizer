@@ -34,7 +34,7 @@ import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 import { useMode } from "@/lib/preferences";
-import { CATEGORICAL, CHROME, type Mode } from "@/lib/tokens";
+import { CATEGORICAL, CHROME, FONT_SANS, barEnd, type Mode } from "@/lib/tokens";
 
 echarts.use([
   LineChart,
@@ -66,8 +66,6 @@ echarts.use([
 export type ChartOption = echarts.EChartsCoreOption;
 export type ChartInstance = echarts.ECharts;
 
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-
 function theme(mode: Mode): object {
   const c = CHROME[mode];
   const axis = {
@@ -80,20 +78,20 @@ function theme(mode: Mode): object {
   return {
     color: [...CATEGORICAL[mode]],
     backgroundColor: "transparent",
-    textStyle: { color: c.text2, fontFamily: FONT },
+    textStyle: { color: c.text2, fontFamily: FONT_SANS },
     legend: {
       textStyle: { color: c.text2, fontSize: 12 },
-      icon: "roundRect",
+      icon: "rect",
       itemWidth: 10,
       itemHeight: 10,
       itemGap: 14,
     },
     tooltip: {
       backgroundColor: c.surface,
-      borderColor: mode === "dark" ? "rgba(255,255,255,0.12)" : "rgba(11,11,11,0.12)",
+      borderColor: c.border,
       borderWidth: 1,
       textStyle: { color: c.text, fontSize: 12 },
-      extraCssText: "border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);",
+      extraCssText: `border-radius:4px;box-shadow:${c.overlay};`,
       axisPointer: { lineStyle: { color: c.axis }, crossStyle: { color: c.axis } },
     },
     categoryAxis: { ...axis, splitLine: { show: false } },
@@ -101,13 +99,13 @@ function theme(mode: Mode): object {
     timeAxis: { ...axis, splitLine: { show: false } },
     logAxis: axis,
     line: { symbol: "none", lineStyle: { width: 2 }, emphasis: { lineStyle: { width: 2 } } },
-    bar: { itemStyle: { borderRadius: [4, 4, 0, 0] }, barMaxWidth: 24 },
+    bar: { itemStyle: { borderRadius: barEnd("up") }, barMaxWidth: 24 },
     scatter: { symbolSize: 8, itemStyle: { borderColor: c.surface, borderWidth: 2 } },
     visualMap: { textStyle: { color: c.muted } },
     dataZoom: {
       borderColor: "transparent",
       textStyle: { color: c.muted },
-      fillerColor: mode === "dark" ? "rgba(57,135,229,0.15)" : "rgba(42,120,214,0.12)",
+      fillerColor: c.zoom,
     },
     calendar: {
       itemStyle: { color: "transparent", borderColor: c.surface, borderWidth: 2 },
@@ -166,6 +164,13 @@ export function Chart({
       echarts.connect(group);
     }
     latest.current.onReady?.(inst);
+    // Canvas text is measured once: redraw when the bundled UI font finishes loading.
+    if (typeof document !== "undefined" && document.fonts?.status === "loading") {
+      void document.fonts.ready.then(() => {
+        if (!inst.isDisposed())
+          inst.setOption(withAria(latest.current.option, latest.current.ariaLabel), true);
+      });
+    }
     const ro = new ResizeObserver(() => inst.resize());
     ro.observe(node);
     return () => {

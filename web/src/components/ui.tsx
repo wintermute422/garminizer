@@ -33,14 +33,14 @@ export function Card({
     <section
       id={id}
       className={clsx(
-        "min-w-0 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5",
+        "min-w-0 rounded-card border border-line bg-surface p-4 shadow-card sm:p-5",
         className,
       )}
     >
       {(title || actions) && (
         <header className="mb-3 flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            {title && <h2 className="text-sm font-semibold text-ink">{title}</h2>}
+            {title && <h2 className="text-sm font-semibold tracking-tight text-ink">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-xs text-ink-3">{subtitle}</p>}
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -61,9 +61,9 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-rule pb-4">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-[28px]">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-display">{title}</h1>
         {description && <p className="mt-1 max-w-2xl text-sm text-ink-2">{description}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
@@ -122,18 +122,18 @@ export function StatTile({
   return (
     <div
       className={clsx(
-        "flex min-w-0 flex-col justify-between gap-2 rounded-2xl border border-line bg-surface p-4 shadow-card",
+        "flex min-w-0 flex-col justify-between gap-3 rounded-card border border-line bg-surface p-4 shadow-card",
         className,
       )}
     >
-      <div className="flex items-center gap-2 text-xs font-medium text-ink-2">
+      <div className="flex items-center gap-2 text-eyebrow text-ink-2 uppercase">
         {icon}
         <span className="truncate">{label}</span>
       </div>
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-baseline gap-1">
-            <span className="text-[26px] leading-none font-semibold text-ink">{value}</span>
+            <span className="text-metric font-semibold text-ink tabular">{value}</span>
             {unit && <span className="text-sm text-ink-3">{unit}</span>}
           </div>
           <div className="mt-1.5 flex min-h-4 flex-wrap items-center gap-2 text-xs text-ink-3">
@@ -208,14 +208,14 @@ const STATUS_ICON = {
 export function StatusPill({ status, label }: { status: Status | null; label: string }) {
   if (!status) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium text-ink-2">
+      <span className="inline-flex items-center gap-1.5 rounded-chip border border-line px-2 py-1 text-xs font-medium text-ink-2">
         {label}
       </span>
     );
   }
   const Icon = STATUS_ICON[status];
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-xs font-medium text-ink">
+    <span className="inline-flex items-center gap-1.5 rounded-chip border border-line bg-surface-2 px-2 py-1 text-xs font-medium text-ink">
       <Icon size={14} color={STATUS[status]} aria-hidden />
       {label}
     </span>
@@ -239,7 +239,7 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className="inline-flex max-w-full overflow-x-auto rounded-xl border border-line bg-surface-2 p-0.5"
+      className="inline-flex max-w-full overflow-x-auto rounded-control border border-line bg-surface p-0.5"
     >
       {options.map((o) => (
         <button
@@ -249,9 +249,11 @@ export function Segmented<T extends string>({
           aria-checked={o.value === value}
           onClick={() => onChange(o.value)}
           className={clsx(
-            "shrink-0 rounded-[10px] font-medium whitespace-nowrap transition-colors",
+            "shrink-0 rounded-chip font-medium whitespace-nowrap transition-colors",
             size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm",
-            o.value === value ? "bg-surface text-ink shadow-card" : "text-ink-2 hover:text-ink",
+            o.value === value
+              ? "bg-selected text-on-selected"
+              : "text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed",
           )}
         >
           {o.label}
@@ -274,13 +276,13 @@ export function LegendItem({
     <span className="inline-flex items-center gap-1.5 text-xs text-ink-2">
       {shape === "dot" ? (
         <span
-          className="inline-block size-2.5 rounded-[3px]"
+          className="inline-block size-2.5 rounded-swatch"
           style={{ background: color }}
           aria-hidden
         />
       ) : (
         <span
-          className="inline-block h-0.5 w-4 rounded"
+          className="inline-block h-0.5 w-4 rounded-bar"
           style={{ background: color }}
           aria-hidden
         />
@@ -311,7 +313,7 @@ export function Skeleton({ className, height = 120 }: { className?: string; heig
   return (
     <div
       aria-hidden
-      className={clsx("animate-pulse rounded-xl bg-surface-2", className)}
+      className={clsx("animate-pulse rounded-card bg-surface-2", className)}
       style={{ height }}
     />
   );
@@ -337,7 +339,7 @@ export function ShowAllButton({
       type="button"
       onClick={onToggle}
       aria-expanded={expanded}
-      className="mt-2 w-full rounded-xl border border-line py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+      className="mt-2 w-full rounded-control border border-line py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-hover hover:text-ink active:bg-pressed"
     >
       {expanded ? "Show fewer" : `Show all ${total} ${noun}`}
     </button>
@@ -346,7 +348,7 @@ export function ShowAllButton({
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line px-6 py-10 text-center">
+    <div className="flex flex-col items-center justify-center gap-1 rounded-card border border-dashed border-line-strong px-6 py-10 text-center">
       <p className="text-sm font-medium text-ink-2">{title}</p>
       {children && <div className="max-w-md text-xs text-ink-3">{children}</div>}
     </div>
@@ -360,7 +362,7 @@ export function ErrorState({ error }: { error: unknown }) {
   return (
     <div
       role="alert"
-      className="rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-critical-text"
+      className="rounded-card border border-line border-l-2 border-l-critical bg-surface-2 px-4 py-3 text-sm text-critical-text"
     >
       {message}
     </div>

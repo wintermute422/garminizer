@@ -6,7 +6,15 @@
 import { useSyncExternalStore } from "react";
 import { DAY_MS, dayAxis, dayOfPoint, weekStart } from "@/lib/charts";
 import { addDays } from "@/lib/range";
-import { CATEGORICAL, CHROME, MEASURE_COLORS, NEUTRAL, type Mode, type Status } from "@/lib/tokens";
+import {
+  CATEGORICAL,
+  CHROME,
+  MEASURE_COLORS,
+  NEUTRAL,
+  type Mode,
+  type Status,
+  barEnd,
+} from "@/lib/tokens";
 
 type Obj = Record<string, unknown>;
 
@@ -476,7 +484,7 @@ export function roundVisibleTops(series: Obj[]): Obj[] {
       topIdx[i] === k
         ? {
             value: d,
-            itemStyle: { borderRadius: [4, 4, 0, 0] },
+            itemStyle: { borderRadius: barEnd("up") },
           }
         : d,
     ),
