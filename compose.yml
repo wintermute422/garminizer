@@ -1,6 +1,6 @@
 # Garminizer stack: PostgreSQL 17 + web app + background worker.
-#   cp .env.example .env    # set POSTGRES_PASSWORD (and APP_PASSWORD if you expose it on your LAN)
-#   docker compose up -d --build
+#   python3 scripts/init_env.py --tz Europe/Berlin    # or: cp .env.example .env, set POSTGRES_PASSWORD
+#   docker compose up -d --build                      # step by step: docs/installation.md
 #   open http://localhost:8420  ->  Sync & settings  ->  Connect Garmin
 # Data lives in the `pgdata` volume; tokens and backups in ./data (git-ignored).
 name: garminizer

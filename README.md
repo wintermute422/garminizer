@@ -11,19 +11,25 @@ computer, and turns it into fast, interactive dashboards.
 
 [![CI](https://github.com/wintermute422/garminizer/actions/workflows/ci.yml/badge.svg)](https://github.com/wintermute422/garminizer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20Compose-2496ED?logo=docker&logoColor=white)
+![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
+![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 
-![Overview dashboard (demo data)](docs/screenshots/overview-dark.png)
+**Local-first** · **read-only access to Garmin** · **documented SQL schema** · **16 dashboards** ·
+**meal logging with Claude**
+
+[Install](docs/installation.md) · [Try the demo](#try-the-demo-no-garmin-account-needed) ·
+[Screenshots](#screenshots) · [Documentation](#documentation) · [FAQ](docs/faq.md)
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/overview-light.png">
+  <img alt="Overview dashboard with readiness, sleep, HRV, training load and race predictions (demo data)" src="docs/screenshots/overview-dark.png">
+</picture>
 
 </div>
 
 > Screenshots show the built-in **synthetic demo athlete**, not a real person.
-
-## Contents
-- [What you get](#what-you-get) · [Screenshots](#screenshots) · [Quick start](#quick-start) ·
-  [Try the demo](#try-the-demo-no-garmin-account-needed) · [How it works](#how-it-works) ·
-  [Meal logging](#log-meals-with-claude-desktop) ·
-  [Your data, your database](#your-data-your-database) · [Privacy](#privacy--security) ·
-  [Documentation](#documentation) · [Development](#development) · [FAQ](docs/faq.md)
 
 ## What you get
 | Dashboard | Highlights |
@@ -57,32 +63,35 @@ Dark and light themes, metric and imperial units, works on phones, every view sh
 | ![Nutrition](docs/screenshots/nutrition-light.png) | ![Year in review](docs/screenshots/year-dark.png) |
 
 ## Quick start
-Requirements: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS)
-or Docker Engine with Compose (Linux).
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS) or
+Docker Engine with Compose 2.24+ (Linux), and Git. Works the same in PowerShell and in a Unix shell.
 
 ```bash
 git clone https://github.com/wintermute422/garminizer.git
 cd garminizer
-cp .env.example .env          # then edit .env: set POSTGRES_PASSWORD (and TZ)
-docker compose up -d --build
+python3 scripts/init_env.py --tz Europe/Berlin    # creates .env with random secrets (Windows: py)
+docker compose up -d --build                      # first build: 5–10 minutes
 ```
 
-Open **http://localhost:8420**, go to **Sync & settings → Connect Garmin**, sign in with your
-Garmin account (enter the code if you use two-factor authentication). The worker syncs recent days
-first and then works back through your whole history — dashboards fill up as it goes. It keeps
-syncing every two hours and makes a nightly backup to `data/backups`.
+No Python? `cp .env.example .env` and set `POSTGRES_PASSWORD` and `TZ` in it instead.
 
-The stack starts automatically with Docker. Update with `git pull && docker compose up -d --build`.
-See [configuration & operations](docs/configuration.md) for phone access on your LAN, backups,
-restore and all settings.
+Open **http://localhost:8420** → **Sync & settings** → **Connect Garmin** and sign in with your
+Garmin account (two-factor codes are supported). The worker syncs the last days first, then
+works back through your whole history while the dashboards fill up. Afterwards it syncs every
+two hours and writes a nightly backup to `data/backups`.
+
+The **[installation guide](docs/installation.md)** walks through every step, autostart, updates,
+uninstalling and troubleshooting. [Configuration & operations](docs/configuration.md) covers phone
+access on your LAN, backups, restore and all settings.
 
 ## Try the demo (no Garmin account needed)
 ```bash
 docker compose -f compose.demo.yml up -d --build
 ```
 Open **http://localhost:8430** — two years of a simulated athlete (training plan with races,
-illness and holidays; sleep, HRV and readiness respond to training load). The demo uses its own
-database and never mixes with your real data.
+illness and holidays; sleep, HRV and readiness respond to training load). The first start needs a
+minute or two to generate the data. The demo uses its own database and never mixes with your real
+data.
 
 ## Log meals with Claude Desktop
 Tell [Claude Desktop](https://claude.ai/download) what you ate, or send it a photo of your plate.
@@ -114,7 +123,8 @@ Garmin Connect ──read-only──▶ worker ──▶ raw JSON ──▶ type
 ## Your data, your database
 Everything lands in PostgreSQL with a documented schema — ~45 tables and views, each table and
 important column commented ([data model](docs/data-model.md)). Connect any SQL client to
-`127.0.0.1:55433` and explore; `garmin.v_daily` gives you one row per day with every daily metric.
+`127.0.0.1:55433` (database and user `garminizer`, password `POSTGRES_PASSWORD` from your `.env`)
+and explore; `garmin.v_daily` gives you one row per day with every daily metric.
 
 ```sql
 -- weekly running distance and average heart rate
@@ -134,24 +144,19 @@ GROUP BY 1 ORDER BY 1 DESC LIMIT 12;
 - See [SECURITY.md](SECURITY.md).
 
 ## Documentation
-[Architecture](docs/architecture.md) · [Data model](docs/data-model.md) ·
-[Metrics](docs/metrics.md) · [Configuration & operations](docs/configuration.md) ·
-[Claude Desktop meal logging](docs/claude-desktop.md) ·
-[FAQ](docs/faq.md) · [Development harness](docs/development.md) ·
-[Reusable harness template](docs/harness/README.md) · [Contributing](CONTRIBUTING.md)
+| | |
+|---|---|
+| **Use it** | [Installation](docs/installation.md) · [Configuration & operations](docs/configuration.md) · [Claude Desktop meal logging](docs/claude-desktop.md) · [FAQ](docs/faq.md) |
+| **Understand it** | [Architecture](docs/architecture.md) · [Data model](docs/data-model.md) · [Metrics](docs/metrics.md) |
+| **Build on it** | [Contributing](CONTRIBUTING.md) · [Development harness](docs/development.md) · [Reusable harness template](docs/harness/README.md) · [Security](SECURITY.md) |
 
-## Development
-```bash
-git config core.hooksPath .githooks
-python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-pnpm -C web install
-bash scripts/devdb.sh up && .venv/bin/garminizer demo seed
-.venv/bin/garminizer serve            # API on :8420
-pnpm -C web dev                       # UI on :5180
-bash scripts/check.sh                 # the full gate
-bash scripts/e2e.sh                   # Playwright on every page, 4 variants
-```
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+## Contributing
+Bug reports, ideas and pull requests are welcome. Garminizer handles health data, so the rules
+are strict: no real personal data anywhere (use the demo athlete), Garmin stays read-only, and
+every change passes `bash scripts/check.sh`. [CONTRIBUTING.md](CONTRIBUTING.md) has the setup
+(dev database, API and UI with hot reload) and the checks. The project was built with an
+AI-assisted development harness of hooks, scripts and checks; it is documented in
+[docs/harness](docs/harness/README.md) for reuse.
 
 ## Disclaimer
 Garminizer is an independent open-source project. It is not affiliated with, endorsed by or

@@ -12,7 +12,7 @@ for other projects.
 | `.claude/settings.json` | for AI-assisted development: auto-format after edits, block force pushes, history rewrites, volume deletion and reading `.env`/tokens |
 | `scripts/check.sh` | the single local gate (lint, strict types, tests, web build, API types, UTF-8, secret scan, gitleaks) |
 | `scripts/e2e.sh` | every page × desktop/mobile × dark/light: charts draw data, maps load, no console errors, no overflow, axe clean |
-| `scripts/secret_scan.sh` | exact values read at runtime from `.env` and `data/private_values.txt` (written by the sync: your names, ids, home area) plus generic patterns; prints file:line only |
+| `scripts/secret_scan.sh` | exact values read at runtime from `.env` and `data/private_values.txt` (written by the sync: your names, ids, home area) plus generic patterns, over added lines, commit messages and author/committer identities (only noreply addresses pass); prints file:line only |
 | `scripts/gen_api_types.sh`, `scripts/gen_data_model_doc.py` | generated artefacts with `--check` mode so they cannot drift |
 
 Enable the git hooks once per clone: `git config core.hooksPath .githooks`.

@@ -1,7 +1,8 @@
 # Configuration & operations
 
-All settings come from environment variables or the git-ignored `.env` file (copy
-[`.env.example`](../.env.example)).
+All settings come from environment variables or the git-ignored `.env` file, created during
+[installation](installation.md#3-create-your-settings-file) from [`.env.example`](../.env.example).
+After changing `.env`, apply it with `docker compose up -d`.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -19,8 +20,11 @@ All settings come from environment variables or the git-ignored `.env` file (cop
 | `TZ` | `UTC` | your time zone (daily boundaries, backup time) |
 | `GARMINIZER_DATA` | `./data` | host folder for tokens and backups (Docker) |
 | `MAP_STYLE_URL`, `MAP_STYLE_URL_DARK` | OpenFreeMap positron / dark | MapLibre style URLs |
+| `DEMO_PORT` | `8430` | port of the demo stack (`compose.demo.yml`) |
 
 ## Common tasks
+Run these inside the `garminizer` folder (PowerShell, Terminal or any shell):
+
 ```bash
 docker compose up -d --build              # start / update
 docker compose logs -f worker             # watch syncing
