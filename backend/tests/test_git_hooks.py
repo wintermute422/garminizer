@@ -91,6 +91,54 @@ def test_repository_owner_is_exempt_but_other_values_are_not(repo: Path) -> None
     assert "exact value" in proc.stderr
 
 
+def _personal_address() -> str:
+    return "@".join(["synthetic.person", "mailbox.test"])  # assembled so this file stays clean
+
+
+def _history_scan(repo: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", "scripts/secret_scan.sh", "--history"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_commit_identity_with_a_personal_address_is_blocked(repo: Path) -> None:
+    (repo / "notes.md").write_bytes(b"harmless\n")
+    _git(repo, "add", "notes.md")
+    proc = _git(repo, "-c", f"user.email={_personal_address()}", "commit", "-m", "test")
+    assert proc.returncode != 0
+    assert "ident:staged" in proc.stderr and "email" in proc.stderr
+    assert _personal_address() not in proc.stderr + proc.stdout
+    assert _git(repo, "commit", "-m", "test").returncode == 0  # noreply-style identity passes
+
+
+def test_history_scan_checks_identities_and_only_dependabots_signoff(repo: Path) -> None:
+    (repo / "notes.md").write_bytes(b"harmless\n")
+    _git(repo, "add", "notes.md")
+    signoff = "Bump x\n\nSigned-off-by: dependabot[bot] <support@github.com>"
+    assert _git(repo, "commit", "-m", signoff).returncode == 0
+    assert _history_scan(repo).returncode == 0, _history_scan(repo).stderr
+
+    other = "@".join(["support", "github.com"])  # the same address outside Dependabot's sign-off
+    message = f"Bump y\n\nSigned-off-by: someone <{other}>"
+    assert _git(repo, "commit", "--allow-empty", "-m", message).returncode == 0
+    proc = _history_scan(repo)
+    assert proc.returncode != 0
+    assert "msg:" in proc.stderr and "email" in proc.stderr
+    _git(repo, "reset", "-q", "--hard", "HEAD~1")
+
+    # a commit made without hooks (e.g. a web merge) with a personal author address
+    no_hooks = ("-c", "core.hooksPath=no-hooks", "-c", f"user.email={_personal_address()}")
+    assert _git(repo, *no_hooks, "commit", "--allow-empty", "-m", "merge").returncode == 0
+    proc = _history_scan(repo)
+    assert proc.returncode != 0
+    assert "ident:" in proc.stderr and "email" in proc.stderr
+    assert _personal_address() not in proc.stderr + proc.stdout
+
+
 def test_screenshots_need_the_manifest(repo: Path) -> None:
     shots = repo / "docs" / "screenshots"
     shots.mkdir(parents=True)

@@ -6,9 +6,12 @@
 # plus the local user name, so the real values are never stored in a tracked file.
 #
 # Usage:
-#   scripts/secret_scan.sh --staged          # added lines of the staged diff
-#   scripts/secret_scan.sh --range A..B      # added lines of a commit range
-#   scripts/secret_scan.sh --history         # every commit's diff + commit messages (all refs)
+#   scripts/secret_scan.sh --staged          # added lines of the staged diff + commit identity
+#   scripts/secret_scan.sh --range A..B      # added lines, messages, identities of a range
+#   scripts/secret_scan.sh --history         # every commit's diff, message, identity (all refs)
+#
+# Identities are "author <email>" and "committer <email>": an address that is not a noreply
+# one fails the e-mail rule (a GitHub web merge once used the account's primary address).
 #   scripts/secret_scan.sh --tree [PATH...]  # tracked + untracked non-ignored files + extra paths
 set -euo pipefail
 
@@ -71,8 +74,9 @@ private-key|-----BEGIN [A-Z ]*PRIVATE KEY-----
 jwt|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.
 email|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}
 EOF
-# Allowed placeholders that look like generic hits.
-ALLOW='/home/(user|you|runner|<user>|USER|\$USER)/|noreply|@example\.(com|org|net)|@users\.noreply\.github\.com|anthropic\.com|@localhost'
+# Allowed placeholders that look like generic hits. Dependabot signs its commits off with
+# GitHub's support address (user-approved 2026-11-09; only that exact sign-off).
+ALLOW='/home/(user|you|runner|<user>|USER|\$USER)/|noreply|@example\.(com|org|net)|@users\.noreply\.github\.com|anthropic\.com|@localhost|dependabot\[bot\] <support@github\.com>'
 
 FINDINGS="$TMP/findings"
 : >"$FINDINGS"
@@ -111,21 +115,36 @@ diff_to_records() {
   '
 }
 
+# Messages ("msg:<hash>") and author/committer identities ("ident:<hash>") of `git log ARGS`.
+log_records() {
+  git log --format='%h%x09%B' "$@" | awk -F'\t' -v OFS='\t' 'NF>1{h=$1; print "msg:"h, 1, $2; next} {print "msg:"h, 0, $0}'
+  git log --format='%h%x09%an <%ae>%x09%cn <%ce>' "$@" | awk -F'\t' -v OFS='\t' '{print "ident:"$1, 1, $2; print "ident:"$1, 2, $3}'
+}
+
+# Identity the next commit will carry (git var prints "name <email> timestamp zone").
+staged_ident_records() {
+  local kind
+  for kind in AUTHOR COMMITTER; do
+    printf 'ident:staged\t%s\t%s\n' "$kind" "$(git var "GIT_${kind}_IDENT" | sed -E 's/ [0-9]+ [-+][0-9]{4}$//')"
+  done
+}
+
 MODE="${1:---tree}"; shift || true
 REC="$TMP/records"
 case "$MODE" in
   --staged)
-    git diff --cached --no-color -U0 --diff-filter=ACMR | diff_to_records >"$REC" ;;
+    git diff --cached --no-color -U0 --diff-filter=ACMR | diff_to_records >"$REC"
+    staged_ident_records >>"$REC" ;;
   --range)
-    git diff --no-color -U0 --diff-filter=ACMR "$1" | diff_to_records >"$REC" ;;
+    git diff --no-color -U0 --diff-filter=ACMR "$1" | diff_to_records >"$REC"
+    log_records "$1" >>"$REC" ;;
   --history)
     : >"$REC"
     for c in $(git rev-list --all); do
       git show --no-color -U0 --format= --diff-filter=ACMR "$c" | diff_to_records | \
         awk -v c="${c:0:8}" -F'\t' -v OFS='\t' '{print c":"$1, $2, $3}' >>"$REC"
     done
-    # commit messages too
-    git log --all --format='%h%x09%B' | awk -F'\t' -v OFS='\t' 'NF>1{h=$1; print "msg:"h, 1, $2; next} {print "msg:"h, 0, $0}' >>"$REC"
+    log_records --all >>"$REC"
     ;;
   --tree)
     : >"$REC"

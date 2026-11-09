@@ -40,7 +40,7 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `.claude/settings.json` `permissions.deny` | Read/Edit of `.env`, `data/**` |
 | `scripts/claude_hook.sh` / `scripts/pyenv.sh` | picks the venv interpreter (skips the Windows Store `python3` stub), execs it |
 | `scripts/check.sh` | ruff, format, mypy strict, hook selftest, dev DB up, pytest, web lint/format/tsc/vitest/build, API types check, secret scan, gitleaks history |
-| `scripts/secret_scan.sh` | exact values from `.env` + `data/private_values.txt` + local user name; generic rules (private IPv4, home/Windows user paths, private keys, JWTs, e-mails). Prints file:line + rule only. Values equal to (or part of) the GitHub owner of `origin` are dropped: public in every repo URL (user-approved 2026-11-08; tested both ways in `test_git_hooks.py`) |
+| `scripts/secret_scan.sh` | exact values from `.env` + `data/private_values.txt` + local user name; generic rules (private IPv4, home/Windows user paths, private keys, JWTs, e-mails) over added lines, commit messages and author/committer identities (non-noreply address = fail; only Dependabot's `support@github.com` sign-off is allowed, user-approved 2026-11-09). Prints file:line + rule only. Values equal to (or part of) the GitHub owner of `origin` are dropped: public in every repo URL (user-approved 2026-11-08; tested both ways in `test_git_hooks.py`) |
 | `scripts/gitleaks.sh` | gitleaks v8.30.1 (native or pinned Docker image) with `.gitleaks.toml` |
 | `.githooks/pre-commit` | blocks `.env*`, `data/`, FIT/dump/key files, git-ignored files, unmanifested screenshots; ruff + prettier on staged files; secret scan + gitleaks staged |
 | `.githooks/pre-push` | branches `feat/ fix/ docs/ chore/ ci/` only (main only for bootstrap), fast-forward only, no deletions, new `v*` tags only; scans the pushed range |
@@ -135,3 +135,7 @@ progress.md's "Next step".
 - Git Bash's `sha256sum` writes `hash *name` (binary marker), Linux writes `hash  name`: a
   manifest check written for one blocked the other on the first real screenshot commit. Match
   `[ *]` and normalise when writing; test both formats.
+- GitHub's merge button authors the merge commit with the account's name and primary e-mail
+  (unless "Keep my email addresses private" is on); the repo-local identity does not apply. PR #1's
+  merge leaked them and the scan missed it (it read messages, not identities). Merge with
+  `gh pr merge --rebase` and check `git log --format='%an <%ae> %cn <%ce>'` before publishing.
