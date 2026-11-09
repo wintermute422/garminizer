@@ -48,9 +48,9 @@ function Totals() {
   );
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-      <div className="rounded-2xl border border-line bg-surface p-4 shadow-card">
+      <div className="rounded-card border border-line bg-surface p-4 shadow-card">
         <p className="text-xs font-medium text-ink-2">All activities</p>
-        <p className="mt-2 text-[26px] leading-none font-semibold text-ink">{fmtNumber(all.n)}</p>
+        <p className="mt-2 text-metric font-semibold text-ink">{fmtNumber(all.n)}</p>
         <p className="mt-1.5 text-xs text-ink-3">
           {fmtHours(all.t)} · {fmtDistance(all.d, units, 0)}
         </p>
@@ -59,13 +59,13 @@ function Totals() {
         return (
           <div
             key={r.sport_group}
-            className="rounded-2xl border border-line bg-surface p-4 shadow-card"
+            className="rounded-card border border-line bg-surface p-4 shadow-card"
           >
             <p className="flex items-center gap-1.5 text-xs font-medium text-ink-2">
               <SportIcon group={r.sport_group} size={14} colored />
               {sportLabel(r.sport_group)}
             </p>
-            <p className="mt-2 text-[26px] leading-none font-semibold text-ink">
+            <p className="mt-2 text-metric font-semibold text-ink">
               {r.distance_m ? fmtDistance(r.distance_m, units, 0) : fmtNumber(r.activities)}
             </p>
             <p className="mt-1.5 text-xs text-ink-3">
@@ -157,7 +157,7 @@ export default function ActivitiesPage() {
                   setSearch(e.target.value);
                   setLimit(PAGE);
                 }}
-                className="w-56 rounded-xl border border-line bg-surface-2 py-1.5 pr-3 pl-8 text-sm text-ink placeholder:text-ink-3"
+                className="w-56 rounded-control border border-line bg-surface-2 py-1.5 pr-3 pl-8 text-sm text-ink placeholder:text-ink-3"
               />
             </label>
           }
@@ -216,7 +216,7 @@ export default function ActivitiesPage() {
                     {list.data.items.map((a) => (
                       <tr
                         key={a.activity_id}
-                        className="border-b border-line last:border-0 hover:bg-surface-2"
+                        className="border-b border-line last:border-0 hover:bg-hover"
                       >
                         <td className="px-3 py-2.5 pl-5 whitespace-nowrap text-ink-2">
                           {fmtDate(a.start_time_local, {
@@ -296,7 +296,7 @@ export default function ActivitiesPage() {
                   <button
                     type="button"
                     onClick={() => setLimit((l) => l + PAGE)}
-                    className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+                    className="rounded-control border border-line px-4 py-2 text-sm font-medium text-ink-2 hover:bg-hover hover:text-ink"
                   >
                     Show more ({fmtNumber(list.data.total - list.data.items.length)} left)
                   </button>

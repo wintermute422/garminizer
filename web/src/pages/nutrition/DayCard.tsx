@@ -55,16 +55,16 @@ function Meter({
       </div>
       {target ? (
         <div
-          className="relative mt-1.5 h-2 rounded-full"
+          className="relative mt-1.5 h-2 rounded-bar"
           style={{ background: wash(color, 0.18) }}
           aria-hidden
         >
           <div
-            className="h-2 rounded-full"
+            className="h-2 rounded-bar"
             style={{ width: `${(v / max) * 100}%`, background: color }}
           />
           <div
-            className="absolute -top-1 h-4 w-0.5 rounded-full bg-ink"
+            className="absolute -top-1 h-4 w-0.5 rounded-bar bg-ink"
             style={{ left: `calc(${(target / max) * 100}% - 1px)` }}
           />
         </div>
@@ -148,15 +148,14 @@ function MealRow({ meal, onDelete }: { meal: Meal; onDelete: (id: number) => voi
             <button
               type="button"
               onClick={() => onDelete(meal.meal_id)}
-              className="rounded-lg px-2 py-1 text-xs font-medium text-white"
-              style={{ background: "var(--critical)" }}
+              className="rounded-control bg-danger px-2 py-1 text-xs font-medium text-on-danger"
             >
               Delete
             </button>
             <button
               type="button"
               onClick={() => setConfirm(false)}
-              className="rounded-lg px-2 py-1 text-xs text-ink-2 hover:bg-surface-2"
+              className="rounded-control px-2 py-1 text-xs text-ink-2 hover:bg-hover"
             >
               Keep
             </button>
@@ -166,7 +165,7 @@ function MealRow({ meal, onDelete }: { meal: Meal; onDelete: (id: number) => voi
             type="button"
             aria-label={`Delete ${meal.name}`}
             onClick={() => setConfirm(true)}
-            className="shrink-0 rounded-lg p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink"
+            className="shrink-0 rounded-control p-1.5 text-ink-3 hover:bg-hover hover:text-ink"
           >
             <Trash2 size={15} aria-hidden />
           </button>
@@ -303,7 +302,7 @@ export function DayCard({
             type="button"
             aria-label="Previous day"
             onClick={() => onDay(addDays(day, -1))}
-            className="rounded-lg p-1.5 text-ink-2 hover:bg-surface-2 hover:text-ink"
+            className="rounded-control p-1.5 text-ink-2 hover:bg-hover hover:text-ink"
           >
             <ChevronLeft size={18} aria-hidden />
           </button>
@@ -312,7 +311,7 @@ export function DayCard({
             aria-label="Next day"
             disabled={day >= maxDay}
             onClick={() => onDay(addDays(day, 1))}
-            className="rounded-lg p-1.5 text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
+            className="rounded-control p-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"
           >
             <ChevronRight size={18} aria-hidden />
           </button>

@@ -25,7 +25,7 @@ import { validZone } from "./time";
 import { FitnessCard, PerformanceCard, TrainingStatusCard } from "./training";
 
 const STEP =
-  "inline-flex items-center justify-center rounded-xl border border-line bg-surface p-2 text-ink-2 shadow-card hover:text-ink disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center justify-center rounded-control border border-line bg-surface p-2 text-ink-2 transition-colors hover:bg-hover hover:text-ink active:bg-pressed disabled:pointer-events-none disabled:opacity-40";
 
 /** Placeholder layout matching the dashboard grid (static class names for Tailwind). */
 const SKELETON_SPANS = [
@@ -92,7 +92,7 @@ export default function OverviewPage() {
               <button
                 type="button"
                 onClick={() => setDay(null)}
-                className="rounded-xl px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+                className="rounded-control px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-hover hover:text-ink"
               >
                 Latest
               </button>

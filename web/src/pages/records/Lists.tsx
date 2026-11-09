@@ -191,7 +191,7 @@ export function DistancesCard({
                         aria-pressed={active}
                         onClick={() => setSelected(r.distance_m)}
                         className={clsx(
-                          "rounded-lg px-1.5 py-1 text-left font-medium whitespace-nowrap",
+                          "rounded-control px-1.5 py-1 text-left font-medium whitespace-nowrap",
                           active ? "text-ink" : "text-ink-2 hover:text-ink",
                         )}
                       >
@@ -261,7 +261,7 @@ export function DistancesCard({
                     aria-pressed={active}
                     onClick={() => setSelected(r.distance_m)}
                     className={clsx(
-                      "-ml-1.5 rounded-lg px-1.5 py-0.5 text-left text-sm font-medium",
+                      "-ml-1.5 rounded-control px-1.5 py-0.5 text-left text-sm font-medium",
                       active ? "text-ink" : "text-ink-2",
                     )}
                   >
@@ -416,7 +416,7 @@ export function TopCard({ sport }: { sport: string }) {
                           {v.main}
                         </span>
                         <span
-                          className="h-1 rounded-full"
+                          className="h-1 rounded-bar"
                           style={{
                             width: `${Math.max(6, (v.raw / max) * 100)}%`,
                             background: sportColor(a.sport_group, mode),
@@ -482,7 +482,7 @@ export function PersonalCard() {
               const v = prValue(p, units);
               return (
                 <li key={p.record_id} className="flex items-center gap-3 py-2.5">
-                  <span className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink-2">
+                  <span className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-control bg-surface-2 text-ink-2">
                     {info.sport ? (
                       <SportIcon group={info.sport} size={15} />
                     ) : (

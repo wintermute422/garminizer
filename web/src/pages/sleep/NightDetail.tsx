@@ -223,7 +223,7 @@ function StageBreakdown({ n, mode }: { n: Night; mode: Mode }) {
   if (!total) return null;
   return (
     <div>
-      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full" aria-hidden>
+      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-bar" aria-hidden>
         {STAGES.map((s) => {
           const v = n[s.field] ?? 0;
           return v > 0 ? (
@@ -241,7 +241,7 @@ function StageBreakdown({ n, mode }: { n: Night; mode: Mode }) {
             <div key={s.key} className="flex items-baseline justify-between gap-2 text-sm">
               <dt className="inline-flex items-center gap-1.5 text-ink-2">
                 <span
-                  className="inline-block size-2.5 rounded-[3px]"
+                  className="inline-block size-2.5 rounded-swatch"
                   style={{ background: colors[s.key] }}
                   aria-hidden
                 />
@@ -276,7 +276,7 @@ function Facts({ n, wall }: { n: Night; wall: (iso: string) => number }) {
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-ink-2">Sleep score</p>
-          <p className="mt-1 text-[40px] leading-none font-semibold text-ink">{n.score ?? DASH}</p>
+          <p className="mt-1 text-metric-lg font-semibold text-ink">{n.score ?? DASH}</p>
         </div>
         {quality && <StatusPill status={sleepQualityStatus(quality)} label={titleCase(quality)} />}
       </div>
@@ -438,7 +438,7 @@ export function NightDetail({
             id="night-select"
             value={day}
             onChange={(e) => onPick(e.target.value)}
-            className="rounded-lg border border-line bg-surface-2 px-2 py-1 text-sm text-ink"
+            className="rounded-control border border-line bg-surface-2 px-2 py-1 text-sm text-ink"
           >
             {[...nights].reverse().map((n) => (
               <option key={n.day} value={n.day}>

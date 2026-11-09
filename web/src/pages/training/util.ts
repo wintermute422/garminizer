@@ -1,7 +1,15 @@
 /** Training page helpers: day ↔ time-axis conversion, Garmin status swatches, load zones. */
 import { titleCase } from "@/lib/format";
 import { addDays } from "@/lib/range";
-import { CATEGORICAL, CHROME, NEUTRAL, STATUS, type Mode, type Status } from "@/lib/tokens";
+import {
+  CATEGORICAL,
+  CHROME,
+  NEUTRAL,
+  STATUS,
+  type Mode,
+  type Status,
+  MARK_RADIUS,
+} from "@/lib/tokens";
 
 /** Local midnight of an ISO day (time-axis bounds). */
 export function dayStartMs(day: string): number {
@@ -124,5 +132,5 @@ export function jitter(id: number, salt: number, amp: number): number {
 
 /** Text label halo so reference labels stay legible where they cross data. */
 export function halo(mode: Mode): Record<string, unknown> {
-  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: 3 };
+  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: MARK_RADIUS };
 }

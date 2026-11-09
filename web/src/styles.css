@@ -3,93 +3,187 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* Design tokens. Light is the default; dark is selected (its own steps, validated against the
-   dark surface), via the theme toggle (data-theme) or the OS setting before JS runs. */
+/* Design tokens: Swiss minimalism. Neutral greys, hairline rules instead of shadows, square-ish
+   geometry, one blue accent (the data accent; red stays reserved for heart rate and critical).
+   Light is the default; dark is selected (its own steps, validated against the dark surface)
+   via the theme toggle (data-theme) or the OS setting before JS runs. Every text token clears
+   4.5:1 on page and surface-1..3 in its mode; chart chrome mirrors these in src/lib/tokens.ts. */
 :root {
   color-scheme: light;
-  --page: #f4f3ef;
-  --surface-1: #fcfcfb;
-  --surface-2: #f1f0ec;
-  --surface-3: #e8e7e1;
-  --border: rgba(11, 11, 11, 0.1);
-  --border-strong: rgba(11, 11, 11, 0.18);
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #6f6d68;
-  --grid: #e1e0d9;
-  --axis: #c3c2b7;
+  --page: #f6f6f6;
+  --surface-1: #ffffff;
+  --surface-2: #f0f0f0;
+  --surface-3: #e4e4e4;
+  --border: rgba(10, 10, 10, 0.12);
+  --border-strong: rgba(10, 10, 10, 0.24);
+  --rule: #0a0a0a;
+  --text-primary: #0a0a0a;
+  --text-secondary: #474747;
+  --text-muted: #666666;
+  --grid: #ebebeb;
+  --axis: #c7c7c7;
   --accent: #2a78d6;
-  --accent-soft: rgba(42, 120, 214, 0.12);
+  --accent-soft: rgba(42, 120, 214, 0.1);
+  --accent-text: #1c5cab;
+  --action: #256abf;
+  --action-hover: #1c5cab;
+  --on-action: #ffffff;
+  --danger: #b42f2f;
+  --on-danger: #ffffff;
+  --hover: rgba(10, 10, 10, 0.05);
+  --pressed: rgba(10, 10, 10, 0.09);
+  --selected: #0a0a0a;
+  --on-selected: #ffffff;
+  --focus-ring: #2a78d6;
+  --scrim: rgba(10, 10, 10, 0.45);
   --good: #0ca30c;
   --good-text: #006300;
   --warning: #fab219;
   --serious: #ec835a;
   --critical: #d03b3b;
   --critical-text: #b42f2f;
-  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 4px 16px rgba(11, 11, 11, 0.04);
+  --shadow: none;
+  --shadow-overlay: 0 0 0 1px rgba(10, 10, 10, 0.06), 0 12px 32px -8px rgba(10, 10, 10, 0.2);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #0d0d0d;
-  --surface-1: #1a1a19;
-  --surface-2: #222220;
-  --surface-3: #2c2c2a;
+  --page: #0a0a0a;
+  --surface-1: #151515;
+  --surface-2: #1e1e1e;
+  --surface-3: #292929;
   --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --text-primary: #f0efec;
-  --text-secondary: #c3c2b7;
-  --text-muted: #9a9890;
-  --grid: #2c2c2a;
-  --axis: #383835;
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --rule: #f5f5f5;
+  --text-primary: #f5f5f5;
+  --text-secondary: #c2c2c2;
+  --text-muted: #969696;
+  --grid: #262626;
+  --axis: #3a3a3a;
   --accent: #3987e5;
-  --accent-soft: rgba(57, 135, 229, 0.16);
-  --good-text: #0ca30c;
+  --accent-soft: rgba(57, 135, 229, 0.14);
+  --accent-text: #5598e7;
+  --hover: rgba(255, 255, 255, 0.06);
+  --pressed: rgba(255, 255, 255, 0.1);
+  --selected: #f5f5f5;
+  --on-selected: #151515;
+  --focus-ring: #5598e7;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --good-text: #12ad12;
   --critical-text: #e66767;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 24px rgba(0, 0, 0, 0.25);
+  --shadow-overlay: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -8px rgba(0, 0, 0, 0.7);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --page: #0d0d0d;
-    --surface-1: #1a1a19;
-    --surface-2: #222220;
-    --surface-3: #2c2c2a;
+    --page: #0a0a0a;
+    --surface-1: #151515;
+    --surface-2: #1e1e1e;
+    --surface-3: #292929;
     --border: rgba(255, 255, 255, 0.1);
-    --border-strong: rgba(255, 255, 255, 0.18);
-    --text-primary: #f0efec;
-    --text-secondary: #c3c2b7;
-    --text-muted: #9a9890;
-    --grid: #2c2c2a;
-    --axis: #383835;
+    --border-strong: rgba(255, 255, 255, 0.22);
+    --rule: #f5f5f5;
+    --text-primary: #f5f5f5;
+    --text-secondary: #c2c2c2;
+    --text-muted: #969696;
+    --grid: #262626;
+    --axis: #3a3a3a;
     --accent: #3987e5;
-    --accent-soft: rgba(57, 135, 229, 0.16);
-    --good-text: #0ca30c;
+    --accent-soft: rgba(57, 135, 229, 0.14);
+    --accent-text: #5598e7;
+    --hover: rgba(255, 255, 255, 0.06);
+    --pressed: rgba(255, 255, 255, 0.1);
+    --selected: #f5f5f5;
+    --on-selected: #151515;
+    --focus-ring: #5598e7;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --good-text: #12ad12;
     --critical-text: #e66767;
+    --shadow-overlay: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px -8px rgba(0, 0, 0, 0.7);
   }
 }
 
 @theme inline {
+  /* Colour */
   --color-page: var(--page);
   --color-surface: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
+  --color-rule: var(--rule);
   --color-ink: var(--text-primary);
   --color-ink-2: var(--text-secondary);
   --color-ink-3: var(--text-muted);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-action: var(--action);
+  --color-action-hover: var(--action-hover);
+  --color-on-action: var(--on-action);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-hover: var(--hover);
+  --color-pressed: var(--pressed);
+  --color-selected: var(--selected);
+  --color-on-selected: var(--on-selected);
+  --color-scrim: var(--scrim);
   --color-good: var(--good);
   --color-good-text: var(--good-text);
   --color-warning: var(--warning);
   --color-serious: var(--serious);
   --color-critical: var(--critical);
   --color-critical-text: var(--critical-text);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* Static scales (emitted as real CSS variables, so components and JS can read them too). */
+@theme {
+  /* Typography: one neo-grotesque family, size steps for labels and figures */
+  --font-sans: "Inter Variable", "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-eyebrow: 0.6875rem;
+  --text-eyebrow--line-height: 1rem;
+  --text-eyebrow--letter-spacing: 0.08em;
+  --text-eyebrow--font-weight: 600;
+  --text-metric-sm: 1.375rem;
+  --text-metric-sm--line-height: 1.15;
+  --text-metric-sm--letter-spacing: -0.015em;
+  --text-metric: 1.75rem;
+  --text-metric--line-height: 1;
+  --text-metric--letter-spacing: -0.025em;
+  --text-metric-md: 2rem;
+  --text-metric-md--line-height: 1;
+  --text-metric-md--letter-spacing: -0.03em;
+  --text-metric-lg: 2.5rem;
+  --text-metric-lg--line-height: 1;
+  --text-metric-lg--letter-spacing: -0.035em;
+  --text-metric-xl: 3.5rem;
+  --text-metric-xl--line-height: 1;
+  --text-metric-xl--letter-spacing: -0.04em;
+  --text-hero: 4.75rem;
+  --text-hero--line-height: 0.95;
+  --text-hero--letter-spacing: -0.045em;
+  --text-display: 2rem;
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.03em;
+
+  /* Geometry: near-square corners; round only for dots and thumbs (rounded-full) */
+  --radius-card: 4px;
+  --radius-control: 3px;
+  --radius-chip: 2px;
+  --radius-bar: 1px;
+  --radius-swatch: 1px;
+
+  /* Elevation: flat cards, one shadow for layers that float above the page */
   --shadow-card: var(--shadow);
+  --shadow-overlay: var(--shadow-overlay);
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 html,
@@ -103,17 +197,22 @@ body {
   background: var(--page);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11";
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent-soft);
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
+/* The outline follows each element's own corner radius. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-  border-radius: 6px;
 }
 
 .maplibregl-ctrl-attrib {

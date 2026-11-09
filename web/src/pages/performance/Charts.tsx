@@ -18,7 +18,7 @@ import {
 import { DASH, fmtDate, fmtDuration, fmtNumber, fmtPace, fmtPercent, smooth } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor } from "@/lib/sports";
-import { CATEGORICAL, CHROME, DIVERGING, NEUTRAL, wash, type Mode } from "@/lib/tokens";
+import { CATEGORICAL, CHROME, DIVERGING, NEUTRAL, wash, type Mode, barEnd } from "@/lib/tokens";
 import {
   dayMs,
   ENDURANCE_CLASSES,
@@ -328,7 +328,7 @@ function RaceTile({
   return (
     <div
       className={clsx(
-        "rounded-xl border p-3",
+        "rounded-card border p-3",
         selected ? "border-accent bg-surface ring-1 ring-accent" : "border-line bg-surface-2",
       )}
     >
@@ -534,7 +534,7 @@ export function EfficiencyCard({ data }: { data: Efficiency[] }) {
       stack: "runs",
       barWidth: "86%",
       data: split(well),
-      itemStyle: { color, borderRadius: [3, 3, 0, 0] },
+      itemStyle: { color, borderRadius: barEnd("up") },
     });
     return {
       grid: { ...GRID, right: 16 },

@@ -213,7 +213,7 @@ function GroupLegend() {
     <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-2">
       <span className="inline-flex items-center gap-1.5">
         <span
-          className="inline-block size-2.5 rounded-[3px]"
+          className="inline-block size-2.5 rounded-swatch"
           style={{ background: col.weekday }}
           aria-hidden
         />
@@ -221,7 +221,7 @@ function GroupLegend() {
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span
-          className="inline-block size-2.5 rounded-[3px] border-[1.5px]"
+          className="inline-block size-2.5 rounded-swatch border-[1.5px]"
           style={{ background: outlineFill(col.weekend, mode), borderColor: col.weekend }}
           aria-hidden
         />

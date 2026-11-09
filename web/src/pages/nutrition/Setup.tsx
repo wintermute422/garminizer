@@ -39,8 +39,8 @@ export function Setup() {
       </ol>
       <p className="mt-4 text-sm text-ink-2">
         Setup takes two minutes: see{" "}
-        <code className="rounded bg-surface-2 px-1 text-ink">docs/claude-desktop.md</code> in your
-        Garminizer folder.
+        <code className="rounded-chip bg-surface-2 px-1 text-ink">docs/claude-desktop.md</code> in
+        your Garminizer folder.
       </p>
     </Card>
   );

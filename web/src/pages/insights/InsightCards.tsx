@@ -143,13 +143,13 @@ function Finding({
   return (
     <article
       className={clsx(
-        "flex min-w-0 flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-card",
+        "flex min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card",
         className,
       )}
     >
       <header className="flex items-center justify-between gap-2">
         <h3 className="flex min-w-0 items-center gap-2 text-sm font-medium text-ink-2">
-          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-ink-2">
+          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-control bg-surface-2 text-ink-2">
             {createElement(ICON[c.id] ?? Lightbulb, { size: 15, "aria-hidden": true })}
           </span>
           <span className="truncate">{c.title}</span>
@@ -160,7 +160,7 @@ function Finding({
         <span
           className={clsx(
             "leading-none font-semibold tracking-tight text-ink",
-            words ? "text-[22px]" : "text-[30px]",
+            words ? "text-metric-sm" : "text-metric-md",
           )}
         >
           {value}
@@ -183,7 +183,7 @@ function Finding({
         <button
           type="button"
           onClick={() => onExplore(pair)}
-          className="mt-auto inline-flex items-center gap-1 self-start rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
+          className="mt-auto inline-flex items-center gap-1 self-start rounded-control border border-line px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"
         >
           Explore this link <ArrowRight size={13} aria-hidden className="text-accent" />
         </button>

@@ -14,7 +14,7 @@ import {
   tooltipTitle,
 } from "@/lib/charts";
 import { DASH, fmtClockFromNoon, fmtDate, fmtHours, fmtNumber, smooth } from "@/lib/format";
-import { CHROME, SLEEP_STAGES, ZONE_RAMP, type Mode } from "@/lib/tokens";
+import { CHROME, SLEEP_STAGES, ZONE_RAMP, type Mode, barEnd } from "@/lib/tokens";
 import {
   cased,
   DAY_MS,
@@ -87,7 +87,7 @@ function selection(selected: string | null, mode: Mode): Obj | undefined {
   const t = dayPoint(selected, 0)[0];
   return {
     silent: true,
-    itemStyle: { color: mode === "dark" ? "rgba(255,255,255,0.07)" : "rgba(11,11,11,0.06)" },
+    itemStyle: { color: CHROME[mode].wash },
     data: [[{ xAxis: t - DAY_MS / 2 }, { xAxis: t + DAY_MS / 2 }]],
   };
 }
@@ -373,12 +373,12 @@ function groupItems(values: (number | null)[], mode: Mode): Obj[] {
     value: v,
     itemStyle:
       i === 0
-        ? { color: col.weekday, borderRadius: [4, 4, 0, 0] }
+        ? { color: col.weekday, borderRadius: barEnd("up") }
         : {
             color: outlineFill(col.weekend, mode),
             borderColor: col.weekend,
             borderWidth: 1.5,
-            borderRadius: [4, 4, 0, 0],
+            borderRadius: barEnd("up"),
           },
   }));
 }
@@ -550,7 +550,7 @@ export function distributionOption(rows: Night[], stats: Stats, mode: Mode): Cha
         { barMaxWidth: 36 },
       ),
       stack: "quality",
-      itemStyle: { color: ramp[q.ramp]!, borderRadius: [4, 4, 0, 0] },
+      itemStyle: { color: ramp[q.ramp]!, borderRadius: barEnd("up") },
     })),
   };
 }

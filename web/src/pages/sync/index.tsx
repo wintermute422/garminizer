@@ -23,7 +23,7 @@ import {
   Skeleton,
   StatusPill,
 } from "@/components/ui";
-import { CHROME, SEQUENTIAL } from "@/lib/tokens";
+import { CHROME, SEQUENTIAL, MARK_RADIUS } from "@/lib/tokens";
 import { DASH, fmtDate, fmtMonth, fmtNumber, fmtWeight, titleCase } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 
@@ -88,7 +88,7 @@ function ConnectForm({ mfaPending }: { mfaPending: boolean }) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink"
+            className="rounded-control border border-line bg-surface-2 px-3 py-2 text-sm text-ink"
           />
           <label className="text-xs font-medium text-ink-2" htmlFor="garmin-password">
             Garmin password
@@ -100,7 +100,7 @@ function ConnectForm({ mfaPending }: { mfaPending: boolean }) {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink"
+            className="rounded-control border border-line bg-surface-2 px-3 py-2 text-sm text-ink"
           />
         </>
       ) : (
@@ -118,7 +118,7 @@ function ConnectForm({ mfaPending }: { mfaPending: boolean }) {
             required
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm tracking-widest text-ink"
+            className="rounded-control border border-line bg-surface-2 px-3 py-2 text-sm tracking-widest text-ink"
           />
         </>
       )}
@@ -130,7 +130,7 @@ function ConnectForm({ mfaPending }: { mfaPending: boolean }) {
       <button
         type="submit"
         disabled={connect.isPending || mfa.isPending}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-control bg-action px-4 py-2 text-sm font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-60"
       >
         {(connect.isPending || mfa.isPending) && (
           <Loader2 size={16} className="animate-spin" aria-hidden />
@@ -149,7 +149,7 @@ function ConnectForm({ mfaPending }: { mfaPending: boolean }) {
 function CopyCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface-2 py-1.5 pr-1.5 pl-3">
+    <div className="mt-3 flex items-center gap-2 rounded-control border border-line bg-surface-2 py-1.5 pr-1.5 pl-3">
       <code className="min-w-0 flex-1 truncate font-mono text-xs text-ink">{command}</code>
       <button
         type="button"
@@ -159,7 +159,7 @@ function CopyCommand({ command }: { command: string }) {
             window.setTimeout(() => setCopied(false), 1500);
           });
         }}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-ink-2 hover:bg-surface hover:text-ink"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-control px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"
       >
         {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
         {copied ? "Copied" : "Copy"}
@@ -217,7 +217,7 @@ function Connection({ s }: { s: Status }) {
           type="button"
           disabled={s.running || run.isPending}
           onClick={() => run.mutate({ body: { kind: "incremental" } }, { onSuccess: refresh })}
-          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-control bg-action px-4 py-2 text-sm font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-60"
         >
           <RefreshCw size={16} className={s.running ? "animate-spin" : undefined} aria-hidden />
           {s.running ? "Syncing…" : "Sync now"}
@@ -226,14 +226,14 @@ function Connection({ s }: { s: Status }) {
           type="button"
           disabled={s.running || run.isPending}
           onClick={() => run.mutate({ body: { kind: "backfill" } }, { onSuccess: refresh })}
-          className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-60"
+          className="rounded-control border border-line px-4 py-2 text-sm font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-60"
         >
           Load older history
         </button>
         <button
           type="button"
           onClick={() => disconnect.mutate({}, { onSuccess: refresh })}
-          className="ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="ml-auto inline-flex items-center gap-2 rounded-control px-3 py-2 text-sm text-ink-3 hover:bg-hover hover:text-ink"
         >
           <Link2Off size={16} aria-hidden /> Disconnect
         </button>
@@ -386,7 +386,7 @@ function Profile() {
           <p className="mb-1.5 text-xs text-ink-3">Heart-rate zones (lower limit, bpm)</p>
           <ol className="grid grid-cols-5 gap-1 text-center text-xs tabular">
             {zones.map((z, i) => (
-              <li key={i} className="rounded-lg bg-surface-2 py-1.5">
+              <li key={i} className="rounded-control bg-surface-2 py-1.5">
                 <span className="block text-ink-3">Z{i + 1}</span>
                 <span className="block font-medium text-ink">{fmtNumber(z)}</span>
               </li>
@@ -439,7 +439,11 @@ function Coverage({ isDemo }: { isDemo: boolean }) {
             datasets.indexOf(r.dataset),
             r.days_with_data,
           ]),
-          itemStyle: { borderColor: CHROME[mode].surface, borderWidth: 2, borderRadius: 3 },
+          itemStyle: {
+            borderColor: CHROME[mode].surface,
+            borderWidth: 2,
+            borderRadius: MARK_RADIUS,
+          },
         },
       ],
     };

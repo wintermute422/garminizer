@@ -12,7 +12,7 @@ import { useCallback, useState } from "react";
 import type { ChartOption } from "@/components/Chart";
 import { fmtMonth } from "@/lib/format";
 import { addDays } from "@/lib/range";
-import { BLUE, CHROME, type Mode } from "@/lib/tokens";
+import { BLUE, CHROME, MARK_RADIUS, type Mode } from "@/lib/tokens";
 
 /** Low → high; each step ≥ 3:1 against the card surface (light 3.5–11.6, dark 3.2–13.2). */
 export const HEAT_RAMP: Record<Mode, readonly string[]> = {
@@ -219,7 +219,7 @@ export function calendarHeatmapOption({
   const item = {
     borderColor: c.surface,
     borderWidth: cell >= 14 ? 2 : 1.5,
-    borderRadius: Math.max(2, Math.round(cell / 5)),
+    borderRadius: Math.min(MARK_RADIUS, Math.round(cell / 5)),
   };
   // One heatmap series per block; every in-range day is a cell (rest days carry 0).
   const series = layout.blocks.map((b, i) => {

@@ -30,11 +30,32 @@ How pages in `web/` are built. Reference implementations: `src/pages/activities/
 - Mobile first: nothing may overflow horizontally at 390 px. Tables go in `ScrollArea`.
 - Loading → `Skeleton`, error → `ErrorState`, no data → `EmptyState` (never an empty chart).
 
+## Styling (Swiss minimal; tokens in `src/styles.css`, chart mirror in `src/lib/tokens.ts`)
+
+- Never hard-code colours, radii, shadows or font sizes in components; use the token utilities.
+  New needs get a new token in `styles.css` (both modes, both dark blocks), not an arbitrary value.
+- Colour: `bg-page` / `bg-surface` / `bg-surface-2|3`, ink `text-ink|ink-2|ink-3`, hairlines
+  `border-line` (`border-line-strong` for inputs/dashed empties), `border-rule` for the strong ink
+  rule (page header, emphasised panels). Accent is for data, focus and the active-nav bar; link text
+  on hover uses `text-accent-text`. Primary buttons `bg-action text-on-action hover:bg-action-hover`;
+  destructive `bg-danger text-on-danger`.
+- Interaction: `hover:bg-hover active:bg-pressed`; a selected segment/toggle is inverted ink
+  (`bg-selected text-on-selected`). Focus is the global 2px `--focus-ring` outline — never remove it.
+- Geometry: `rounded-card` (cards, panels, overlays), `rounded-control` (buttons, inputs, rows),
+  `rounded-chip` (tags, segments), `rounded-bar` (tracks, progress bars), `rounded-swatch` (legend
+  keys); `rounded-full` only for dots and thumbs.
+- Elevation: cards are flat (`shadow-card` = none, separated by hairlines); only layers floating
+  over content (map panels, drawers, sheets) use `shadow-overlay`.
+- Type: Inter (bundled, no CDN). Labels above values: `text-eyebrow uppercase`; captions `text-2xs`;
+  figures `text-metric-sm|metric|metric-md|metric-lg|metric-xl|hero` (they carry line-height and
+  tracking) with `tabular`; page titles `sm:text-display`.
+
 ## Charts (ECharts via `<Chart option ariaLabel height />` only)
 
 - Use the builders in `src/lib/charts.ts` (`line`, `bars`, `scatter`, `refLine`, `axisTooltip`,
   `valueYAxis`, `GRID`, `tooltipRow`) so marks are consistent: 2px lines, 10 % area wash, bars
-  ≤ 24px with 4px rounded data-ends, 2px surface gaps in stacks, hairline recessive axes.
+  ≤ 24px with near-square data-ends (`barEnd()`, `MARK_RADIUS`), 2px surface gaps in stacks,
+  hairline recessive axes. Washes and tooltip chrome come from `CHROME[mode]`.
 - Colour by job: sports → `sportColor(group, mode)` (fixed slots, stack in `bySlot` order);
   magnitude → one-hue blue ramp (`SEQUENTIAL`, `ZONE_RAMP` for ordinal zones); polarity →
   `DIVERGING` (blue ↔ red, gray midpoint); state → status colours only with icon + label

@@ -78,7 +78,7 @@ function TwoWeeks({ day }: { day: string }) {
                   key={d}
                   title={text}
                   className={clsx(
-                    "h-6 rounded-md",
+                    "h-6 rounded-chip",
                     future ? "border border-dashed border-line" : !t && "bg-surface-3",
                   )}
                   style={t ? { background: shade(t.duration_s) } : undefined}
@@ -90,14 +90,14 @@ function TwoWeeks({ day }: { day: string }) {
           </div>
         ))}
       </div>
-      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-3">
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-ink-3">
         <span>Time per day</span>
         <span className="inline-flex items-center gap-1">
-          <span className="size-2.5 rounded-[3px] bg-surface-3" aria-hidden /> rest
+          <span className="size-2.5 rounded-swatch bg-surface-3" aria-hidden /> rest
         </span>
         {legend.map((l) => (
           <span key={l.label} className="inline-flex items-center gap-1">
-            <span className="size-2.5 rounded-[3px]" style={{ background: l.color }} aria-hidden />
+            <span className="size-2.5 rounded-swatch" style={{ background: l.color }} aria-hidden />
             {l.label}
           </span>
         ))}
@@ -177,13 +177,13 @@ export function WeekCard({
                   <span className="sr-only">Comparison bars</span>
                   <span
                     aria-hidden
-                    className="inline-flex flex-wrap items-center gap-x-3 text-[11px] whitespace-nowrap"
+                    className="inline-flex flex-wrap items-center gap-x-3 text-2xs whitespace-nowrap"
                   >
                     <span className="inline-flex items-center gap-1">
-                      <span className="h-2 w-3 rounded-full bg-ink-2" /> this wk
+                      <span className="h-2 w-3 rounded-bar bg-ink-2" /> this wk
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <span className="h-2 w-3 rounded-full border-[1.5px] border-ink-3" /> last wk
+                      <span className="h-2 w-3 rounded-bar border-[1.5px] border-ink-3" /> last wk
                     </span>
                   </span>
                 </th>
@@ -211,7 +211,7 @@ export function WeekCard({
                     <td className="w-full py-2" aria-hidden>
                       <div className="flex flex-col gap-1">
                         <span
-                          className="block h-2 rounded-full"
+                          className="block h-2 rounded-bar"
                           style={{
                             width: `${((now?.duration_s ?? 0) / max) * 100}%`,
                             minWidth: now ? 4 : 0,
@@ -220,7 +220,7 @@ export function WeekCard({
                         />
                         {/* Last week: hollow bar in the same hue, so walking (neutral) still reads. */}
                         <span
-                          className="block h-2 rounded-full"
+                          className="block h-2 rounded-bar"
                           style={{
                             width: `${((prev?.duration_s ?? 0) / max) * 100}%`,
                             minWidth: prev ? 6 : 0,
@@ -263,7 +263,7 @@ export function WeekCard({
 function StreakStrip({ streak }: { streak: Overview["streak"] }) {
   const days = (n: number) => `${fmtNumber(n)} ${n === 1 ? "day" : "days"}`;
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-xl bg-surface-2 p-3">
+    <div className="grid grid-cols-2 gap-3 rounded-card bg-surface-2 p-3">
       <div className="flex items-center gap-2.5">
         <Flame size={18} className="text-ink-3" aria-hidden />
         <div>
@@ -298,7 +298,7 @@ export function RecentCard({
       actions={
         <Link
           to="/activities"
-          className="inline-flex items-center gap-0.5 rounded-lg text-xs font-medium text-ink-2 hover:text-ink"
+          className="inline-flex items-center gap-0.5 rounded-control text-xs font-medium text-ink-2 hover:text-ink"
         >
           All activities <ChevronRight size={14} aria-hidden />
         </Link>
@@ -315,7 +315,7 @@ export function RecentCard({
               <Link
                 to="/activities/$activityId"
                 params={{ activityId: String(a.activity_id) }}
-                className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-surface-2"
+                className="flex items-center gap-3 rounded-control px-2 py-2.5 hover:bg-hover"
               >
                 <SportBadge group={a.sport_group} size={36} />
                 <div className="min-w-0 flex-1">

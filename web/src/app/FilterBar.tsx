@@ -17,8 +17,10 @@ interface FilterProps {
 
 function chip(active: boolean) {
   return clsx(
-    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
-    active ? "border-line-strong bg-surface text-ink" : "border-line text-ink-2 hover:text-ink",
+    "inline-flex items-center gap-1.5 rounded-chip border px-2.5 py-1 text-xs font-medium transition-colors",
+    active
+      ? "border-rule bg-surface text-ink"
+      : "border-line text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed",
   );
 }
 
@@ -48,7 +50,7 @@ function Controls({
           role="radiogroup"
           aria-label="Date range"
           className={clsx(
-            "inline-flex rounded-xl border border-line bg-surface-2 p-0.5",
+            "inline-flex rounded-control border border-line bg-surface p-0.5",
             stacked ? "flex-wrap" : "max-w-full overflow-x-auto",
           )}
         >
@@ -63,11 +65,11 @@ function Controls({
                 range.setPreset(p.key as PresetKey);
               }}
               className={clsx(
-                "shrink-0 rounded-[10px] px-2.5 py-1 text-xs font-medium whitespace-nowrap",
+                "shrink-0 rounded-chip px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
                 stacked && "py-1.5",
                 range.preset === p.key
-                  ? "bg-surface text-ink shadow-card"
-                  : "text-ink-2 hover:text-ink",
+                  ? "bg-selected text-on-selected"
+                  : "text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed",
               )}
             >
               {p.label}
@@ -79,11 +81,11 @@ function Controls({
             aria-checked={range.preset === null}
             onClick={() => setCustom((v) => !v)}
             className={clsx(
-              "shrink-0 rounded-[10px] px-2.5 py-1 text-xs font-medium",
+              "shrink-0 rounded-chip px-2.5 py-1 text-xs font-medium transition-colors",
               stacked && "py-1.5",
               range.preset === null
-                ? "bg-surface text-ink shadow-card"
-                : "text-ink-2 hover:text-ink",
+                ? "bg-selected text-on-selected"
+                : "text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed",
             )}
           >
             Custom
@@ -101,7 +103,7 @@ function Controls({
             value={range.start}
             max={range.end}
             onChange={(e) => e.target.value && range.setCustom(e.target.value, range.end)}
-            className="min-w-0 rounded-lg border border-line bg-surface px-2 py-1 text-ink"
+            className="min-w-0 rounded-control border border-line-strong bg-surface px-2 py-1 text-ink"
           />
           <span aria-hidden>→</span>
           <label className="sr-only" htmlFor={`${id}-end`}>
@@ -113,7 +115,7 @@ function Controls({
             value={range.end}
             min={range.start}
             onChange={(e) => e.target.value && range.setCustom(range.start, e.target.value)}
-            className="min-w-0 rounded-lg border border-line bg-surface px-2 py-1 text-ink"
+            className="min-w-0 rounded-control border border-line-strong bg-surface px-2 py-1 text-ink"
           />
         </div>
       )}
@@ -140,7 +142,7 @@ function Controls({
               className={chip(selectedSport === s.sport_group)}
             >
               <span
-                className="size-2 rounded-full"
+                className="size-2 rounded-swatch"
                 style={{ background: sportColor(s.sport_group, mode) }}
                 aria-hidden
               />
@@ -183,7 +185,7 @@ export function FilterBar(props: FilterProps) {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className="inline-flex max-w-full items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-1.5 text-sm font-medium text-ink sm:hidden"
+        className="inline-flex max-w-full items-center gap-2 rounded-control border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink active:bg-pressed sm:hidden"
       >
         <SlidersHorizontal size={15} aria-hidden className="shrink-0 text-ink-3" />
         <span className="truncate">
@@ -200,16 +202,16 @@ export function FilterBar(props: FilterProps) {
           <button
             type="button"
             aria-label="Close filters"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-scrim"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface p-4 shadow-card">
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-surface-3" aria-hidden />
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-card border-t border-rule bg-surface p-4 shadow-overlay">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-bar bg-surface-3" aria-hidden />
             <Controls {...props} stacked />
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="mt-4 w-full rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white"
+              className="mt-4 w-full rounded-control bg-action px-4 py-2.5 text-sm font-semibold text-on-action transition-colors hover:bg-action-hover"
             >
               Done
             </button>

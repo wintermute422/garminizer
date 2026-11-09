@@ -87,7 +87,7 @@ export function MetricTile({
   spark?: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-line bg-surface p-4 shadow-card">
+    <div className="flex min-w-0 flex-col gap-2 rounded-card border border-line bg-surface p-4 shadow-card">
       <div className="flex min-h-6 items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-ink-2">
           {icon && (
@@ -100,9 +100,7 @@ export function MetricTile({
         {badge}
       </div>
       <div className="flex items-baseline gap-1">
-        <span className="text-[26px] leading-none font-semibold whitespace-nowrap text-ink">
-          {value}
-        </span>
+        <span className="text-metric font-semibold whitespace-nowrap text-ink">{value}</span>
         {unit && <span className="truncate text-sm text-ink-3">{unit}</span>}
       </div>
       <div className="flex min-h-4 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-3">
@@ -118,7 +116,7 @@ export function TileSkeletons({ n, className }: { n: number; className: string }
   return (
     <div className={className}>
       {Array.from({ length: n }, (_, i) => (
-        <Skeleton key={i} height={136} className="rounded-2xl" />
+        <Skeleton key={i} height={136} className="rounded-card" />
       ))}
     </div>
   );
@@ -141,7 +139,7 @@ export function Stepper({
   children?: ReactNode;
 }) {
   const btn =
-    "rounded-lg p-1.5 text-ink-2 hover:bg-surface-2 hover:text-ink disabled:pointer-events-none disabled:opacity-35";
+    "rounded-control p-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:pointer-events-none disabled:opacity-35";
   return (
     <div className="flex items-center gap-1">
       <button

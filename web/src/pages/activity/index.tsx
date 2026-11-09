@@ -53,7 +53,16 @@ import {
 import type { Bounds } from "@/lib/geo";
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor, sportLabel, usesPace } from "@/lib/sports";
-import { BLUE, CATEGORICAL, CHROME, MEASURE_COLORS, ZONE_RAMP, type Mode } from "@/lib/tokens";
+import {
+  CATEGORICAL,
+  CHROME,
+  MEASURE_COLORS,
+  ZONE_RAMP,
+  type Mode,
+  barEnd,
+  ROUTE_RAMP,
+  STATUS,
+} from "@/lib/tokens";
 
 type Detail = Schemas["ActivityDetail"];
 type Streams = Schemas["Streams"];
@@ -79,8 +88,7 @@ function routeLayers(s: Streams, metric: MapMetric, mode: Mode, cursor: number |
   const finite = raw.filter((v): v is number => v !== null);
   const lo = quantile(finite, 0.05);
   const hi = quantile(finite, 0.95);
-  const ramp =
-    mode === "dark" ? [BLUE[400]!, "#eda100", "#e66767"] : [BLUE[450]!, "#eda100", "#e34948"];
+  const ramp = ROUTE_RAMP[mode];
   const features: Feature<LineString>[] = [];
   for (let i = 1; i < s.lat.length; i++) {
     const [a0, o0, a1, o1] = [s.lat[i - 1], s.lon[i - 1], s.lat[i], s.lon[i]];
@@ -149,7 +157,7 @@ function routeLayers(s: Streams, metric: MapMetric, mode: Mode, cursor: number |
       data: ends,
       paint: {
         "circle-radius": 6,
-        "circle-color": ["match", ["get", "kind"], "start", "#0ca30c", "#d03b3b"],
+        "circle-color": ["match", ["get", "kind"], "start", STATUS.good, STATUS.critical],
         "circle-stroke-color": surface,
         "circle-stroke-width": 2,
       },
@@ -429,7 +437,7 @@ function Zones({ d }: { d: Detail }) {
         barMaxWidth: 18,
         data: hr.map((z, i) => ({
           value: z.seconds,
-          itemStyle: { color: ZONE_RAMP[mode][i], borderRadius: [0, 4, 4, 0] },
+          itemStyle: { color: ZONE_RAMP[mode][i], borderRadius: barEnd("right") },
         })),
         label: {
           show: true,
@@ -514,7 +522,7 @@ function SplitsTable({ d }: { d: Detail }) {
                     <span className="w-12 shrink-0 text-ink">{fmtV(v)}</span>
                     <span className="relative h-2 flex-1" aria-hidden>
                       <span
-                        className="block h-2 rounded-full"
+                        className="block h-2 rounded-bar"
                         style={{ width: `${width(v)}%`, background: color }}
                       />
                       <span
@@ -855,7 +863,7 @@ export default function ActivityPage() {
           <Link
             to="/activities"
             search={(p: Record<string, unknown>) => p}
-            className="rounded-xl px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-2 hover:text-ink"
+            className="rounded-control px-3 py-1.5 text-sm text-ink-2 hover:bg-hover hover:text-ink"
           >
             All activities
           </Link>
@@ -864,7 +872,7 @@ export default function ActivityPage() {
               to="/activities/$activityId"
               params={{ activityId: String(d.previous_id) }}
               aria-label="Previous activity"
-              className="rounded-xl p-2 text-ink-2 hover:bg-surface-2 hover:text-ink"
+              className="rounded-control p-2 text-ink-2 hover:bg-hover hover:text-ink"
             >
               <ChevronLeft size={18} />
             </Link>
@@ -874,7 +882,7 @@ export default function ActivityPage() {
               to="/activities/$activityId"
               params={{ activityId: String(d.next_id) }}
               aria-label="Next activity"
-              className="rounded-xl p-2 text-ink-2 hover:bg-surface-2 hover:text-ink"
+              className="rounded-control p-2 text-ink-2 hover:bg-hover hover:text-ink"
             >
               <ChevronRight size={18} />
             </Link>
@@ -963,9 +971,9 @@ export default function ActivityPage() {
               <div className="mt-2 flex items-center gap-2 text-xs text-ink-3">
                 <span>low</span>
                 <span
-                  className="h-1.5 w-28 rounded-full"
+                  className="h-1.5 w-28 rounded-bar"
                   style={{
-                    background: `linear-gradient(90deg, ${mode === "dark" ? BLUE[400] : BLUE[450]}, #eda100, ${mode === "dark" ? "#e66767" : "#e34948"})`,
+                    background: `linear-gradient(90deg, ${ROUTE_RAMP[mode].join(", ")})`,
                   }}
                   aria-hidden
                 />

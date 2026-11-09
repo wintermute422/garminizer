@@ -68,7 +68,7 @@ function HeroFigure({ label, value, sub }: { label: string; value: ReactNode; su
   return (
     <div className="min-w-0">
       <dt className="text-xs text-ink-3">{label}</dt>
-      <dd className="mt-1 text-[22px] leading-tight font-semibold text-ink">{value}</dd>
+      <dd className="mt-1 text-metric-sm font-semibold text-ink">{value}</dd>
       {sub && <dd className="text-xs text-ink-3">{sub}</dd>}
     </div>
   );
@@ -121,14 +121,7 @@ export function Hero({
   if (t.elevation_gain_m > EVEREST_M / 2)
     facts.push(`${fmtNumber(t.elevation_gain_m / EVEREST_M, 1)} × the height of Everest`);
   return (
-    <section
-      className="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-7"
-      style={{
-        // A faint accent tint (kept light enough that muted text still clears 4.5:1).
-        background:
-          "linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--surface-1)) 0%, var(--surface-1) 65%)",
-      }}
-    >
+    <section className="rounded-card border border-line border-t-2 border-t-rule bg-surface p-5 shadow-card sm:p-7">
       <h2 className="sr-only">Year totals</h2>
       <div className="grid items-center gap-6 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
         <div className="min-w-0">
@@ -137,9 +130,7 @@ export function Hero({
             {period}
           </p>
           <p className="mt-2 flex flex-wrap items-baseline gap-x-3">
-            <span className="text-[56px] leading-none font-semibold tracking-tight text-ink sm:text-[76px]">
-              {dist}
-            </span>
+            <span className="text-metric-xl font-semibold text-ink sm:text-hero">{dist}</span>
             <span className="text-2xl font-medium text-ink-3">{distanceUnit(units)}</span>
           </p>
           <p className="mt-3 max-w-lg text-sm text-ink-2">
@@ -241,16 +232,14 @@ export function Highlights({ r }: { r: Review }) {
             key={h.key}
             to="/activities/$activityId"
             params={{ activityId: String(h.a.activity_id) }}
-            className="group flex min-w-0 flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-card transition-colors hover:border-line-strong hover:bg-surface-2"
+            className="group flex min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card transition-colors hover:border-line-strong hover:bg-hover"
           >
             <span className="flex items-center gap-2 text-xs font-medium text-ink-2">
               {createElement(h.icon, { size: 15, "aria-hidden": true, className: "text-ink-3" })}
               {h.label}
             </span>
             <span className="flex items-baseline gap-1.5">
-              <span className="text-[26px] leading-none font-semibold text-ink">
-                {h.value(h.a, units)}
-              </span>
+              <span className="text-metric font-semibold text-ink">{h.value(h.a, units)}</span>
               {h.unit && <span className="text-sm text-ink-3">{h.unit}</span>}
             </span>
             <span className="flex min-w-0 items-start gap-2 text-xs text-ink-3">
@@ -325,9 +314,9 @@ export function BySport({ r }: { r: Review }) {
                     </span>
                   </span>
                 </div>
-                <div aria-hidden className="mt-1.5 h-2 rounded-full bg-surface-2">
+                <div aria-hidden className="mt-1.5 h-2 rounded-bar bg-surface-2">
                   <div
-                    className="h-full rounded-full"
+                    className="h-full rounded-bar"
                     style={{
                       width: `${(value(s) / max) * 100}%`,
                       minWidth: 6,
@@ -540,7 +529,7 @@ export function YearHeatmap({ r, start, end }: { r: Review; start: string; end: 
           {[{ color: restColor(mode), label: "Rest day" }, ...bins].map((b) => (
             <span key={b.label} className="inline-flex items-center gap-1.5">
               <span
-                className="inline-block size-2.5 rounded-[3px]"
+                className="inline-block size-2.5 rounded-swatch"
                 style={{ background: b.color }}
               />
               {b.label}
@@ -679,7 +668,7 @@ function Fact({
 }) {
   return (
     <div className="flex items-center gap-3 py-2.5">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink-3">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-surface-2 text-ink-3">
         {createElement(icon, { size: 16, "aria-hidden": true })}
       </span>
       <div className="min-w-0 flex-1">

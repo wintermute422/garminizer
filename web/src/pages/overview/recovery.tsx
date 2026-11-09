@@ -167,7 +167,7 @@ export function SleepCard({
             </div>
             <div className="text-right">
               <p className="text-xs text-ink-3">Time asleep</p>
-              <p className="text-[22px] leading-tight font-semibold text-ink">
+              <p className="text-metric-sm font-semibold text-ink">
                 {fmtHours(s.duration_s ?? asleep)}
               </p>
             </div>
@@ -175,14 +175,14 @@ export function SleepCard({
           {total > 0 && (
             <>
               <div
-                className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
+                className="flex h-3 w-full gap-0.5 overflow-hidden rounded-bar"
                 role="img"
                 aria-label={`Sleep stages: ${STAGES.map((st) => `${st.label} ${fmtHours(secs[st.key])}`).join(", ")}`}
               >
                 {STAGES.filter((st) => secs[st.key] > 0).map((st) => (
                   <span
                     key={st.key}
-                    className="h-full first:rounded-l-full last:rounded-r-full"
+                    className="h-full first:rounded-l-bar last:rounded-r-bar"
                     style={{
                       width: `${(secs[st.key] / total) * 100}%`,
                       background: SLEEP_STAGES[mode][st.key],
@@ -392,13 +392,13 @@ export function HrvCard({ h, className }: { h: Overview["hrv"]; className?: stri
               Last night
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-0.5 rounded-full bg-ink-2" aria-hidden /> 7-day avg{" "}
+              <span className="h-3 w-0.5 rounded-bar bg-ink-2" aria-hidden /> 7-day avg{" "}
               <span className="text-ink-2 tabular">{fmtNumber(h.weekly_avg_ms)} ms</span>
             </span>
             {h.baseline_balanced_low_ms !== null && h.baseline_balanced_upper_ms !== null && (
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="h-2 w-3 rounded-full"
+                  className="h-2 w-3 rounded-bar"
                   style={{
                     background: wash(color, 0.22),
                     boxShadow: `inset 0 0 0 1px ${wash(color, 0.6)}`,
@@ -470,11 +470,11 @@ export function StressCard({ s, className }: { s: Overview["stress"]; className?
             <div className="relative h-5">
               {s.max !== null && (
                 <span
-                  className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center text-[11px] leading-none whitespace-nowrap text-ink-2"
+                  className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center text-2xs leading-none whitespace-nowrap text-ink-2"
                   style={{ left: pct(s.max) }}
                 >
                   peak {s.max}
-                  <span className="mt-0.5 h-1.5 w-0.5 rounded-full bg-ink-2" />
+                  <span className="mt-0.5 h-1.5 w-0.5 rounded-bar bg-ink-2" />
                 </span>
               )}
             </div>
@@ -484,17 +484,17 @@ export function StressCard({ s, className }: { s: Overview["stress"]; className?
                 return (
                   <span
                     key={b}
-                    className="relative flex-1 overflow-hidden rounded-full bg-line-strong"
+                    className="relative flex-1 overflow-hidden rounded-bar bg-line-strong"
                   >
                     <span
-                      className="absolute inset-y-0 left-0 rounded-full"
+                      className="absolute inset-y-0 left-0 rounded-bar"
                       style={{ width: `${fill * 100}%`, background: color }}
                     />
                   </span>
                 );
               })}
             </div>
-            <div className="mt-1.5 grid grid-cols-4 text-center text-[11px] text-ink-3">
+            <div className="mt-1.5 grid grid-cols-4 text-center text-2xs text-ink-3">
               {STRESS_BANDS.map((b) => (
                 <span key={b}>{b}</span>
               ))}

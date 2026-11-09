@@ -11,17 +11,17 @@ function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2.5 px-2" aria-label="Garminizer home">
       <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden>
-        <rect width="32" height="32" rx="9" fill="var(--accent)" />
+        <rect width="32" height="32" rx="4" fill="var(--accent)" />
         <path
           d="M7 20l5-7 4 5 3-4 6 8"
           fill="none"
-          stroke="#fff"
+          stroke="var(--on-action)"
           strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       </svg>
-      <span className="text-[15px] font-semibold tracking-tight text-ink">Garminizer</span>
+      <span className="text-base font-semibold tracking-tight text-ink">Garminizer</span>
     </Link>
   );
 }
@@ -33,9 +33,7 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Main" className="flex flex-col gap-5">
       {NAV.map((section) => (
         <div key={section.section}>
-          <p className="mb-1 px-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">
-            {section.section}
-          </p>
+          <p className="mb-1.5 px-3 text-eyebrow text-ink-3 uppercase">{section.section}</p>
           <ul className="flex flex-col gap-0.5">
             {section.items.map((item) => {
               const Icon = item.icon;
@@ -48,10 +46,10 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     aria-current={isActive ? "page" : undefined}
                     className={clsx(
-                      "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                      "relative flex items-center gap-3 rounded-control px-3 py-2 text-sm font-medium transition-colors",
                       isActive
-                        ? "bg-accent-soft text-ink"
-                        : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                        ? "bg-surface-2 text-ink before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:bg-accent"
+                        : "text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed",
                     )}
                   >
                     <Icon size={18} aria-hidden className={isActive ? "text-accent" : undefined} />
@@ -79,7 +77,7 @@ function Preferences() {
       <div
         role="radiogroup"
         aria-label="Theme"
-        className="inline-flex rounded-xl border border-line bg-surface-2 p-0.5"
+        className="inline-flex rounded-control border border-line bg-surface p-0.5"
       >
         {themes.map((t) => (
           <button
@@ -91,8 +89,10 @@ function Preferences() {
             title={t.label}
             onClick={() => setTheme(t.value)}
             className={clsx(
-              "rounded-[10px] p-1.5",
-              theme === t.value ? "bg-surface text-ink shadow-card" : "text-ink-3 hover:text-ink",
+              "rounded-chip p-1.5 transition-colors",
+              theme === t.value
+                ? "bg-selected text-on-selected"
+                : "text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed",
             )}
           >
             <t.icon size={15} aria-hidden />
@@ -102,7 +102,7 @@ function Preferences() {
       <div
         role="radiogroup"
         aria-label="Units"
-        className="inline-flex rounded-xl border border-line bg-surface-2 p-0.5"
+        className="inline-flex rounded-control border border-line bg-surface p-0.5"
       >
         {(["metric", "imperial"] as const).map((u) => (
           <button
@@ -112,8 +112,10 @@ function Preferences() {
             aria-checked={units === u}
             onClick={() => setUnits(u)}
             className={clsx(
-              "rounded-[10px] px-2 py-1 text-xs font-medium",
-              units === u ? "bg-surface text-ink shadow-card" : "text-ink-3 hover:text-ink",
+              "rounded-chip px-2 py-1 text-xs font-medium transition-colors",
+              units === u
+                ? "bg-selected text-on-selected"
+                : "text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed",
             )}
           >
             {u === "metric" ? "km" : "mi"}
@@ -167,17 +169,17 @@ export function Layout() {
             <button
               type="button"
               aria-label="Close navigation"
-              className="absolute inset-0 bg-black/40"
+              className="absolute inset-0 bg-scrim"
               onClick={() => setOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 flex w-72 flex-col gap-6 overflow-y-auto bg-surface px-3 py-5 shadow-card">
+            <div className="absolute inset-y-0 left-0 flex w-72 flex-col gap-6 overflow-y-auto border-r border-line bg-surface px-3 py-5 shadow-overlay">
               <div className="flex items-center justify-between">
                 <Logo />
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   aria-label="Close navigation"
-                  className="rounded-lg p-2 text-ink-2 hover:bg-surface-2"
+                  className="rounded-control p-2 text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed"
                 >
                   <X size={18} />
                 </button>
@@ -192,7 +194,7 @@ export function Layout() {
               type="button"
               onClick={() => setOpen(true)}
               aria-label="Open navigation"
-              className="rounded-lg p-2 text-ink-2 hover:bg-surface-2 lg:hidden"
+              className="rounded-control p-2 text-ink-2 hover:bg-hover hover:text-ink active:bg-pressed lg:hidden"
             >
               <Menu size={18} />
             </button>

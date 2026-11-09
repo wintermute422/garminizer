@@ -25,7 +25,7 @@ export function Meter({
     <div
       aria-hidden
       className={clsx(
-        "w-full overflow-hidden rounded-full",
+        "w-full overflow-hidden rounded-bar",
         !color && "bg-accent-soft",
         size === "sm" ? "h-1.5" : "h-2",
         className,
@@ -33,7 +33,7 @@ export function Meter({
       style={color ? { background: wash(color, 0.18) } : undefined}
     >
       <div
-        className="h-full rounded-full"
+        className="h-full rounded-bar"
         style={{ width: `${pct}%`, background: color ?? "var(--accent)" }}
       />
     </div>
@@ -78,9 +78,7 @@ export function BigValue({
 }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
-      <span className="text-[32px] leading-none font-semibold tracking-tight text-ink">
-        {value}
-      </span>
+      <span className="text-metric-md font-semibold text-ink">{value}</span>
       {unit && <span className="text-sm text-ink-3">{unit}</span>}
       {children}
     </div>
@@ -113,10 +111,10 @@ export function BandBullet({
     `${((Math.min(Math.max(v, min), max) - min) / (max - min || 1)) * 100}%`;
   return (
     <div aria-hidden className="relative h-6">
-      <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-surface-3" />
+      <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-bar bg-surface-3" />
       {bandLow !== null && bandHigh !== null && (
         <div
-          className="absolute top-1/2 h-3 -translate-y-1/2 rounded-full"
+          className="absolute top-1/2 h-3 -translate-y-1/2 rounded-bar"
           style={{
             left: pos(bandLow),
             width: `calc(${pos(bandHigh)} - ${pos(bandLow)})`,
@@ -127,7 +125,7 @@ export function BandBullet({
       )}
       {secondary !== null && secondary !== undefined && (
         <div
-          className="absolute top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink-2"
+          className="absolute top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-bar bg-ink-2"
           style={{ left: pos(secondary) }}
         />
       )}

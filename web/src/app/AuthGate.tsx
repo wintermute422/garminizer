@@ -22,11 +22,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <main className="flex min-h-screen items-center justify-center bg-page px-4">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm rounded-2xl border border-line bg-surface p-6 shadow-card"
+        className="w-full max-w-sm rounded-card border border-line border-t-2 border-t-rule bg-surface p-6 shadow-card"
       >
-        <h1 className="text-lg font-semibold text-ink">Garminizer</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-ink">Garminizer</h1>
         <p className="mt-1 text-sm text-ink-2">This dashboard is password protected.</p>
-        <label htmlFor="password" className="mt-5 block text-xs font-medium text-ink-2">
+        <label htmlFor="password" className="mt-5 block text-eyebrow text-ink-2 uppercase">
           Password
         </label>
         <input
@@ -35,7 +35,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm text-ink"
+          className="mt-1 w-full rounded-control border border-line-strong bg-surface px-3 py-2 text-sm text-ink"
           required
         />
         {login.error && (
@@ -46,7 +46,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <button
           type="submit"
           disabled={login.isPending}
-          className="mt-4 w-full rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="mt-4 w-full rounded-control bg-action px-3 py-2.5 text-sm font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-60"
         >
           Sign in
         </button>
