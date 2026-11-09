@@ -139,3 +139,7 @@ progress.md's "Next step".
   (unless "Keep my email addresses private" is on); the repo-local identity does not apply. PR #1's
   merge leaked them and the scan missed it (it read messages, not identities). Merge with
   `gh pr merge --rebase` and check `git log --format='%an <%ae> %cn <%ce>'` before publishing.
+- Opening a PR has the same effect: GitHub's test merge commit (`refs/pull/N/merge`, public on a
+  public repo) is authored with the account's primary e-mail. PR #7's CI scan caught it. The
+  account now has "Keep my email addresses private" on (user, 2026-11-09); if a PR run flags
+  `ident:<merge sha>`, check that setting first — never exempt the merge ref from the scan.
