@@ -10,6 +10,7 @@ import {
   dayPoint,
   dayTitle,
   dayTooltip,
+  dayX,
   dotSize,
   dotStyle,
   GRID_WITH_LEGEND,
@@ -103,7 +104,7 @@ export function restingHrOption(rows: Day[], mode: Mode, ext: Extent): ChartOpti
         {
           ...line(
             "7-day mean",
-            rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
+            rows.map((r, i) => [dayX(r.day), mean7[i]]),
             col.hr,
           ),
           endLabel: endLabel(mode, n0),
@@ -118,7 +119,7 @@ export function restingHrOption(rows: Day[], mode: Mode, ext: Extent): ChartOpti
 
 export function hrvOption(rows: Day[], mode: Mode, ext: Extent): ChartOption {
   const col = measureColors(mode);
-  const t = rows.map((r) => dayPoint(r.day, 0)[0]);
+  const t = rows.map((r) => dayX(r.day));
   const band = rows.map((r) =>
     r.hrv_baseline_balanced_low_ms != null && r.hrv_baseline_balanced_upper_ms != null
       ? ([r.hrv_baseline_balanced_low_ms, r.hrv_baseline_balanced_upper_ms] as [number, number])
@@ -291,7 +292,7 @@ export function readinessOption(rows: Readiness[], mode: Mode, ext: Extent): Cha
 // ---------------------------------------------------------------- stress
 
 export function weekCentre(week: string): number {
-  return dayPoint(week, 0)[0] + 3 * DAY_MS;
+  return dayX(week) + 3 * DAY_MS;
 }
 
 /** Extent covering both the day range and the weekly bars (the two stress charts align). */
@@ -349,7 +350,7 @@ export function stressDailyOption(rows: Day[], mode: Mode, ext: Extent): ChartOp
         {
           ...line(
             "7-day mean",
-            rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
+            rows.map((r, i) => [dayX(r.day), mean7[i]]),
             col.stress,
           ),
           endLabel: endLabel(mode, n0),
@@ -445,7 +446,7 @@ export function bodyBatteryOption(rows: Day[], mode: Mode, ext: Extent): ChartOp
     series: [
       rangeBars(
         "Daily range",
-        ranged.map((r) => [dayPoint(r.day, 0)[0], r.body_battery_low, r.body_battery_high]),
+        ranged.map((r) => [dayX(r.day), r.body_battery_low, r.body_battery_high]),
         col.bodyBattery,
         mode,
         { band: DAY_MS, maxWidth: 12 },

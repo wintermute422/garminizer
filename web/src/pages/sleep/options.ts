@@ -9,6 +9,7 @@ import {
   dayAxis,
   dayPoint,
   dayTooltip,
+  dayX,
   dotSize,
   dotStyle,
   GRID_WITH_LEGEND,
@@ -60,7 +61,7 @@ export function asleep(n: Night): number | null {
 
 function selection(selected: string | null, mode: Mode): Obj | undefined {
   if (!selected) return undefined;
-  const t = dayPoint(selected, 0)[0];
+  const t = dayX(selected);
   return {
     silent: true,
     itemStyle: { color: CHROME[mode].wash },
@@ -220,7 +221,7 @@ export function scoreOption(rows: Night[], mode: Mode, ext: Extent): ChartOption
       ...cased(
         line(
           "7-night mean",
-          rows.map((r, i) => [dayPoint(r.day, 0)[0], mean7[i]]),
+          rows.map((r, i) => [dayX(r.day), mean7[i]]),
           col.sleep,
         ),
         mode,
@@ -245,7 +246,7 @@ function clockBounds(values: number[], step = 60): { min: number; max: number } 
 export function scheduleOption(rows: Night[], mode: Mode, ext: Extent): ChartOption {
   const col = measureColors(mode);
   const timed = rows.filter((r) => r.bedtime_min != null && r.waketime_min != null);
-  const point = (r: Night) => [dayPoint(r.day, 0)[0], r.bedtime_min, r.waketime_min];
+  const point = (r: Night) => [dayX(r.day), r.bedtime_min, r.waketime_min];
   const all = timed.flatMap((r) => [r.bedtime_min!, r.waketime_min!]);
   const step = Math.max(...all) - Math.min(...all) > 13 * 60 ? 180 : 120;
   const b = clockBounds(all, step);

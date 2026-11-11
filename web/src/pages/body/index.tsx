@@ -19,8 +19,8 @@ import {
   dayAxis,
   dayExtent,
   dayOfPoint,
-  dayPoint,
   dayTitle,
+  dayX,
   dotSize,
   dotStyle,
   GRID_WITH_LEGEND,
@@ -70,7 +70,7 @@ function place<T extends { measured_at: string }>(
   return items.map((item) => {
     const w = wall(item.measured_at);
     const day = new Date(w).toISOString().slice(0, 10);
-    return { item, day, wall: w, x: dayPoint(day, 0)[0] };
+    return { item, day, wall: w, x: dayX(day) };
   });
 }
 
@@ -274,14 +274,8 @@ function Tiles({
   const latest = data.latest;
   const unit = units === "metric" ? "kg" : "lb";
   const wv = (kg: number) => weightValue(kg, units);
-  const weightTrend: [number, number | null][] = data.trend.map((t) => [
-    dayPoint(t.day, 0)[0],
-    t.weight_kg,
-  ]);
-  const fatTrend: [number, number | null][] = data.trend.map((t) => [
-    dayPoint(t.day, 0)[0],
-    t.body_fat_pct,
-  ]);
+  const weightTrend: [number, number | null][] = data.trend.map((t) => [dayX(t.day), t.weight_kg]);
+  const fatTrend: [number, number | null][] = data.trend.map((t) => [dayX(t.day), t.body_fat_pct]);
   const bmiTrend = trendOf(points, (w) => w.bmi);
   const muscleTrend = trendOf(points, (w) => w.muscle_mass_kg);
   const w = lastOf(weightTrend);
@@ -468,11 +462,11 @@ export default function BodyPage() {
     const unit = units === "metric" ? "kg" : "lb";
     const kg = (v: number | null) => (v == null ? null : weightValue(v, units));
     const weightTrend: [number, number | null][] = q.data.trend.map((t) => [
-      dayPoint(t.day, 0)[0],
+      dayX(t.day),
       kg(t.weight_kg),
     ]);
     const fatTrend: [number, number | null][] = q.data.trend.map((t) => [
-      dayPoint(t.day, 0)[0],
+      dayX(t.day),
       t.body_fat_pct,
     ]);
     const has = (f: (w: WeighIn) => number | null) => points.some((p) => f(p.item) != null);
