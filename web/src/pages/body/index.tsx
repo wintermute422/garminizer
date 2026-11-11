@@ -539,6 +539,7 @@ export default function BodyPage() {
                 {built.weight ? (
                   <Chart
                     option={built.weight}
+                    zoom
                     height={280}
                     ariaLabel="Weigh-ins with 7-day weight trend"
                   />
@@ -554,6 +555,7 @@ export default function BodyPage() {
                     {built.fat ? (
                       <Chart
                         option={built.fat}
+                        zoom
                         height={220}
                         ariaLabel="Body fat percentage per weigh-in with 7-day trend"
                       />
@@ -567,6 +569,7 @@ export default function BodyPage() {
                     {built.muscle ? (
                       <Chart
                         option={built.muscle}
+                        zoom
                         height={220}
                         ariaLabel="Muscle mass per weigh-in with 7-day trend"
                       />
@@ -586,6 +589,7 @@ export default function BodyPage() {
                   >
                     <Chart
                       option={built.pressure}
+                      zoom
                       height={296}
                       ariaLabel="Blood pressure readings, diastolic to systolic"
                     />

@@ -117,7 +117,12 @@ function LifetimeChart({
   }, [activities, item, color, mode, units]);
   if (!option) return <EmptyState title="No distance recorded with this item" />;
   return (
-    <Chart option={option} height={230} ariaLabel={`Cumulative distance of ${gearName(item)}`} />
+    <Chart
+      option={option}
+      zoom
+      height={230}
+      ariaLabel={`Cumulative distance of ${gearName(item)}`}
+    />
   );
 }
 

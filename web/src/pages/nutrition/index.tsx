@@ -447,6 +447,7 @@ function NutritionBody({ s, points }: { s: Summary; points: Point[] }) {
           </div>
           <Chart
             option={intakeOption(points, s, mode, ext)}
+            zoom
             height={240}
             ariaLabel="Daily intake against Garmin's total burn"
             onEvents={{
@@ -467,6 +468,7 @@ function NutritionBody({ s, points }: { s: Summary; points: Point[] }) {
           </div>
           <Chart
             option={balanceOption(points, mode, ext)}
+            zoom
             height={240}
             ariaLabel="Daily energy balance"
           />
@@ -479,6 +481,7 @@ function NutritionBody({ s, points }: { s: Summary; points: Point[] }) {
           </div>
           <Chart
             option={macroOption(points, mode, ext, dense)}
+            zoom
             height={240}
             ariaLabel="Energy from protein, carbs and fat per day"
           />
@@ -488,7 +491,7 @@ function NutritionBody({ s, points }: { s: Summary; points: Point[] }) {
             title="Protein per kg body weight"
             subtitle={`g/kg per logged day, using your latest weight (${fmtNumber(s.weight_kg, 1)} kg)`}
           >
-            <Chart option={protein} height={268} ariaLabel="Protein per kg body weight" />
+            <Chart option={protein} zoom height={268} ariaLabel="Protein per kg body weight" />
           </Card>
         ) : (
           <Card title="Protein per kg body weight">

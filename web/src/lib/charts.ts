@@ -544,3 +544,139 @@ export function niceScale(
   if (opts.even && Math.round((max - min) / interval) % 2 === 1) max += interval;
   return { min, max, interval };
 }
+
+// ---------------------------------------------------------------- zoomable time axes
+
+/** Extra height a zoomable chart gets for its slider row (the plot keeps its size). */
+export const ZOOM_SLIDER_SPACE = 34;
+
+/** Smallest window a day-based chart can be zoomed into. */
+export const ZOOM_MIN_SPAN = 3 * DAY_MS;
+
+/**
+ * Make the first x-axis of `option` zoomable through a slider under the plot (drag the window
+ * or its handles, brush on the track); `<Chart zoom>` adds ctrl+wheel / trackpad pinch. The
+ * y-axis follows the visible data (`filterMode`). `slider: false` keeps the slider hidden: for
+ * charts linked (`group`) to one that shows it, so the whole group zooms together.
+ *
+ * No `inside` dataZoom: its roam controller swallows every wheel and touch drag over the plot
+ * (whatever `zoomOnMouseWheel` says), so the page could no longer scroll past a chart.
+ */
+export function withZoom(option: Obj, mode: Mode, slider = true): Obj {
+  const grid = option.grid;
+  const g = grid && !Array.isArray(grid) ? (grid as Obj) : null;
+  const left = (g?.left as number | undefined) ?? GRID.left;
+  const right = (g?.right as number | undefined) ?? GRID.right;
+  const bottom = (g?.bottom as number | undefined) ?? GRID.bottom;
+  const xAxis = Array.isArray(option.xAxis) ? (option.xAxis[0] as Obj) : (option.xAxis as Obj);
+  const isTime = xAxis?.type === "time";
+  const c = CHROME[mode];
+  const zoom = {
+    type: "slider",
+    show: slider,
+    xAxisIndex: 0,
+    filterMode: "filter",
+    ...(isTime ? { minValueSpan: ZOOM_MIN_SPAN } : {}),
+  };
+  if (!slider) return { ...option, dataZoom: [zoom] };
+  return {
+    ...option,
+    // ECharts 6 lets axis labels hang below the grid down to `outerBounds`: lift both.
+    ...(g
+      ? {
+          grid: {
+            ...g,
+            bottom: bottom + ZOOM_SLIDER_SPACE,
+            outerBounds: {
+              left: 0,
+              right: 0,
+              top: 0,
+              ...(g.outerBounds as Obj),
+              bottom: ZOOM_SLIDER_SPACE,
+            },
+          },
+        }
+      : {}),
+    dataZoom: [
+      {
+        ...zoom,
+        left: typeof left === "number" ? left + 8 : left,
+        right: typeof right === "number" ? right + 8 : right,
+        bottom: 6,
+        height: 18,
+        showDataShadow: false,
+        borderColor: c.axis,
+        backgroundColor: "transparent",
+        fillerColor: c.zoom,
+        handleSize: "110%",
+        handleStyle: { color: c.surface, borderColor: c.muted },
+        moveHandleSize: 5,
+        moveHandleStyle: { color: c.axis, opacity: 1 },
+        emphasis: {
+          handleStyle: { borderColor: c.text2 },
+          moveHandleStyle: { color: c.muted },
+        },
+        textStyle: { color: c.muted, fontSize: 11 },
+        ...(isTime
+          ? {
+              labelFormatter: (v: number) =>
+                new Date(v).toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                  year: "2-digit",
+                }),
+            }
+          : {}),
+      },
+    ],
+  };
+}
+
+/** The visible window of a zoomable chart, as read back from `getOption().dataZoom`. */
+export interface ZoomWindow {
+  /** Percent of the full axis. */
+  start: number;
+  end: number;
+  startValue?: number;
+  endValue?: number;
+}
+
+/** True when the window shows less than the whole axis. */
+export function isZoomed(w: ZoomWindow | undefined): boolean {
+  return !!w && (w.start > 0.01 || w.end < 99.99);
+}
+
+/**
+ * New window after a ctrl+wheel step at axis value `x`: `factor` < 1 zooms in, > 1 out; the
+ * value under the pointer stays put. Clamped to the full axis and to `minSpan`.
+ */
+export function zoomAround(
+  w: ZoomWindow,
+  x: number,
+  factor: number,
+  minSpan = 0,
+): { startValue: number; endValue: number } | null {
+  if (w.startValue == null || w.endValue == null || w.end <= w.start) return null;
+  const shown = w.endValue - w.startValue;
+  const full = (shown * 100) / (w.end - w.start);
+  const lo = w.startValue - (w.start / 100) * full;
+  const hi = lo + full;
+  const span = Math.min(full, Math.max(minSpan, shown * factor));
+  const t = shown > 0 ? Math.min(1, Math.max(0, (x - w.startValue) / shown)) : 0.5;
+  let start = x - t * span;
+  start = Math.min(hi - span, Math.max(lo, start));
+  return { startValue: start, endValue: start + span };
+}
+
+/**
+ * Tick patch for a `dayAxis` x-axis after zooming: the calm weekly/monthly ticks of the visible
+ * window (they were computed for the full range). Null when the axis is not a `dayAxis`.
+ */
+export function zoomedDayTicks(option: Obj, w: ZoomWindow): Obj | null {
+  const xAxis = Array.isArray(option.xAxis) ? (option.xAxis[0] as Obj) : (option.xAxis as Obj);
+  const label = xAxis?.axisLabel as Obj | undefined;
+  if (xAxis?.type !== "time" || !Array.isArray(label?.customValues)) return null;
+  if (w.startValue == null || w.endValue == null) return null;
+  const a = dayAxis(w.startValue, w.endValue);
+  return { xAxis: { axisTick: a.axisTick, axisLabel: a.axisLabel } };
+}

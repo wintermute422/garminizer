@@ -119,6 +119,7 @@ export function Vo2Card({ data }: { data: Series["vo2max"] }) {
           )}
           <Chart
             option={option}
+            zoom
             height={260}
             ariaLabel="VO2max for running and cycling over time"
           />
@@ -201,7 +202,12 @@ export function EnduranceCard({ data }: { data: Series["endurance"] }) {
       {points.length === 0 ? (
         <EmptyState title="No endurance score in this period" />
       ) : (
-        <Chart option={option} height={260} ariaLabel="Endurance score with classification bands" />
+        <Chart
+          option={option}
+          zoom
+          height={260}
+          ariaLabel="Endurance score with classification bands"
+        />
       )}
     </Card>
   );
@@ -299,6 +305,7 @@ export function RaceCard({
           ) : (
             <Chart
               option={option}
+              zoom
               height={250}
               ariaLabel={`Predicted ${race.label} finish time over time`}
             />
@@ -388,6 +395,7 @@ export function HillCard({ data }: { data: Series["hill"] }) {
           </div>
           <Chart
             option={option}
+            zoom
             height={240}
             ariaLabel="Hill score with endurance and strength components over time"
           />
@@ -430,7 +438,12 @@ export function FitnessAgeCard({ data, age }: { data: Series["fitness_age"]; age
       {points.length === 0 ? (
         <EmptyState title="No fitness age in this period" />
       ) : (
-        <Chart option={option} height={260} ariaLabel="Fitness age over time against real age" />
+        <Chart
+          option={option}
+          zoom
+          height={260}
+          ariaLabel="Fitness age over time against real age"
+        />
       )}
     </Card>
   );
@@ -582,6 +595,7 @@ export function EfficiencyCard({ data }: { data: Efficiency[] }) {
             </div>
             <Chart
               option={efOption}
+              zoom
               height={260}
               ariaLabel="Efficiency factor per run with a rolling average"
               onEvents={{

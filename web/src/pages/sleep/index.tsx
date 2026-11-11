@@ -319,6 +319,7 @@ export default function SleepPage() {
                 {stages ? (
                   <Chart
                     option={stages}
+                    zoom
                     height={260}
                     ariaLabel="Deep, light, REM and awake time per night with sleep need"
                     onReady={onStagesReady}
@@ -340,7 +341,7 @@ export default function SleepPage() {
                 subtitle="Nightly score and 7-night mean with Garmin's quality bands"
               >
                 {score ? (
-                  <Chart option={score} height={240} ariaLabel="Sleep score per night" />
+                  <Chart option={score} zoom height={240} ariaLabel="Sleep score per night" />
                 ) : (
                   <EmptyState title="No sleep scores in this period" />
                 )}
@@ -352,6 +353,7 @@ export default function SleepPage() {
                 {schedule ? (
                   <Chart
                     option={schedule}
+                    zoom
                     height={240}
                     ariaLabel="Bedtime to wake time per night, weekday and weekend nights"
                   />
