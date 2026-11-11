@@ -4,32 +4,31 @@ import type { ChartOption } from "@/components/Chart";
 import {
   axisTooltip,
   bars,
+  cased,
+  DAY_MS,
+  dayAxis,
   dayPoint,
+  dayTooltip,
+  dotSize,
+  dotStyle,
   GRID_WITH_LEGEND,
   itemTooltip,
   legend,
-  line,
-  scatter,
-  tooltipRow,
-  tooltipTitle,
-} from "@/lib/charts";
-import { DASH, fmtClockFromNoon, fmtDate, fmtHours, fmtNumber, smooth } from "@/lib/format";
-import { CHROME, SLEEP_STAGES, ZONE_RAMP, type Mode, barEnd } from "@/lib/tokens";
-import {
-  cased,
-  DAY_MS,
-  dotSize,
-  dotStyle,
   legendItems,
-  dayAxis,
-  dayOfPoint,
-  measureColors,
+  line,
+  outlineFill,
   rangeBars,
-  roundVisibleTops,
+  roundStackTops,
+  scatter,
   smallTitle,
   tooltipMuted,
-  outlineFill,
-} from "../health/util";
+  tooltipRow,
+  tooltipTitle,
+  type Extent,
+} from "@/lib/charts";
+import { DASH, fmtClockFromNoon, fmtDate, fmtHours, fmtNumber, smooth } from "@/lib/format";
+import { mean } from "@/lib/stats";
+import { CHROME, measureColors, SLEEP_STAGES, ZONE_RAMP, type Mode, barEnd } from "@/lib/tokens";
 
 type Night = Schemas["SleepNight"];
 type Stats = Schemas["SleepStats"];
@@ -42,15 +41,6 @@ export const STAGES = [
   { key: "awake", label: "Awake", field: "awake_s" },
 ] as const;
 
-export interface Extent {
-  min: number;
-  max: number;
-}
-
-export function nightExtent(start: string, end: string): Extent {
-  return { min: dayPoint(start, 0)[0] - DAY_MS / 2, max: dayPoint(end, 0)[0] + DAY_MS / 2 };
-}
-
 /** Weekend = nights that end on Saturday or Sunday (same rule as /api/sleep/stats). */
 export function isWeekend(day: string): boolean {
   const d = new Date(`${day}T12:00:00`).getDay();
@@ -61,21 +51,7 @@ export function nightTitle(day: string): string {
   return `Night to ${fmtDate(day, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-function byTime(rows: readonly Night[]): Map<number, Night> {
-  return new Map(rows.map((r) => [dayPoint(r.day, 0)[0], r]));
-}
-
-function rowAt(params: unknown, map: Map<number, Night>): Night | undefined {
-  const arr = (Array.isArray(params) ? params : [params]) as { value?: unknown }[];
-  for (const p of arr) {
-    const v = p.value;
-    if (Array.isArray(v) && typeof v[0] === "number") {
-      const hit = map.get(v[0]);
-      if (hit) return hit;
-    }
-  }
-  return undefined;
-}
+const rowDay = (r: Night) => r.day;
 
 export function asleep(n: Night): number | null {
   const parts = [n.deep_s, n.light_s, n.rem_s];
@@ -102,7 +78,6 @@ export function stagesOption(
   dense: boolean,
 ): ChartOption {
   const colors = SLEEP_STAGES[mode];
-  const map = byTime(rows);
   const series = STAGES.map((s) =>
     bars(
       s.label,
@@ -116,37 +91,37 @@ export function stagesOption(
   const gapless = dense
     ? series.map((x) => ({ ...x, itemStyle: { ...(x.itemStyle as Obj), borderWidth: 0 } }))
     : series;
-  const rounded = roundVisibleTops(gapless);
+  const rounded = roundStackTops(gapless, mode);
   rounded[0] = { ...rounded[0], markArea: selection(selected, mode) };
   return {
     grid: GRID_WITH_LEGEND,
     legend: legend(),
     tooltip: {
-      ...axisTooltip((p) => {
-        const r = rowAt(p, map);
-        if (!r) return "";
-        const total = (asleep(r) ?? 0) + (r.awake_s ?? 0) || 1;
-        return (
-          tooltipTitle(nightTitle(r.day)) +
-          STAGES.map((s) => {
-            const v = r[s.field];
-            return tooltipRow(
-              colors[s.key],
-              s.label,
-              v == null ? DASH : `${fmtHours(v)} · ${fmtNumber((v / total) * 100)} %`,
-            );
-          })
-            .reverse()
-            .join("") +
-          tooltipMuted("Asleep", fmtHours(asleep(r)), mode) +
-          tooltipMuted(
-            "Sleep need",
-            r.sleep_need_min ? fmtHours(r.sleep_need_min * 60) : DASH,
-            mode,
-          ) +
-          tooltipMuted("Score", r.score == null ? DASH : `${r.score}`, mode)
-        );
-      }),
+      ...axisTooltip(
+        dayTooltip(rows, rowDay, (r) => {
+          const total = (asleep(r) ?? 0) + (r.awake_s ?? 0) || 1;
+          return (
+            tooltipTitle(nightTitle(r.day)) +
+            STAGES.map((s) => {
+              const v = r[s.field];
+              return tooltipRow(
+                colors[s.key],
+                s.label,
+                v == null ? DASH : `${fmtHours(v)} · ${fmtNumber((v / total) * 100)} %`,
+              );
+            })
+              .reverse()
+              .join("") +
+            tooltipMuted("Asleep", fmtHours(asleep(r)), mode) +
+            tooltipMuted(
+              "Sleep need",
+              r.sleep_need_min ? fmtHours(r.sleep_need_min * 60) : DASH,
+              mode,
+            ) +
+            tooltipMuted("Score", r.score == null ? DASH : `${r.score}`, mode)
+          );
+        }),
+      ),
       axisPointer: { type: "shadow" },
     },
     xAxis: dayAxis(ext.min, ext.max),
@@ -183,7 +158,6 @@ const QUALITY_LINES = [
 
 export function scoreOption(rows: Night[], mode: Mode, ext: Extent): ChartOption {
   const col = measureColors(mode);
-  const map = byTime(rows);
   const mean7 = smooth(
     rows.map((r) => r.score),
     7,
@@ -199,27 +173,26 @@ export function scoreOption(rows: Night[], mode: Mode, ext: Extent): ChartOption
         ["7-night mean", "line"],
       ]),
     },
-    tooltip: axisTooltip((p) => {
-      const r = rowAt(p, map);
-      if (!r) return "";
-      const i = rows.indexOf(r);
-      return (
-        tooltipTitle(nightTitle(r.day)) +
-        tooltipRow(col.sleep, "Score", r.score == null ? DASH : `${r.score}`) +
-        tooltipRow(col.sleep, "7-night mean", mean7[i] == null ? DASH : fmtNumber(mean7[i], 1)) +
-        tooltipMuted("Quality", r.score_quality ? titleWord(r.score_quality) : DASH, mode) +
-        tooltipMuted(
-          "Duration · deep · REM",
-          `${r.score_duration ?? DASH} · ${r.score_deep ?? DASH} · ${r.score_rem ?? DASH}`,
-          mode,
-        ) +
-        tooltipMuted(
-          "Awakenings · stress",
-          `${r.score_awakenings ?? DASH} · ${r.score_stress ?? DASH}`,
-          mode,
-        )
-      );
-    }),
+    tooltip: axisTooltip(
+      dayTooltip(rows, rowDay, (r, i) => {
+        return (
+          tooltipTitle(nightTitle(r.day)) +
+          tooltipRow(col.sleep, "Score", r.score == null ? DASH : `${r.score}`) +
+          tooltipRow(col.sleep, "7-night mean", mean7[i] == null ? DASH : fmtNumber(mean7[i], 1)) +
+          tooltipMuted("Quality", r.score_quality ? titleWord(r.score_quality) : DASH, mode) +
+          tooltipMuted(
+            "Duration · deep · REM",
+            `${r.score_duration ?? DASH} · ${r.score_deep ?? DASH} · ${r.score_rem ?? DASH}`,
+            mode,
+          ) +
+          tooltipMuted(
+            "Awakenings · stress",
+            `${r.score_awakenings ?? DASH} · ${r.score_stress ?? DASH}`,
+            mode,
+          )
+        );
+      }),
+    ),
     xAxis: dayAxis(ext.min, ext.max),
     yAxis: {
       type: "value",
@@ -271,7 +244,6 @@ function clockBounds(values: number[], step = 60): { min: number; max: number } 
 
 export function scheduleOption(rows: Night[], mode: Mode, ext: Extent): ChartOption {
   const col = measureColors(mode);
-  const map = byTime(rows);
   const timed = rows.filter((r) => r.bedtime_min != null && r.waketime_min != null);
   const point = (r: Night) => [dayPoint(r.day, 0)[0], r.bedtime_min, r.waketime_min];
   const all = timed.flatMap((r) => [r.bedtime_min!, r.waketime_min!]);
@@ -286,28 +258,24 @@ export function scheduleOption(rows: Night[], mode: Mode, ext: Extent): ChartOpt
   return {
     grid: { ...GRID_WITH_LEGEND, right: 72 },
     legend: legend(),
-    tooltip: axisTooltip((p) => {
-      const arr = (Array.isArray(p) ? p : [p]) as { axisValue?: number }[];
-      const x = arr[0]?.axisValue;
-      const r =
-        rowAt(p, map) ??
-        (typeof x === "number" ? map.get(dayPoint(dayOfPoint(x), 0)[0]) : undefined);
-      if (!r) return "";
-      const inBed =
-        r.bedtime_min != null && r.waketime_min != null
-          ? fmtHours((r.waketime_min - r.bedtime_min) * 60)
-          : DASH;
-      return (
-        tooltipTitle(nightTitle(r.day)) +
-        tooltipRow(
-          isWeekend(r.day) ? col.weekend : col.weekday,
-          isWeekend(r.day) ? "Weekend night" : "Weekday night",
-          `${fmtClockFromNoon(r.bedtime_min)} → ${fmtClockFromNoon(r.waketime_min)}`,
-        ) +
-        tooltipMuted("In bed", inBed, mode) +
-        tooltipMuted("Asleep", fmtHours(asleep(r)), mode)
-      );
-    }),
+    tooltip: axisTooltip(
+      dayTooltip(rows, rowDay, (r) => {
+        const inBed =
+          r.bedtime_min != null && r.waketime_min != null
+            ? fmtHours((r.waketime_min - r.bedtime_min) * 60)
+            : DASH;
+        return (
+          tooltipTitle(nightTitle(r.day)) +
+          tooltipRow(
+            isWeekend(r.day) ? col.weekend : col.weekday,
+            isWeekend(r.day) ? "Weekend night" : "Weekday night",
+            `${fmtClockFromNoon(r.bedtime_min)} → ${fmtClockFromNoon(r.waketime_min)}`,
+          ) +
+          tooltipMuted("In bed", inBed, mode) +
+          tooltipMuted("Asleep", fmtHours(asleep(r)), mode)
+        );
+      }),
+    ),
     xAxis: dayAxis(ext.min, ext.max),
     yAxis: {
       type: "value",
@@ -345,10 +313,6 @@ export function scheduleOption(rows: Night[], mode: Mode, ext: Extent): ChartOpt
       ),
     ],
   };
-}
-
-function mean(values: number[]): number | null {
-  return values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
 }
 
 // ---------------------------------------------------------------- weekday vs weekend

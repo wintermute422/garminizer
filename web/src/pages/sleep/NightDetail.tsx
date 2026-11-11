@@ -3,14 +3,14 @@ import { useMemo } from "react";
 import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { Card, EmptyState, ErrorState, Skeleton, StatusPill } from "@/components/ui";
-import { axisTooltip, line, tooltipRow } from "@/lib/charts";
+import { axisTooltip, line, smallTitle, tooltipRow } from "@/lib/charts";
 import { DASH, fmtDate, fmtHours, fmtNumber, signed, titleCase } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { addDays } from "@/lib/range";
-import { CHROME, SLEEP_STAGES, type Mode } from "@/lib/tokens";
+import { CHROME, measureColors, SLEEP_STAGES, type Mode } from "@/lib/tokens";
 import { hrvState, sleepState } from "@/lib/status";
-import { FactRow, Stepper } from "../health/kit";
-import { HOUR_MS, fmtWallTime, measureColors, smallTitle, wallClock } from "../health/util";
+import { FactRow, Stepper } from "@/components/kit";
+import { HOUR_MS, fmtWallTime, wallClock } from "@/lib/wallClock";
 import { asleep, STAGES } from "./options";
 
 type Detail = Schemas["SleepDetail"];
@@ -68,8 +68,7 @@ function hypnogramOption(
     useUTC: true,
     title: smallTitle("Sleep stages", mode),
     grid: { ...GRID, top: 32, bottom: 6 },
-    tooltip: axisTooltip((p) => {
-      const arr = (Array.isArray(p) ? p : [p]) as { axisValue?: number; value?: unknown }[];
+    tooltip: axisTooltip((arr) => {
       const v = arr[0]?.value;
       const x = Array.isArray(v) && typeof v[0] === "number" ? v[0] : arr[0]?.axisValue;
       if (typeof x !== "number") return "";
@@ -178,8 +177,7 @@ function traceOption(
     title: smallTitle(`${t.label} (${t.unit})`, mode),
     // Top padding keeps the panel title clear of the first tick label.
     grid: { ...GRID, top: 32, bottom: last ? 24 : 6 },
-    tooltip: axisTooltip((p) => {
-      const arr = p as { value: [number, number | null] }[];
+    tooltip: axisTooltip<{ value: [number, number | null] }>((arr) => {
       const v = arr[0]?.value;
       if (!v) return "";
       return `<div style="color:${CHROME[mode].muted};margin-bottom:4px">${fmtWallTime(v[0])}</div>${tooltipRow(

@@ -3,8 +3,9 @@
  * bars ≤ 24px with 4px rounded data-ends, 2px surface gaps in stacks, recessive axes,
  * crosshair tooltips, one y-axis per chart (never dual axes).
  */
+import { fmtDate } from "./format";
 import { addDays } from "./range";
-import { CHROME, type Mode, barEnd, wash } from "./tokens";
+import { CHROME, MARK_RADIUS, type Mode, barEnd, wash } from "./tokens";
 
 type Obj = Record<string, unknown>;
 
@@ -35,18 +36,45 @@ export function valueYAxis(name?: string, formatter?: (v: number) => string, ext
   };
 }
 
-export function axisTooltip(formatter?: (params: unknown) => string, extra: Obj = {}): Obj {
+/** The fields of an ECharts tooltip parameter (one hovered point) that formatters read. */
+export interface TipParam {
+  value?: unknown;
+  data?: unknown;
+  axisValue?: number;
+  dataIndex?: number;
+  seriesIndex?: number;
+  seriesId?: string;
+  seriesName?: string;
+  name?: string;
+  color?: string;
+}
+
+/** Tooltip params as an array (axis triggers pass one per series, item triggers a single one). */
+export function asParams<P = TipParam>(params: unknown): P[] {
+  if (Array.isArray(params)) return params as P[];
+  return params == null ? [] : [params as P];
+}
+
+/** Crosshair tooltip; the formatter always gets the hovered points as an array. */
+export function axisTooltip<P = TipParam>(
+  formatter?: (params: P[]) => string,
+  extra: Obj = {},
+): Obj {
   return {
     trigger: "axis",
     axisPointer: { type: "line" },
     confine: true,
-    ...(formatter ? { formatter } : {}),
+    ...(formatter ? { formatter: (p: unknown) => formatter(asParams<P>(p)) } : {}),
     ...extra,
   };
 }
 
-export function itemTooltip(formatter?: (params: unknown) => string): Obj {
-  return { trigger: "item", confine: true, ...(formatter ? { formatter } : {}) };
+export function itemTooltip<P = TipParam>(formatter?: (param: P) => string): Obj {
+  return {
+    trigger: "item",
+    confine: true,
+    ...(formatter ? { formatter: (p: unknown) => formatter(p as P) } : {}),
+  };
 }
 
 export function line(
@@ -158,12 +186,19 @@ export function tooltipTitle(text: string): string {
   return `<div style="font-weight:600;margin-bottom:6px">${text}</div>`;
 }
 
-/** [epochMillis, value] pairs from ISO days (noon local avoids DST edge cases). */
-export function dayPoint(day: string, value: number | null | undefined): [number, number | null] {
-  return [new Date(`${day}T12:00:00`).getTime(), value ?? null];
-}
+// ---------------------------------------------------------------- day-based time axes
 
 export const DAY_MS = 86_400_000;
+
+/** Chart x of an ISO day: its local noon (a day mark never lands on a DST-shifted midnight). */
+export function dayX(day: string): number {
+  return new Date(`${day}T12:00:00`).getTime();
+}
+
+/** [epochMillis, value] pairs from ISO days (noon local avoids DST edge cases). */
+export function dayPoint(day: string, value: number | null | undefined): [number, number | null] {
+  return [dayX(day), value ?? null];
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -171,6 +206,67 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export function dayOfPoint(ms: number): string {
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** x range of a time axis. */
+export interface Extent {
+  min: number;
+  max: number;
+}
+
+/**
+ * Time-axis extent of the days `start`…`end`. "half" (default) pads half a day around the
+ * first and last noon marks so bars are not clipped; "midnight" runs from local midnight of
+ * `start` to the midnight after `end` (charts whose marks span whole days).
+ */
+export function dayExtent(
+  start: string,
+  end: string,
+  bounds: "half" | "midnight" = "half",
+): Extent {
+  if (bounds === "midnight")
+    return {
+      min: new Date(`${start}T00:00:00`).getTime(),
+      max: new Date(`${addDays(end, 1)}T00:00:00`).getTime(),
+    };
+  return { min: dayX(start) - DAY_MS / 2, max: dayX(end) + DAY_MS / 2 };
+}
+
+/** Tooltip title of a day: weekday, day, month and year. */
+export function dayTitle(day: string): string {
+  return tooltipTitle(
+    fmtDate(day, { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
+  );
+}
+
+/**
+ * Row under an axis tooltip of a one-row-per-day chart (`byX`: rows keyed by `dayX`): the
+ * first hovered point whose [x, …] value is a known day, else the day under the axis pointer.
+ */
+export function rowAt<T>(params: unknown, byX: ReadonlyMap<number, T>): T | undefined {
+  const arr = asParams(params);
+  for (const p of arr) {
+    const v = p.value;
+    if (Array.isArray(v) && typeof v[0] === "number" && byX.has(v[0])) return byX.get(v[0]);
+  }
+  const x = arr[0]?.axisValue;
+  return typeof x === "number" ? byX.get(dayX(dayOfPoint(x))) : undefined;
+}
+
+/**
+ * Axis-tooltip formatter for a chart with one row per day: finds the hovered row (`rowAt`) and
+ * renders it with its index, or shows nothing between days.
+ */
+export function dayTooltip<T>(
+  rows: readonly T[],
+  dayOf: (row: T) => string,
+  render: (row: T, index: number) => string,
+): (params: unknown) => string {
+  const byX = new Map(rows.map((r, i) => [dayX(dayOf(r)), i]));
+  return (params) => {
+    const i = rowAt(params, byX);
+    return i === undefined ? "" : render(rows[i]!, i);
+  };
 }
 
 /** Monday of the ISO week that contains `day`. */
@@ -227,4 +323,224 @@ export function dayAxis(min: number, max: number): Obj {
     axisTick: { show: false, customValues: values },
     axisLabel: { customValues: values, formatter: fmt, hideOverlap: true },
   };
+}
+
+// ---------------------------------------------------------------- marks for daily series
+
+/**
+ * Raw daily dots under a trend line: lighter than the line but still ≥ 3:1 against the card
+ * (a plain 40 % opacity sinks into the dark surface).
+ */
+export function dotStyle(color: string, mode: Mode): Obj {
+  return { color, opacity: mode === "dark" ? 0.85 : 0.75, borderWidth: 0 };
+}
+
+/**
+ * A trend line with a surface-coloured casing underneath, so it reads above dense dots.
+ * Returns [casing, line]; keep the casing out of the legend with `legend.data`.
+ */
+export function cased(lineSeries: Obj, mode: Mode): Obj[] {
+  const ls = (lineSeries.lineStyle as Obj | undefined) ?? {};
+  return [
+    {
+      type: "line",
+      name: CASING,
+      data: lineSeries.data,
+      symbol: "none",
+      silent: true,
+      connectNulls: false,
+      lineStyle: { color: CHROME[mode].surface, width: ((ls.width as number) ?? 2) + 3 },
+      itemStyle: { color: CHROME[mode].surface },
+      tooltip: { show: false },
+      z: 3,
+    },
+    { ...lineSeries, z: 4 },
+  ];
+}
+
+export const CASING = "casing";
+
+interface RenderApi {
+  value: (dim: number) => number;
+  coord: (v: number[]) => number[];
+  size: (v: number[]) => number[];
+}
+
+/**
+ * Floating bars from `lo` to `hi` (data `[x, lo, hi, ...]`), rounded at both data-ends.
+ * `band` is the x distance one bar may occupy (a day in ms, 1 on a category axis).
+ * `outline` draws a wash fill with a solid edge — the secondary encoding for a second group.
+ */
+export function rangeBars(
+  name: string,
+  data: unknown[],
+  color: string,
+  mode: Mode,
+  opts: {
+    band: number;
+    maxWidth?: number;
+    outline?: boolean;
+    horizontal?: boolean;
+    labels?: (lo: number, hi: number) => [string, string];
+    z?: number;
+  },
+): Obj {
+  const fill = opts.outline ? outlineFill(color, mode) : color;
+  return {
+    type: "custom",
+    name,
+    data,
+    z: opts.z ?? 2,
+    encode: opts.horizontal ? { y: 0, x: [1, 2] } : { x: 0, y: [1, 2] },
+    itemStyle: { color: fill, borderColor: color },
+    renderItem: (_params: unknown, api: RenderApi) => {
+      const x = api.value(0);
+      const lo = api.value(1);
+      const hi = api.value(2);
+      const a = opts.horizontal ? api.coord([lo, x]) : api.coord([x, lo]);
+      const b = opts.horizontal ? api.coord([hi, x]) : api.coord([x, hi]);
+      const bandPx = opts.horizontal
+        ? Math.abs(api.size([0, opts.band])[1] ?? 0)
+        : Math.abs(api.size([opts.band, 0])[0] ?? 0);
+      const w = Math.max(2, Math.min(opts.maxWidth ?? 14, bandPx * 0.62));
+      const ax = a[0]!;
+      const ay = a[1]!;
+      const bx = b[0]!;
+      const by = b[1]!;
+      const shape = opts.horizontal
+        ? { x: Math.min(ax, bx), y: ay - w / 2, width: Math.max(Math.abs(bx - ax), 2), height: w }
+        : { x: ax - w / 2, y: Math.min(ay, by), width: w, height: Math.max(Math.abs(by - ay), 2) };
+      const r = Math.min(w / 2, 4);
+      const rect = {
+        type: "rect",
+        shape: { ...shape, r },
+        style: {
+          fill,
+          stroke: opts.outline ? color : null,
+          lineWidth: opts.outline ? 1.5 : 0,
+        },
+      };
+      if (!opts.labels) return rect;
+      const [loText, hiText] = opts.labels(lo, hi);
+      const text = (t: string, px: number, py: number, align: string, vAlign: string) => ({
+        type: "text",
+        style: {
+          text: t,
+          x: px,
+          y: py,
+          align,
+          verticalAlign: vAlign,
+          fill: CHROME[mode].text2,
+          fontSize: 11,
+        },
+      });
+      // Each label sits beyond its own end of the bar (axes may be inverted).
+      const [first, second] = opts.horizontal
+        ? ax <= bx
+          ? [loText, hiText]
+          : [hiText, loText]
+        : ay <= by
+          ? [loText, hiText]
+          : [hiText, loText];
+      const children = opts.horizontal
+        ? [
+            rect,
+            text(first, Math.min(ax, bx) - 6, ay, "right", "middle"),
+            text(second, Math.max(ax, bx) + 6, ay, "left", "middle"),
+          ]
+        : [
+            rect,
+            text(first, ax, Math.min(ay, by) - 4, "center", "bottom"),
+            text(second, ax, Math.max(ay, by) + 4, "center", "top"),
+          ];
+      return { type: "group", children };
+    },
+  };
+}
+
+/**
+ * Fill of an outlined (secondary-encoded) mark: a strong enough wash that it reads as the hue on
+ * the dark card instead of a muddy brown, while the solid edge keeps it distinct from solid fills.
+ */
+export function outlineFill(color: string, mode: Mode): string {
+  return wash(color, mode === "dark" ? 0.6 : 0.3);
+}
+
+/** Title row of a small-multiple chart ("Heart rate (bpm)") in secondary ink. */
+export function smallTitle(text: string, mode: Mode): Obj {
+  return {
+    text,
+    left: 0,
+    top: 0,
+    textStyle: { fontSize: 12, fontWeight: 500, color: CHROME[mode].text2 },
+  };
+}
+
+/** Tooltip line without a swatch (for context values). */
+export function tooltipMuted(label: string, value: string, mode: Mode): string {
+  return `<div style="display:flex;justify-content:space-between;gap:12px;min-width:160px;color:${CHROME[mode].muted}"><span>${label}</span><span style="font-variant-numeric:tabular-nums">${value}</span></div>`;
+}
+
+/** Marker size that keeps long ranges from turning into a carpet of dots. */
+export function dotSize(points: number, base = 6): number {
+  return points > 240 ? base - 2 : points > 120 ? base - 1 : base;
+}
+
+const LINE_ICON = "path://M0,0H24V5H0Z";
+
+/** Legend entries whose icon matches the mark: dots for raw readings, a dash for lines. */
+export function legendItems(items: [string, "dot" | "line" | "area"][]): Obj[] {
+  return items.map(([name, kind]) => ({
+    name,
+    icon: kind === "dot" ? "circle" : kind === "line" ? LINE_ICON : "roundRect",
+  }));
+}
+
+/** Text label halo so reference labels stay legible where they cross data. */
+export function halo(mode: Mode): Obj {
+  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: MARK_RADIUS };
+}
+
+/** Reference line whose label sits on a surface-coloured halo (legible over data). */
+export function haloLine(value: number, label: string, mode: Mode, axis: "y" | "x" = "y"): Obj {
+  const base = refLine(value, label, mode, axis);
+  return { ...base, label: { ...(base.label as Obj), ...halo(mode) } };
+}
+
+// ---------------------------------------------------------------- round axis bounds
+
+/** 1-2-2.5-3-5-10 × 10ⁿ: the smallest round step ≥ `raw` (raw > 0). */
+export function niceStep(raw: number): number {
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 3 ? 3 : f <= 5 ? 5 : 10) * p;
+}
+
+/**
+ * Fixed axis bounds on a round step giving about `ticks` intervals, so labels never crowd.
+ * `steps`: ascending candidates (the first ≥ the raw step wins, else the last) or a function of
+ * the raw step. `floor` clamps the minimum; `even` extends the maximum to an even number of
+ * steps (so the middle tick is round too).
+ */
+export function niceScale(
+  lo: number,
+  hi: number,
+  opts: {
+    steps: readonly number[] | ((raw: number) => number);
+    ticks?: number;
+    floor?: number;
+    even?: boolean;
+  },
+): { min: number; max: number; interval: number } {
+  const raw = (hi - lo) / (opts.ticks ?? 4);
+  const { steps } = opts;
+  const interval =
+    typeof steps === "function"
+      ? steps(raw)
+      : (steps.find((s) => s >= raw) ?? steps[steps.length - 1]!);
+  let min = Math.floor(lo / interval) * interval;
+  if (opts.floor !== undefined) min = Math.max(opts.floor, min);
+  let max = Math.ceil(hi / interval) * interval;
+  if (opts.even && Math.round((max - min) / interval) % 2 === 1) max += interval;
+  return { min, max, interval };
 }

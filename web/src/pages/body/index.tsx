@@ -11,15 +11,27 @@ import {
   ShowAllButton,
   StatusPill,
 } from "@/components/ui";
+import { Change, MetricTile, Spark, TileSkeletons } from "@/components/kit";
 import {
   axisTooltip,
+  cased,
+  DAY_MS,
+  dayAxis,
+  dayExtent,
+  dayOfPoint,
   dayPoint,
+  dayTitle,
+  dotSize,
+  dotStyle,
   GRID_WITH_LEGEND,
   legend,
+  legendItems,
   line,
+  rangeBars,
   scatter,
+  tooltipMuted,
   tooltipRow,
-  tooltipTitle,
+  type Extent,
 } from "@/lib/charts";
 import {
   DASH,
@@ -32,26 +44,10 @@ import {
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { useRange } from "@/lib/range";
-import { CHROME, type Mode } from "@/lib/tokens";
-import { Change, MetricTile, Spark, TileSkeletons } from "../health/kit";
-import {
-  cased,
-  DAY_MS,
-  dotSize,
-  dotStyle,
-  legendItems,
-  dayAxis,
-  dayOfPoint,
-  fmtWallDate,
-  fmtWallTime,
-  measureColors,
-  pressureStatus,
-  rangeBars,
-  tooltipMuted,
-  trailingByTime,
-  wallClock,
-  weekly,
-} from "../health/util";
+import { trailingByTime, weekly } from "@/lib/stats";
+import { pressureStatus } from "@/lib/status";
+import { CHROME, measureColors, type Mode } from "@/lib/tokens";
+import { fmtWallDate, fmtWallTime, wallClock } from "@/lib/wallClock";
 
 type Body = Schemas["BodyOverview"];
 type WeighIn = Schemas["BodyWeighIn"];
@@ -79,16 +75,6 @@ function place<T extends { measured_at: string }>(
   });
 }
 
-function extent(start: string, end: string) {
-  return { min: dayPoint(start, 0)[0] - DAY_MS / 2, max: dayPoint(end, 0)[0] + DAY_MS / 2 };
-}
-
-function dayTitle(day: string): string {
-  return tooltipTitle(
-    fmtDate(day, { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
-  );
-}
-
 /** Weigh-in dots + a trend line for one body measure (one y-axis). */
 function measureOption(opts: {
   name: string;
@@ -97,7 +83,7 @@ function measureOption(opts: {
   trend: [number, number | null][];
   color: string;
   fmt: (v: number) => string;
-  ext: { min: number; max: number };
+  ext: Extent;
   mode: Mode;
 }): ChartOption {
   const { points, value, color, fmt, mode } = opts;
@@ -113,8 +99,7 @@ function measureOption(opts: {
         ["7-day trend", "line"],
       ]),
     },
-    tooltip: axisTooltip((params) => {
-      const arr = (Array.isArray(params) ? params : [params]) as { value?: unknown }[];
+    tooltip: axisTooltip((arr) => {
       const v = arr.find((a) => Array.isArray(a.value))?.value as [number, number] | undefined;
       if (!v) return "";
       const here = byX.get(v[0]) ?? [];
@@ -169,11 +154,7 @@ function measureOption(opts: {
   };
 }
 
-function pressureOption(
-  readings: Placed<Pressure>[],
-  ext: { min: number; max: number },
-  mode: Mode,
-): ChartOption {
+function pressureOption(readings: Placed<Pressure>[], ext: Extent, mode: Mode): ChartOption {
   const col = measureColors(mode);
   const byX = new Map<number, Placed<Pressure>[]>();
   for (const p of readings) byX.set(p.x, [...(byX.get(p.x) ?? []), p]);
@@ -484,7 +465,7 @@ export default function BodyPage() {
   );
   const tz = meta.data?.athlete?.time_zone;
   const ext = useMemo(
-    () => extent(range.query.start, range.query.end),
+    () => dayExtent(range.query.start, range.query.end),
     [range.query.start, range.query.end],
   );
   const built = useMemo(() => {

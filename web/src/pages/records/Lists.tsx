@@ -7,7 +7,7 @@ import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { SportBadge, SportIcon } from "@/components/SportIcon";
 import { Card, EmptyState, QueryState, ScrollArea, Segmented, Sparkline } from "@/components/ui";
-import { axisTooltip, GRID, tooltipRow, tooltipTitle, valueYAxis } from "@/lib/charts";
+import { axisTooltip, dayX, GRID, tooltipRow, tooltipTitle, valueYAxis } from "@/lib/charts";
 import {
   DASH,
   fmtDate,
@@ -17,13 +17,14 @@ import {
   fmtNumber,
   fmtPace,
   fmtSpeed,
+  fmtTimeDelta,
   teLabel,
   type UnitSystem,
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor, sportLabel, usesPace } from "@/lib/sports";
 import { CHROME } from "@/lib/tokens";
-import { dayMs, fmtTimeDelta, niceDuration, prInfo } from "./util";
+import { niceDuration, prInfo } from "./util";
 
 type Distance = Schemas["RecordsDistance"];
 type Activity = Schemas["ActivitySummary"];
@@ -63,7 +64,7 @@ function Progression({
     const last = prog[prog.length - 1];
     const tail =
       last && lastDay && lastDay > last.day
-        ? [{ value: [dayMs(lastDay), last.seconds], symbol: "none" }]
+        ? [{ value: [dayX(lastDay), last.seconds], symbol: "none" }]
         : [];
     const secs = prog.map((p) => p.seconds);
     const lo = Math.min(...secs);
@@ -104,7 +105,7 @@ function Progression({
             borderColor: CHROME[mode].surface,
             borderWidth: 2,
           },
-          data: [...prog.map((p) => ({ value: [dayMs(p.day), p.seconds] })), ...tail],
+          data: [...prog.map((p) => ({ value: [dayX(p.day), p.seconds] })), ...tail],
         },
       ],
     };

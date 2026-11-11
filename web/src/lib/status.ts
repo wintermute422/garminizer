@@ -54,7 +54,18 @@ const SLEEP: Record<string, Status | null> = {
 
 export const readinessState = (k: string | null | undefined) => lookup(READINESS, k);
 export const hrvState = (k: string | null | undefined) => lookup(HRV, k);
-export const trainingState = (k: string | null | undefined) => lookup(TRAINING, k);
+/**
+ * Garmin training-status key without its phrase suffix ("PRODUCTIVE_3" → "PRODUCTIVE"); null for
+ * no status ("NO_STATUS", "NONE", empty).
+ */
+export function trainingKey(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const key = raw.toUpperCase().replace(/_\d+$/, "");
+  return key === "NO_STATUS" || key === "NONE" ? null : key;
+}
+
+/** Training status (raw Garmin key, normalised with `trainingKey`) → status colour + label. */
+export const trainingState = (k: string | null | undefined) => lookup(TRAINING, trainingKey(k));
 export const acwrState = (k: string | null | undefined) => lookup(ACWR, k);
 export const sleepState = (k: string | null | undefined) => lookup(SLEEP, k);
 
@@ -154,4 +165,15 @@ export function todaysCall(x: CallInput): TodaysCall | null {
   if (x.tsb !== null && x.tsb >= -5) good.push(`form ${signedInt(x.tsb)}`);
   else if (sleepS !== null) good.push(`slept ${hours(sleepS)}`);
   return { tone: "go", status: "good", headline: "Green light for a hard session", reasons: good };
+}
+
+/** Blood-pressure category (Garmin Index BPM) → reserved status colour. */
+export function pressureStatus(category: string | null | undefined): Status | null {
+  const c = (category ?? "").toUpperCase();
+  if (!c) return null;
+  if (c.includes("NORMAL") || c === "LOW") return "good";
+  if (c.includes("ELEVATED")) return "warning";
+  if (c.includes("CRISIS") || c.includes("STAGE_2") || c.includes("STAGE2")) return "critical";
+  if (c.includes("STAGE") || c.includes("HIGH") || c.includes("HYPERTENSION")) return "serious";
+  return null;
 }

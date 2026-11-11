@@ -13,16 +13,23 @@ import { Chart, type ChartOption } from "@/components/Chart";
 import { Card, EmptyState, LegendItem, QueryState, StatusPill } from "@/components/ui";
 import {
   axisTooltip,
+  dayExtent,
+  dayX,
   GRID,
+  halo,
+  haloLine,
   itemTooltip,
   line,
-  refLine,
+  niceScale,
+  smallTitle,
   tooltipRow,
   tooltipTitle,
   valueYAxis,
+  type Extent,
 } from "@/lib/charts";
 import { fmtDate, fmtNumber, signed } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
+import type { QueryLike } from "@/lib/queries";
 import {
   CATEGORICAL,
   CHROME,
@@ -32,28 +39,15 @@ import {
   STATUS,
   wash,
   ZONE_RAMP,
-  type Mode,
   type Status,
   barEnd,
 } from "@/lib/tokens";
-import { loadBalanceState, trainingState } from "@/lib/status";
-import {
-  acwrZone,
-  dayExtent,
-  dayMs,
-  halo,
-  statusIconSvg,
-  statusKey,
-  statusLabel,
-  statusRank,
-  statusSwatch,
-} from "./util";
+import { loadBalanceState, trainingKey, trainingState } from "@/lib/status";
+import { acwrZone, statusIconSvg, statusLabel, statusRank, statusSwatch } from "./util";
 
 type LoadPoint = Schemas["TrainingLoadPoint"];
 type StatusPoint = Schemas["TrainingStatusPoint"];
 type Obj = Record<string, unknown>;
-/** The slice of a query result the cards need (loading / error / data). */
-export type Q<T> = { data?: T; isPending: boolean; error: unknown };
 const NO_LOAD: LoadPoint[] = [];
 const NO_STATUS: StatusPoint[] = [];
 
@@ -62,41 +56,19 @@ const PMC_GROUP = "training-pmc";
 const PMC_LEFT = 44;
 const PMC_RIGHT = 16;
 
-function subTitle(text: string, mode: Mode): Obj {
-  return {
-    text,
-    left: 0,
-    top: 0,
-    textStyle: { fontSize: 12, fontWeight: 500, color: CHROME[mode].text2 },
-  };
-}
-
-function timeAxis(extent: [number, number], showLabels: boolean): Obj {
+function timeAxis(extent: Extent, showLabels: boolean): Obj {
   return {
     type: "time",
-    min: extent[0],
-    max: extent[1],
+    min: extent.min,
+    max: extent.max,
     splitLine: { show: false },
     axisLabel: { show: showLabels, hideOverlap: true },
   };
 }
 
-/** Axis bounds on a round step that yields about four intervals (fixed, so labels never crowd). */
-function niceBounds(lo: number, hi: number): { min: number; max: number; interval: number } {
-  const raw = (hi - lo) / 4;
-  const interval = [5, 10, 20, 25, 30, 50, 100].find((s) => s >= raw) ?? Math.ceil(raw / 100) * 100;
-  return {
-    min: Math.floor(lo / interval) * interval,
-    max: Math.ceil(hi / interval) * interval,
-    interval,
-  };
-}
-
-/** Reference line whose label sits on a surface-coloured halo (legible over data). */
-function haloLine(value: number, label: string, mode: Mode, axis: "y" | "x" = "y"): Obj {
-  const base = refLine(value, label, mode, axis);
-  return { ...base, label: { ...(base.label as Obj), ...halo(mode) } };
-}
+/** Form-axis step: the first round step ≥ raw, then whole hundreds. */
+const formStep = (raw: number) =>
+  [5, 10, 20, 25, 30, 50, 100].find((s) => s >= raw) ?? Math.ceil(raw / 100) * 100;
 
 const longDay = (iso: string) =>
   fmtDate(iso, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
@@ -108,7 +80,7 @@ export function PmcCard({
   end,
   sportFiltered,
 }: {
-  query: Q<LoadPoint[]>;
+  query: QueryLike<LoadPoint[]>;
   start: string;
   end: string;
   sportFiltered: boolean;
@@ -120,7 +92,7 @@ export function PmcCard({
     const m = MEASURE_COLORS[mode];
     const div = DIVERGING[mode];
     const loadColor = NEUTRAL[mode];
-    const extent = dayExtent(start, end);
+    const extent = dayExtent(start, end, "midnight");
     const grid = (bottom: number) => ({
       left: PMC_LEFT,
       right: PMC_RIGHT,
@@ -132,7 +104,7 @@ export function PmcCard({
 
     const fitness: ChartOption = {
       grid: grid(6),
-      title: subTitle("Fitness & fatigue", mode),
+      title: smallTitle("Fitness & fatigue", mode),
       tooltip: axisTooltip((p) => {
         const i = (p as { dataIndex: number }[])[0]?.dataIndex ?? -1;
         const d = data[i];
@@ -156,23 +128,23 @@ export function PmcCard({
       series: [
         line(
           "Fitness",
-          data.map((d) => [dayMs(d.day), d.ctl]),
+          data.map((d) => [dayX(d.day), d.ctl]),
           m.fitness,
           { area: true, z: 3 },
         ),
         line(
           "Fatigue",
-          data.map((d) => [dayMs(d.day), d.atl]),
+          data.map((d) => [dayX(d.day), d.atl]),
           m.fatigue,
         ),
       ],
     };
     const tsb = data.map((d) => d.tsb);
-    const formAxis = niceBounds(Math.min(...tsb, -32), Math.max(...tsb, 12));
+    const formAxis = niceScale(Math.min(...tsb, -32), Math.max(...tsb, 12), { steps: formStep });
 
     const load: ChartOption = {
       grid: grid(2),
-      title: subTitle("Daily load", mode),
+      title: smallTitle("Daily load", mode),
       tooltip: passive,
       xAxis: timeAxis(extent, false),
       yAxis: valueYAxis(undefined, (v) => fmtNumber(v), { splitNumber: 2 }),
@@ -180,7 +152,7 @@ export function PmcCard({
         {
           type: "bar",
           name: "Daily load",
-          data: data.map((d) => [dayMs(d.day), d.load]),
+          data: data.map((d) => [dayX(d.day), d.load]),
           barMaxWidth: 12,
           itemStyle: { color: loadColor, borderRadius: barEnd("up") },
         },
@@ -189,7 +161,7 @@ export function PmcCard({
 
     const form: ChartOption = {
       grid: grid(24),
-      title: subTitle("Form", mode),
+      title: smallTitle("Form", mode),
       tooltip: passive,
       xAxis: timeAxis(extent, true),
       yAxis: valueYAxis(undefined, (v) => signed(v), formAxis),
@@ -199,7 +171,7 @@ export function PmcCard({
           name: "Form",
           barMaxWidth: 12,
           data: data.map((d) => ({
-            value: [dayMs(d.day), d.tsb],
+            value: [dayX(d.day), d.tsb],
             itemStyle: {
               color: d.tsb >= 0 ? div.negative : div.positive,
               borderRadius: barEnd(d.tsb >= 0 ? "up" : "down"),
@@ -279,7 +251,7 @@ export function AcwrCard({
   start,
   end,
 }: {
-  query: Q<LoadPoint[]>;
+  query: QueryLike<LoadPoint[]>;
   start: string;
   end: string;
 }) {
@@ -301,7 +273,7 @@ export function AcwrCard({
           tooltipRow(color, "ACWR (rolling)", `${fmtNumber(d.acwr, 2)} · ${acwrZone(d.acwr).label}`)
         );
       }),
-      xAxis: timeAxis(dayExtent(start, end), true),
+      xAxis: timeAxis(dayExtent(start, end, "midnight"), true),
       yAxis: valueYAxis(undefined, (v) => fmtNumber(v, 1), {
         min: (v: { min: number }) => Math.min(0.6, Math.floor(v.min * 10) / 10),
         max: (v: { max: number }) => Math.max(1.7, Math.ceil(v.max * 10) / 10),
@@ -310,7 +282,7 @@ export function AcwrCard({
         {
           ...line(
             "ACWR",
-            points.map((d) => [dayMs(d.day), d.acwr]),
+            points.map((d) => [dayX(d.day), d.acwr]),
             color,
           ),
           markArea: {
@@ -383,7 +355,7 @@ interface Segment {
 function segments(data: StatusPoint[]): Segment[] {
   const out: Segment[] = [];
   for (const d of data) {
-    const key = statusKey(d.status);
+    const key = trainingKey(d.status);
     if (!key) continue;
     const last = out[out.length - 1];
     const prevDay = last ? new Date(`${last.end}T12:00:00`) : null;
@@ -406,7 +378,7 @@ export function StatusCard({
   start,
   end,
 }: {
-  query: Q<StatusPoint[]>;
+  query: QueryLike<StatusPoint[]>;
   start: string;
   end: string;
 }) {
@@ -424,7 +396,7 @@ export function StatusCard({
   const latest = segs[segs.length - 1];
   const option = useMemo<ChartOption>(() => {
     const c = CHROME[mode];
-    const [x0, x1] = dayExtent(start, end);
+    const { min: x0, max: x1 } = dayExtent(start, end, "midnight");
     const keys = [...new Set(segs.map((s) => s.key))];
     return {
       grid: { left: 14, right: 14, top: 4, bottom: 22, outerBoundsMode: "none" },
@@ -597,7 +569,7 @@ function FocusRow({
 }
 
 /** Latest 28-day load per intensity bucket against Garmin's target range. */
-export function FocusCard({ query }: { query: Q<StatusPoint[]> }) {
+export function FocusCard({ query }: { query: QueryLike<StatusPoint[]> }) {
   const mode = useMode();
   const data = query.data ?? NO_STATUS;
   const latest = useMemo(

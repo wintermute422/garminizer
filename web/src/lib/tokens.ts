@@ -228,3 +228,29 @@ export function wash(hex: string, alpha = 0.1): string {
   const n = Number.parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
+
+/** One fixed categorical slot per measure, the same on every health page. */
+export function measureColors(mode: Mode) {
+  const m = MEASURE_COLORS[mode];
+  const c = CATEGORICAL[mode];
+  return {
+    hr: m.hr,
+    hrv: m.hrv,
+    stress: m.stress,
+    bodyBattery: m.bodyBattery,
+    steps: m.steps,
+    spo2: m.spo2,
+    respiration: m.respiration,
+    sleep: m.sleep,
+    readiness: m.fitness,
+    weight: m.weight,
+    // Not in the shared measure set (body page only): distinct slots on that page.
+    fat: c[1]!,
+    muscle: c[2]!,
+    pressure: c[6]!,
+    // Weekday / weekend nights: two categorical slots + fill style as the second encoding.
+    weekday: c[0]!,
+    weekend: c[1]!,
+    neutral: NEUTRAL[mode],
+  };
+}

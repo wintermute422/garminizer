@@ -17,7 +17,11 @@ import {
   bars,
   DAY_MS,
   dayAxis,
+  dayExtent,
+  dayOfPoint,
   dayPoint,
+  dayTitle,
+  dayTooltip,
   GRID,
   line,
   refLine,
@@ -25,11 +29,12 @@ import {
   tooltipRow,
   tooltipTitle,
   valueYAxis,
+  type Extent,
 } from "@/lib/charts";
 import { DASH, fmtDate, fmtNumber, fmtShortDate, signed, titleCase } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { useRange } from "@/lib/range";
-import { useMediaQuery } from "@/lib/useMediaQuery";
+import { NARROW, useMediaQuery } from "@/lib/useMediaQuery";
 import { CHROME, DIVERGING, MEASURE_COLORS, type Mode, barEnd } from "@/lib/tokens";
 import { DayCard } from "./DayCard";
 import { Setup } from "./Setup";
@@ -39,31 +44,16 @@ type Point = Schemas["NutritionDailyPoint"];
 
 const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const;
 
-/** x-axis extent of the selected range (half a day of padding on each side). */
-interface Ext {
-  min: number;
-  max: number;
-}
-
-function dayTitle(x: number): string {
-  return tooltipTitle(
-    new Date(x).toLocaleDateString(undefined, {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }),
-  );
-}
-
 type Tip = { seriesName: string; color: string; value: [number, number | null] };
 
-function tipRows(params: unknown, fmt: (v: number) => string): string {
-  const arr = (Array.isArray(params) ? params : [params]) as Tip[];
+/** Title of the day under the crosshair (x is a `dayPoint` noon). */
+const xTitle = (x: number) => dayTitle(dayOfPoint(x));
+
+function tipRows(arr: Tip[], fmt: (v: number) => string): string {
   const first = arr[0];
   if (!first) return "";
   return (
-    dayTitle(first.value[0]) +
+    xTitle(first.value[0]) +
     arr
       .filter((a) => a.value[1] != null)
       .map((a) => tooltipRow(a.color, a.seriesName, fmt(a.value[1]!)))
@@ -71,12 +61,12 @@ function tipRows(params: unknown, fmt: (v: number) => string): string {
   );
 }
 
-function intakeOption(points: Point[], s: Summary, mode: Mode, ext: Ext): ChartOption {
+function intakeOption(points: Point[], s: Summary, mode: Mode, ext: Extent): ChartOption {
   const c = MEASURE_COLORS[mode];
   const logged = points.filter((p) => p.meals > 0);
   return {
     grid: { ...GRID, top: 12 },
-    tooltip: axisTooltip((p) => tipRows(p, (v) => `${fmtNumber(v)} kcal`)),
+    tooltip: axisTooltip<Tip>((p) => tipRows(p, (v) => `${fmtNumber(v)} kcal`)),
     xAxis: dayAxis(ext.min, ext.max),
     yAxis: valueYAxis(undefined, (v) => fmtNumber(v)),
     series: [
@@ -99,17 +89,16 @@ function intakeOption(points: Point[], s: Summary, mode: Mode, ext: Ext): ChartO
   };
 }
 
-function balanceOption(points: Point[], mode: Mode, ext: Ext): ChartOption {
+function balanceOption(points: Point[], mode: Mode, ext: Extent): ChartOption {
   const d = DIVERGING[mode];
   const both = points.filter((p) => p.balance_kcal != null && p.meals > 0);
   return {
     grid: { ...GRID, top: 12 },
-    tooltip: axisTooltip((params) => {
-      const arr = (Array.isArray(params) ? params : [params]) as Tip[];
+    tooltip: axisTooltip<Tip>((arr) => {
       const v = arr[0]?.value;
       if (!v || v[1] == null) return "";
       return (
-        dayTitle(v[0]) +
+        xTitle(v[0]) +
         tooltipRow(
           v[1] < 0 ? d.negative : d.positive,
           v[1] < 0 ? "Deficit" : "Surplus",
@@ -146,7 +135,7 @@ function balanceOption(points: Point[], mode: Mode, ext: Ext): ChartOption {
   };
 }
 
-function macroOption(points: Point[], mode: Mode, ext: Ext, dense: boolean): ChartOption {
+function macroOption(points: Point[], mode: Mode, ext: Extent, dense: boolean): ChartOption {
   const c = MEASURE_COLORS[mode];
   const logged = points.filter((p) => p.meals > 0);
   const series = (["protein", "carbs", "fat"] as const).map((k) =>
@@ -165,35 +154,33 @@ function macroOption(points: Point[], mode: Mode, ext: Ext, dense: boolean): Cha
   const styled = dense
     ? series.map((x) => ({ ...x, itemStyle: { ...(x.itemStyle as object), borderWidth: 0 } }))
     : series;
-  const byDay = new Map(logged.map((p) => [dayPoint(p.day, 0)[0], p]));
   return {
     grid: { ...GRID, top: 12 },
-    tooltip: axisTooltip((params) => {
-      const arr = (Array.isArray(params) ? params : [params]) as Tip[];
-      const x = arr[0]?.value[0];
-      const p = x == null ? undefined : byDay.get(x);
-      if (x == null || !p) return "";
-      return (
-        dayTitle(x) +
-        (["protein", "carbs", "fat"] as const)
-          .map((k) => {
-            const g = p[`${k}_g`];
-            return tooltipRow(
-              c[k],
-              titleCase(k),
-              g == null ? DASH : `${fmtNumber(g)} g · ${fmtNumber(g * KCAL_PER_G[k])} kcal`,
-            );
-          })
-          .join("")
-      );
-    }),
+    tooltip: axisTooltip(
+      dayTooltip(
+        logged,
+        (p) => p.day,
+        (p) =>
+          dayTitle(p.day) +
+          (["protein", "carbs", "fat"] as const)
+            .map((k) => {
+              const g = p[`${k}_g`];
+              return tooltipRow(
+                c[k],
+                titleCase(k),
+                g == null ? DASH : `${fmtNumber(g)} g · ${fmtNumber(g * KCAL_PER_G[k])} kcal`,
+              );
+            })
+            .join(""),
+      ),
+    ),
     xAxis: dayAxis(ext.min, ext.max),
     yAxis: valueYAxis(undefined, (v) => fmtNumber(v)),
     series: roundStackTops(styled, mode),
   };
 }
 
-function proteinOption(points: Point[], s: Summary, mode: Mode, ext: Ext): ChartOption | null {
+function proteinOption(points: Point[], s: Summary, mode: Mode, ext: Extent): ChartOption | null {
   const kg = s.weight_kg;
   if (!kg) return null;
   const c = MEASURE_COLORS[mode];
@@ -201,7 +188,7 @@ function proteinOption(points: Point[], s: Summary, mode: Mode, ext: Ext): Chart
   const logged = points.filter((p) => p.meals > 0 && p.protein_g != null);
   return {
     grid: { ...GRID, top: 12, right: 40 },
-    tooltip: axisTooltip((p) => tipRows(p, (v) => `${fmtNumber(v, 1)} g/kg`)),
+    tooltip: axisTooltip<Tip>((p) => tipRows(p, (v) => `${fmtNumber(v, 1)} g/kg`)),
     xAxis: dayAxis(ext.min, ext.max),
     yAxis: valueYAxis(undefined, (v) => fmtNumber(v, 1), { min: 0 }),
     series: [
@@ -222,7 +209,7 @@ function proteinOption(points: Point[], s: Summary, mode: Mode, ext: Ext): Chart
 function weeklyOption(
   s: Summary,
   mode: Mode,
-  range: Ext,
+  range: Extent,
   kind: "balance" | "weight",
 ): ChartOption | null {
   const weeks = s.weeks.filter((w) =>
@@ -235,8 +222,7 @@ function weeklyOption(
   const c = MEASURE_COLORS[mode];
   return {
     grid: { ...GRID, top: 12 },
-    tooltip: axisTooltip((params) => {
-      const arr = (Array.isArray(params) ? params : [params]) as Tip[];
+    tooltip: axisTooltip<Tip>((arr) => {
       const v = arr[0]?.value;
       if (!v || v[1] == null) return "";
       const w = weeks.find((x) => dayPoint(x.week, 0)[0] === v[0]);
@@ -424,7 +410,7 @@ export default function NutritionPage() {
   const summary = api.useQuery("get", "/api/nutrition/summary", query, opts);
   const daily = api.useQuery("get", "/api/nutrition/daily", query, opts);
   const [picked, setPicked] = useState<string | null>(null);
-  const narrow = useMediaQuery("(max-width: 640px)");
+  const narrow = useMediaQuery(NARROW);
 
   const header = (
     <PageHeader
@@ -465,10 +451,7 @@ export default function NutritionPage() {
     );
   }
 
-  const ext = {
-    min: dayPoint(s.start, 0)[0] - DAY_MS / 2,
-    max: dayPoint(s.end, 0)[0] + DAY_MS / 2,
-  };
+  const ext = dayExtent(s.start, s.end);
   const dense = narrow || points.length > 120;
   const protein = proteinOption(points, s, mode, ext);
   const weeklyBalance = weeklyOption(s, mode, ext, "balance");

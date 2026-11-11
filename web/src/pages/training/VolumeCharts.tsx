@@ -7,6 +7,7 @@ import { Card, EmptyState, LegendItem, QueryState, Segmented } from "@/component
 import {
   axisTooltip,
   GRID,
+  halo,
   itemTooltip,
   refLine,
   roundStackTops,
@@ -27,7 +28,7 @@ import {
 import { useMode, useUnits } from "@/lib/preferences";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
 import { BLUE, CHROME, INTENSITY_BANDS, NEUTRAL, type Mode, barEnd } from "@/lib/tokens";
-import { halo, jitter, periodLabel, periodTitle } from "./util";
+import { jitter, periodLabel, periodTitle } from "./util";
 
 type Period = "week" | "month";
 type VolumeMetric = "distance" | "time" | "load";

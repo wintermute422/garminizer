@@ -7,6 +7,8 @@ import {
   fmtHours,
   fmtPace,
   fmtSpeed,
+  fmtTimeDelta,
+  shown,
   signed,
   titleCase,
 } from "./format";
@@ -41,6 +43,23 @@ describe("format", () => {
     expect(fmtClockFromNoon(690)).toBe("23:30");
     expect(fmtClockFromNoon(1140)).toBe("07:00");
     expect(titleCase("LACTATE_THRESHOLD")).toBe("Lactate Threshold");
+  });
+
+  it("formats time deltas (records and race predictions share it)", () => {
+    expect(fmtTimeDelta(0)).toBe("no change");
+    expect(fmtTimeDelta(0.4)).toBe("no change");
+    expect(fmtTimeDelta(18)).toBe("+18 s");
+    expect(fmtTimeDelta(-18.4)).toBe("−18 s");
+    expect(fmtTimeDelta(-59.6)).toBe("−1:00");
+    expect(fmtTimeDelta(83)).toBe("+1:23");
+    expect(fmtTimeDelta(-3725)).toBe("−1:02:05");
+  });
+
+  it("rounds values the way they are shown", () => {
+    expect(shown(0.04, 1)).toBe(0);
+    expect(shown(-0.4, 0)).toBe(0);
+    expect(shown(0.06, 1)).toBe(0.06);
+    expect(shown(null, 1)).toBeNull();
   });
 });
 

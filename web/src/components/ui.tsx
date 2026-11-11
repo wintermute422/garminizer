@@ -1,5 +1,6 @@
 /** Small presentational building blocks shared by every page. */
 import { clsx } from "clsx";
+import { queriesState, type QueryData, type QueryLike } from "@/lib/queries";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -369,23 +370,37 @@ export function ErrorState({ error }: { error: unknown }) {
   );
 }
 
-/** Renders loading / error / empty / content for a query result. */
-export function QueryState<T>({
-  query,
-  height = 200,
-  isEmpty,
-  empty,
-  children,
-}: {
-  query: { data?: T; isPending: boolean; error: unknown };
+interface QueryStateProps<D> {
+  /** Skeleton height while loading (ignored when `skeleton` is given). */
   height?: number;
-  isEmpty?: (data: T) => boolean;
+  /** Custom loading placeholder (must contain `Skeleton`s so e2e readiness waits for it). */
+  skeleton?: ReactNode;
+  isEmpty?: (data: D) => boolean;
   empty?: ReactNode;
-  children: (data: T) => ReactNode;
-}) {
-  if (query.isPending) return <Skeleton height={height} />;
-  if (query.error) return <ErrorState error={query.error} />;
-  if (query.data === undefined) return <Skeleton height={height} />;
-  if (isEmpty?.(query.data)) return <>{empty ?? <EmptyState title="No data for this period" />}</>;
-  return <>{children(query.data)}</>;
+  children: (data: D) => ReactNode;
+}
+
+/**
+ * Renders loading / error / empty / content for one query (`query`) or several (`queries`,
+ * children get the data tuple): any pending → skeleton, first error wins, then content.
+ */
+export function QueryState<T>(props: QueryStateProps<T> & { query: QueryLike<T> }): ReactNode;
+export function QueryState<Qs extends readonly QueryLike<unknown>[]>(
+  props: QueryStateProps<QueryData<Qs>> & { queries: readonly [...Qs] },
+): ReactNode;
+export function QueryState(
+  props: QueryStateProps<never> & {
+    query?: QueryLike<unknown>;
+    queries?: readonly QueryLike<unknown>[];
+  },
+): ReactNode {
+  const { height = 200, skeleton, empty } = props;
+  const isEmpty = props.isEmpty as ((data: unknown) => boolean) | undefined;
+  const children = props.children as (data: unknown) => ReactNode;
+  const s = props.queries ? queriesState(props.queries) : queriesState([props.query!]);
+  if (s.state === "loading") return skeleton ?? <Skeleton height={height} />;
+  if (s.state === "error") return <ErrorState error={s.error} />;
+  const data = props.queries ? s.data : s.data[0];
+  if (isEmpty?.(data)) return <>{empty ?? <EmptyState title="No data for this period" />}</>;
+  return <>{children(data)}</>;
 }

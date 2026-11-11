@@ -1,4 +1,5 @@
 /** Records page helpers: duration ticks, day-of-year months, pace/speed values, Garmin PR types. */
+import { niceScale } from "@/lib/charts";
 import {
   distanceUnit,
   fmtDuration,
@@ -10,10 +11,6 @@ import {
   type UnitSystem,
 } from "@/lib/format";
 import { usesPace } from "@/lib/sports";
-
-export function dayMs(day: string): number {
-  return new Date(`${day}T12:00:00`).getTime();
-}
 
 /** Mean-max x-axis ticks (seconds): 5 s, 1 min, 5 min, 20 min, 1 h. */
 export const CURVE_TICKS = [5, 60, 300, 1200, 3600];
@@ -185,6 +182,8 @@ export function prInfo(typeKey: string): {
   return { label: sentence(k), kind: "number", sport: null, distance: null };
 }
 
+const DURATION_STEPS = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 600, 900, 1800, 3600];
+
 /** Duration-axis bounds on a round step (s) giving about four intervals; never degenerate. */
 export function niceDuration(
   lo: number,
@@ -194,19 +193,5 @@ export function niceDuration(
     lo -= lo * 0.02;
     hi += hi * 0.02;
   }
-  const steps = [1, 2, 5, 10, 15, 20, 30, 60, 120, 180, 240, 300, 600, 900, 1800, 3600];
-  const interval = steps.find((s) => s >= (hi - lo) / 4) ?? 3600;
-  return {
-    min: Math.max(0, Math.floor(lo / interval) * interval),
-    max: Math.ceil(hi / interval) * interval,
-    interval,
-  };
-}
-
-/** A change in time: "+18 s" under a minute, "+1:23" from a minute up, "no change" at 0. */
-export function fmtTimeDelta(s: number): string {
-  const r = Math.round(s);
-  if (r === 0) return "no change";
-  const a = Math.abs(r);
-  return `${r > 0 ? "+" : "−"}${a < 60 ? `${a} s` : fmtDuration(a)}`;
+  return niceScale(lo, hi, { steps: DURATION_STEPS, floor: 0 });
 }
