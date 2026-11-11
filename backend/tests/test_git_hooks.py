@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -170,3 +171,86 @@ def test_non_utf8_and_crlf_are_blocked(repo: Path) -> None:
     proc = _git(repo, "commit", "-m", "test")
     assert proc.returncode != 0
     assert "CRLF" in proc.stderr
+
+
+def _fake_tool(directory: Path, name: str, body: str) -> None:
+    """A stand-in executable on PATH (bash script) so tests control what gitleaks reports."""
+    directory.mkdir(exist_ok=True)
+    tool = directory / name
+    tool.write_text(f"#!/usr/bin/env bash\n{body}\n", encoding="utf-8", newline="\n")
+    tool.chmod(0o755)
+
+
+def _gitleaks_sh(
+    repo: Path, fakes: Path, *args: str, cwd: Path | None = None
+) -> subprocess.CompletedProcess[str]:
+    bash = shutil.which("bash")
+    assert bash is not None
+    env = {**os.environ, "PATH": f"{fakes}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(
+        [bash, str(repo / "scripts" / "gitleaks.sh"), *args],
+        cwd=cwd or repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+GITLEAKS_LOG_EMPTY = "0 commits scanned.\nscanned ~0 bytes (0) in 40ms\nno leaks found"
+GITLEAKS_LOG_HISTORY = "2 commits scanned.\nscanned ~120 bytes (120) in 40ms\nno leaks found"
+GITLEAKS_LOG_STAGED = "0 commits scanned.\nscanned ~35 bytes (35) in 40ms\nno leaks found"
+
+
+@pytest.mark.parametrize(
+    ("mode", "log", "ok"),
+    [
+        ("history", GITLEAKS_LOG_EMPTY, False),  # the vacuous "no leaks found" of a broken mount
+        ("history", "no leaks found", False),  # no count reported at all
+        ("history", GITLEAKS_LOG_HISTORY, True),
+        ("staged", GITLEAKS_LOG_EMPTY, False),
+        ("staged", GITLEAKS_LOG_STAGED, True),  # --pre-commit always says "0 commits"
+        ("range", GITLEAKS_LOG_EMPTY, False),
+        ("range", GITLEAKS_LOG_HISTORY, True),
+    ],
+)
+def test_gitleaks_never_passes_on_an_empty_scan(
+    repo: Path, tmp_path_factory: pytest.TempPathFactory, mode: str, log: str, ok: bool
+) -> None:
+    no_hooks = ("-c", "core.hooksPath=no-hooks")
+    (repo / "notes.md").write_bytes(b"harmless\n")
+    _git(repo, "add", "notes.md")
+    assert _git(repo, *no_hooks, "commit", "-m", "one").returncode == 0
+    (repo / "notes.md").write_bytes(b"harmless, twice\n")
+    _git(repo, "add", "notes.md")
+    if mode != "staged":
+        assert _git(repo, *no_hooks, "commit", "-m", "two").returncode == 0
+    (repo / "fake.log").write_text(log, encoding="utf-8", newline="\n")
+    fakes = tmp_path_factory.mktemp("fakes")
+    _fake_tool(fakes, "gitleaks", f'cat "{(repo / "fake.log").as_posix()}" >&2')
+    args = ("range", "HEAD~1..HEAD") if mode == "range" else (mode,)
+    proc = _gitleaks_sh(repo, fakes, *args)
+    assert (proc.returncode == 0) is ok, proc.stderr
+    if not ok:
+        assert "gitleaks.sh: FAIL" in proc.stderr
+
+
+@pytest.mark.skipif(shutil.which("gitleaks") is not None, reason="native gitleaks preferred")
+def test_gitleaks_docker_mounts_the_git_dir_of_a_worktree(
+    repo: Path, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    no_hooks = ("-c", "core.hooksPath=no-hooks")
+    (repo / "notes.md").write_bytes(b"harmless\n")
+    _git(repo, "add", "--all")
+    assert _git(repo, *no_hooks, "commit", "-m", "one").returncode == 0
+    worktree = tmp_path_factory.mktemp("worktree") / "wt"
+    assert _git(repo, "worktree", "add", "-q", str(worktree)).returncode == 0
+    fakes = tmp_path_factory.mktemp("fakes")
+    argfile = (fakes / "docker.args").as_posix()
+    _fake_tool(fakes, "docker", f'printf "%s\\n" "$@" > "{argfile}"; echo "1 commits scanned." >&2')
+    proc = _gitleaks_sh(worktree, fakes, "history", cwd=worktree)
+    assert proc.returncode == 0, proc.stderr
+    docker_args = (fakes / "docker.args").read_text(encoding="utf-8").splitlines()
+    assert "GIT_DIR=/gitcommon/worktrees/wt" in docker_args
+    assert "GIT_WORK_TREE=/repo" in docker_args
+    assert any(a.endswith("/.git:/gitcommon") for a in docker_args), docker_args
