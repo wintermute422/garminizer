@@ -8,16 +8,9 @@ import { DASH, fmtDate, fmtHours, fmtNumber, signed, titleCase } from "@/lib/for
 import { useMode } from "@/lib/preferences";
 import { addDays } from "@/lib/range";
 import { CHROME, SLEEP_STAGES, type Mode } from "@/lib/tokens";
+import { hrvState, sleepState } from "@/lib/status";
 import { FactRow, Stepper } from "../health/kit";
-import {
-  HOUR_MS,
-  fmtWallTime,
-  hrvStatus,
-  measureColors,
-  sleepQualityStatus,
-  smallTitle,
-  wallClock,
-} from "../health/util";
+import { HOUR_MS, fmtWallTime, measureColors, smallTitle, wallClock } from "../health/util";
 import { asleep, STAGES } from "./options";
 
 type Detail = Schemas["SleepDetail"];
@@ -278,7 +271,7 @@ function Facts({ n, wall }: { n: Night; wall: (iso: string) => number }) {
           <p className="text-xs font-medium text-ink-2">Sleep score</p>
           <p className="mt-1 text-metric-lg font-semibold text-ink">{n.score ?? DASH}</p>
         </div>
-        {quality && <StatusPill status={sleepQualityStatus(quality)} label={titleCase(quality)} />}
+        {quality && <StatusPill status={sleepState(quality).status} label={titleCase(quality)} />}
       </div>
       {feedbackText(n.feedback) && <p className="text-xs text-ink-3">{feedbackText(n.feedback)}</p>}
       <StageBreakdown n={n} mode={mode} />
@@ -306,7 +299,10 @@ function Facts({ n, wall }: { n: Night; wall: (iso: string) => number }) {
             <span className="inline-flex items-center gap-2">
               Overnight HRV
               {n.hrv_status && (
-                <StatusPill status={hrvStatus(n.hrv_status)} label={titleCase(n.hrv_status)} />
+                <StatusPill
+                  status={hrvState(n.hrv_status).status}
+                  label={titleCase(n.hrv_status)}
+                />
               )}
             </span>
           }

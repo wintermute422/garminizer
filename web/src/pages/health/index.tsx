@@ -23,6 +23,7 @@ import {
 } from "@/components/ui";
 import { DASH, fmtDate, fmtHours, fmtNumber, fmtShortDate, titleCase } from "@/lib/format";
 import { STRESS_LEVELS } from "@/lib/tokens";
+import { hrvState, readinessState } from "@/lib/status";
 import { useMode, useUnits } from "@/lib/preferences";
 import { addDays, useRange } from "@/lib/range";
 import { DayView } from "./DayView";
@@ -39,17 +40,7 @@ import {
   stressWeeklyOption,
   weeklyExtent,
 } from "./options";
-import {
-  diff,
-  hrvStatus,
-  mean,
-  measureColors,
-  minOf,
-  previousPeriod,
-  readinessStatus,
-  spanDays,
-  weekly,
-} from "./util";
+import { diff, mean, measureColors, minOf, previousPeriod, spanDays, weekly } from "./util";
 
 type Day = Schemas["WellnessDay"];
 
@@ -101,7 +92,7 @@ function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number })
       get: (d) => d.hrv_last_night_avg_ms,
       latestBadge: (d) =>
         d.hrv_status ? (
-          <StatusPill status={hrvStatus(d.hrv_status)} label={titleCase(d.hrv_status)} />
+          <StatusPill status={hrvState(d.hrv_status).status} label={titleCase(d.hrv_status)} />
         ) : null,
     },
     {
@@ -117,7 +108,7 @@ function Tiles({ rows, prev, days }: { rows: Day[]; prev: Day[]; days: number })
       latestBadge: (d) =>
         d.readiness_level ? (
           <StatusPill
-            status={readinessStatus(d.readiness_level)}
+            status={readinessState(d.readiness_level).status}
             label={titleCase(d.readiness_level)}
           />
         ) : null,
@@ -406,7 +397,7 @@ export default function HealthPage() {
               actions={
                 latestHrv?.hrv_status ? (
                   <StatusPill
-                    status={hrvStatus(latestHrv.hrv_status)}
+                    status={hrvState(latestHrv.hrv_status).status}
                     label={titleCase(latestHrv.hrv_status)}
                   />
                 ) : undefined
@@ -421,7 +412,7 @@ export default function HealthPage() {
               actions={
                 latestReady?.level ? (
                   <StatusPill
-                    status={readinessStatus(latestReady.level)}
+                    status={readinessState(latestReady.level).status}
                     label={`${titleCase(latestReady.level)}${latestReady.score != null ? ` · ${latestReady.score}` : ""}`}
                   />
                 ) : undefined

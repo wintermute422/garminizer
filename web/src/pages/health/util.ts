@@ -287,52 +287,7 @@ export function shown(v: number | null, digits: number): number | null {
   return Math.abs(v) < 0.5 * 10 ** -digits ? 0 : v;
 }
 
-/** Garmin state strings → reserved status colours (always shown with icon + label). */
-export function hrvStatus(s: string | null | undefined): Status | null {
-  switch (s) {
-    case "BALANCED":
-      return "good";
-    case "UNBALANCED":
-      return "warning";
-    case "LOW":
-      return "serious";
-    case "POOR":
-      return "critical";
-    default:
-      return null;
-  }
-}
-
-export function readinessStatus(level: string | null | undefined): Status | null {
-  switch (level) {
-    case "PRIME":
-    case "HIGH":
-      return "good";
-    case "MODERATE":
-      return "warning";
-    case "LOW":
-      return "serious";
-    case "POOR":
-      return "critical";
-    default:
-      return null;
-  }
-}
-
-export function sleepQualityStatus(q: string | null | undefined): Status | null {
-  switch (q) {
-    case "EXCELLENT":
-    case "GOOD":
-      return "good";
-    case "FAIR":
-      return "warning";
-    case "POOR":
-      return "critical";
-    default:
-      return null;
-  }
-}
-
+/** Blood-pressure category → reserved status colour (Garmin states: lib/status). */
 export function pressureStatus(category: string | null | undefined): Status | null {
   const c = (category ?? "").toUpperCase();
   if (!c) return null;

@@ -25,6 +25,7 @@ import {
 } from "@/lib/format";
 import type { UnitSystem } from "@/lib/format";
 import { CHROME, STATUS, STRESS_LEVELS, wash, type Mode } from "@/lib/tokens";
+import { readinessState } from "@/lib/status";
 import {
   cased,
   DAY_MS,
@@ -34,7 +35,6 @@ import {
   dayAxis,
   measureColors,
   rangeBars,
-  readinessStatus,
   roundVisibleTops,
   tooltipMuted,
   weekly,
@@ -274,7 +274,7 @@ export function readinessOption(rows: Readiness[], mode: Mode, ext: Extent): Cha
     tooltip: axisTooltip((p) => {
       const r = rowAt(p, byTime);
       if (!r) return "";
-      const st = readinessStatus(r.level);
+      const st = readinessState(r.level).status;
       return (
         dateTitle(r.day) +
         tooltipRow(
