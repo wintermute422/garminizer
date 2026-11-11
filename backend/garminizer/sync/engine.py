@@ -943,6 +943,7 @@ def reparse(session: Session, *, today: date | None = None) -> RunSummary:
     bind = session.get_bind()
     assert isinstance(bind, Engine | Connection)
     errors_before = session.scalar(select(func.count()).select_from(m.SyncError)) or 0
+    last_error_id = session.scalar(select(func.max(m.SyncError.id))) or 0
     with run_lock(bind):
         run_id = session.execute(
             insert(m.SyncRun).values(kind="reparse", status="running").returning(m.SyncRun.id)
@@ -958,14 +959,17 @@ def reparse(session: Session, *, today: date | None = None) -> RunSummary:
         for row in ordered:
             payload = session.scalar(select(m.RawPayload.payload).where(m.RawPayload.id == row.id))
             written += parse_payload(session, DATASETS[row.dataset], row.key, payload)
-        session.execute(
-            update(m.SyncError).where(m.SyncError.run_id.is_(None)).values(run_id=run_id)
-        )
         try:
             with session.begin_nested():
                 pipeline.run(session, force=True, today=today)
         except Exception as exc:
             _record_error(session, None, "analytics", None, describe(exc))
+        # this run's errors only (parse + analytics); older unattributed rows stay as they are
+        session.execute(
+            update(m.SyncError)
+            .where(m.SyncError.run_id.is_(None), m.SyncError.id > last_error_id)
+            .values(run_id=run_id)
+        )
         errors = (
             session.scalar(select(func.count()).select_from(m.SyncError)) or 0
         ) - errors_before
@@ -1011,11 +1015,29 @@ def record_failed_run(session_factory: SessionFactory, kind: str, message: str) 
 # --- entry points for the worker (no CLI) ---------------------------------------------------
 
 
+def _record_failed_start(session_factory: SessionFactory, kind: str, message: str) -> None:
+    """record_failed_run, unless the latest run of this kind already failed the same way.
+
+    The worker retries every few minutes; one row per distinct failure keeps /status readable.
+    """
+    with session_factory() as s:
+        last = s.execute(
+            select(m.SyncRun.status, m.SyncRun.message)
+            .where(m.SyncRun.kind == kind)
+            .order_by(m.SyncRun.id.desc())
+            .limit(1)
+        ).first()
+    if last is not None and last.status == "error" and last.message == message[:500]:
+        return
+    record_failed_run(session_factory, kind, message)
+
+
 def _prepare(
-    settings: Settings, factory: auth.GarminFactory | None, what: str
+    settings: Settings, factory: auth.GarminFactory | None, kind: str
 ) -> tuple[SessionFactory, GarminClient] | None:
     from garminizer.db.session import session_factory as make_factory  # noqa: PLC0415
 
+    what = f"{kind} sync" if kind == "incremental" else kind
     sf = make_factory(settings.database_url)
     with sf() as s:
         if is_demo(s):
@@ -1028,6 +1050,7 @@ def _prepare(
         client = auth.resume(settings, factory)
     except GarminError as exc:
         log.warning("%s skipped: %s", what, exc)
+        _record_failed_start(sf, kind, str(exc))  # shown on the Sync page, like API-started runs
         return None
     return sf, client
 
@@ -1037,7 +1060,7 @@ def run_incremental(
 ) -> RunSummary | None:
     """One incremental sync; None (logged) when not connected, demo DB or already running."""
     settings = settings or get_settings()
-    prepared = _prepare(settings, factory, "incremental sync")
+    prepared = _prepare(settings, factory, "incremental")
     if prepared is None:
         return None
     sf, client = prepared
