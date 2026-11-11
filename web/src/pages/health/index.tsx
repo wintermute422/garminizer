@@ -265,7 +265,7 @@ function ChartCard({
   return (
     <Card title={title} subtitle={subtitle} actions={actions} className={className}>
       {option ? (
-        <Chart option={option} height={height} ariaLabel={ariaLabel} />
+        <Chart option={option} height={height} ariaLabel={ariaLabel} zoom />
       ) : (
         <EmptyState title={empty} />
       )}
@@ -421,6 +421,7 @@ export default function HealthPage() {
               ) : readinessChart ? (
                 <Chart
                   option={readinessChart}
+                  zoom
                   height={240}
                   ariaLabel="Training readiness score per day, coloured by level"
                 />
@@ -447,6 +448,7 @@ export default function HealthPage() {
                   {charts.stressDaily && (
                     <Chart
                       option={charts.stressDaily}
+                      zoom
                       height={220}
                       ariaLabel="Average stress per day"
                     />
@@ -455,6 +457,7 @@ export default function HealthPage() {
                     <div>
                       <Chart
                         option={charts.stressWeekly}
+                        zoom
                         height={220}
                         ariaLabel="Weekly average hours per day in rest, low, medium and high stress"
                       />

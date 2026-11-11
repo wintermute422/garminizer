@@ -146,3 +146,8 @@ progress.md's "Next step".
   public repo) is authored with the account's primary e-mail. PR #7's CI scan caught it. The
   account now has "Keep my email addresses private" on (user, 2026-11-09); if a PR run flags
   `ident:<merge sha>`, check that setting first — never exempt the merge ref from the scan.
+- ECharts `dataZoom: inside` swallows every wheel and touch drag over the plot, whatever
+  `zoomOnMouseWheel: "ctrl"` says (the roam controller stops the event before checking keys), so
+  the page cannot scroll past the chart. Zoom via `<Chart zoom>` (slider + own ctrl+wheel handler).
+- ECharts 6 axis labels hang below `grid.bottom` down to `grid.outerBounds`: to reserve space
+  under a chart (slider), raise both, or the labels overlap it.

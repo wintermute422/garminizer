@@ -221,18 +221,21 @@ export function PmcCard({
             <div className="flex flex-col gap-1">
               <Chart
                 option={options.fitness}
+                zoom="linked"
                 height={230}
                 group={PMC_GROUP}
                 ariaLabel="Fitness (CTL) and fatigue (ATL) per day"
               />
               <Chart
                 option={options.load}
+                zoom="linked"
                 height={96}
                 group={PMC_GROUP}
                 ariaLabel="Daily training load"
               />
               <Chart
                 option={options.form}
+                zoom
                 height={170}
                 group={PMC_GROUP}
                 ariaLabel="Form (TSB) per day: positive is fresh, negative is tired"
@@ -319,6 +322,7 @@ export function AcwrCard({
         {() => (
           <Chart
             option={option}
+            zoom
             height={240}
             ariaLabel="Garminizer's rolling 7 to 28 day workload ratio per day"
           />

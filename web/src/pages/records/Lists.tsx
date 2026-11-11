@@ -111,7 +111,12 @@ function Progression({
     };
   }, [row, sport, lastDay, mode, units]);
   return (
-    <Chart option={option} height={240} ariaLabel={`Progression of the ${row.label} best time`} />
+    <Chart
+      option={option}
+      zoom
+      height={240}
+      ariaLabel={`Progression of the ${row.label} best time`}
+    />
   );
 }
 
