@@ -96,8 +96,10 @@ def _personal_address() -> str:
 
 
 def _history_scan(repo: Path) -> subprocess.CompletedProcess[str]:
+    bash = shutil.which("bash")  # a bare "bash" resolves System32 (WSL) first on Windows
+    assert bash is not None
     return subprocess.run(
-        ["bash", "scripts/secret_scan.sh", "--history"],
+        [bash, "scripts/secret_scan.sh", "--history"],
         cwd=repo,
         capture_output=True,
         text=True,

@@ -52,6 +52,9 @@ def test_shell_wrapper_passes_exit_code_through() -> None:
     wrapper = (ROOT / "scripts" / "claude_hook.sh").as_posix()
     blocked = json.dumps({"tool_input": {"command": "git push --force origin x"}})
     allowed = json.dumps({"tool_input": {"command": "git status"}})
+    # The bash that skipif found: on Windows a bare "bash" resolves System32 (WSL) before PATH.
+    bash = shutil.which("bash")
+    assert bash is not None
     run = partial(subprocess.run, capture_output=True, text=True, check=False, cwd=ROOT)
-    assert run(["bash", wrapper, "pre-bash"], input=blocked).returncode == 2
-    assert run(["bash", wrapper, "pre-bash"], input=allowed).returncode == 0
+    assert run([bash, wrapper, "pre-bash"], input=blocked).returncode == 2
+    assert run([bash, wrapper, "pre-bash"], input=allowed).returncode == 0
