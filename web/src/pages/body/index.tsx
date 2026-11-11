@@ -1,7 +1,7 @@
-import { keepPreviousData } from "@tanstack/react-query";
 import { Dumbbell, Percent, Ruler, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Chart, type ChartOption } from "@/components/Chart";
 import {
   Card,
@@ -43,7 +43,6 @@ import {
   type UnitSystem,
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { trailingByTime, weekly } from "@/lib/stats";
 import { pressureStatus } from "@/lib/status";
 import { CHROME, measureColors, type Mode } from "@/lib/tokens";
@@ -453,21 +452,13 @@ function PressureTable({ readings }: { readings: Placed<Pressure>[] }) {
 }
 
 export default function BodyPage() {
-  const range = useRange("365d");
+  const range = usePageFilters();
   const mode = useMode();
   const units = useUnits();
   const meta = api.useQuery("get", "/api/meta");
-  const q = api.useQuery(
-    "get",
-    "/api/body",
-    { params: { query: range.query } },
-    { enabled: range.ready, placeholderData: keepPreviousData },
-  );
+  const q = api.useQuery("get", "/api/body", { params: { query: range.dates } }, range.options);
   const tz = meta.data?.athlete?.time_zone;
-  const ext = useMemo(
-    () => dayExtent(range.query.start, range.query.end),
-    [range.query.start, range.query.end],
-  );
+  const ext = useMemo(() => dayExtent(range.start, range.end), [range.start, range.end]);
   const built = useMemo(() => {
     if (!q.data) return null;
     const wall = wallClock(tz);

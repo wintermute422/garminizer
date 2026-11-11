@@ -7,6 +7,7 @@ import { useSearch } from "@tanstack/react-router";
 import { CalendarCheck2, CalendarDays, Flame, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/api/client";
+import { usePageFilters, type PageFilters } from "@/app/pageFilters";
 import { Chart, type ChartOption } from "@/components/Chart";
 import {
   Card,
@@ -39,7 +40,7 @@ import {
   type UnitSystem,
 } from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
-import { addDays, type GlobalSearch, useRange } from "@/lib/range";
+import { addDays, type GlobalSearch } from "@/lib/range";
 import { sportColor, sportLabel } from "@/lib/sports";
 import { CATEGORICAL, CHROME, type Mode } from "@/lib/tokens";
 import { type DayTotals, daysBetween, dayStreaks, monthTotals, weeksInRow } from "./data";
@@ -315,20 +316,10 @@ function punchcardOption(
   };
 }
 
-function PunchcardCard({
-  start,
-  end,
-  sport,
-}: {
-  start: string;
-  end: string;
-  sport: string | null;
-}) {
+function PunchcardCard({ query, sport }: { query: PageFilters["query"]; sport: string | null }) {
   const mode = useMode();
   const [measure, width] = useElementWidth<HTMLDivElement>();
-  const q = api.useQuery("get", "/api/calendar/punchcard", {
-    params: { query: { start, end, ...(sport ? { sport } : {}) } },
-  });
+  const q = api.useQuery("get", "/api/calendar/punchcard", { params: { query } });
   const cells = useMemo(() => q.data ?? [], [q.data]);
   const color = sport ? sportColor(sport, mode) : CATEGORICAL[mode][0]!;
   const maxSize = Math.max(8, Math.min(22, ((width || 500) - 40) / 24 - 2));
@@ -485,21 +476,15 @@ function MonthlyCard({
 }
 
 export default function CalendarPage() {
-  const range = useRange("365d");
+  const range = usePageFilters();
   const search = useSearch({ strict: false }) as GlobalSearch;
   // Without an explicit range the calendar opens on a full year (and the filter bar shows it).
   useEffect(() => {
-    if (range.ready && !search.preset && !search.start) range.setPreset("365d");
-  }, [range.ready, search.preset, search.start]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (range.ready && !search.preset && !search.start) range.setPreset(range.defaultPreset);
+  }, [range.ready, range.defaultPreset, search.preset, search.start]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { start, end } = range.query;
-  const sport = range.sport;
-  const cal = api.useQuery(
-    "get",
-    "/api/calendar",
-    { params: { query: { start, end, ...(sport ? { sport } : {}) } } },
-    { enabled: range.ready },
-  );
+  const { start, end, sport, query } = range;
+  const cal = api.useQuery("get", "/api/calendar", { params: { query } }, { enabled: range.ready });
   const days = cal.data?.days;
   const error = cal.error;
   const streaks = cal.data
@@ -537,7 +522,7 @@ export default function CalendarPage() {
           <StreakTiles days={days} start={start} end={end} api={streaks} />
           <HeatmapCard days={days} start={start} end={end} sport={sport} />
           <div className="grid gap-5 lg:grid-cols-2">
-            <PunchcardCard start={start} end={end} sport={sport} />
+            <PunchcardCard query={query} sport={sport} />
             <MonthlyCard days={days} start={start} end={end} sport={sport} />
           </div>
         </div>

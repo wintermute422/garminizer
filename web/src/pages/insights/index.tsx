@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { api } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Card, ErrorState, PageHeader, Segmented, Skeleton } from "@/components/ui";
 import { fmtDate } from "@/lib/format";
 import { useUnits } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { CorrelationMatrix } from "./CorrelationMatrix";
 import { InsightCards, type Pair } from "./InsightCards";
 import { lagText, metricView, phrase } from "./metrics";
@@ -26,13 +26,13 @@ function scrollToScatter() {
 }
 
 export default function InsightsPage() {
-  const range = useRange("90d");
+  const range = usePageFilters();
   // A readable matrix needs room for ~20 columns; narrower screens get a ranked list.
   const wide = useMediaQuery("(min-width: 1280px)");
   const units = useUnits();
   const [pair, setPair] = useState<Pair>({ x: "sleep_score", y: "readiness", lag: 0 });
   const [matrixLag, setMatrixLag] = useState<LagValue>("0");
-  const query = range.query;
+  const query = range.dates;
   const enabled = { enabled: range.ready };
 
   const metricsQ = api.useQuery("get", "/api/insights/metrics");
@@ -41,13 +41,13 @@ export default function InsightsPage() {
     "get",
     "/api/insights/correlations",
     { params: { query: { ...query, lag: Number(matrixLag) } } },
-    { ...enabled, placeholderData: (prev) => prev },
+    range.options,
   );
   const scatterQ = api.useQuery(
     "get",
     "/api/insights/scatter",
     { params: { query: { ...query, x: pair.x, y: pair.y, lag: pair.lag } } },
-    { ...enabled, placeholderData: (prev) => prev },
+    range.options,
   );
   const weekdayQ = api.useQuery("get", "/api/insights/weekday", { params: { query } }, enabled);
 

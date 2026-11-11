@@ -203,8 +203,6 @@ export function Layout() {
                 <FilterBar
                   withRange={item.filters !== "sport"}
                   withSport={item.filters !== "range"}
-                  fallback={item.defaultPreset}
-                  defaultSport={item.defaultSport}
                 />
               ) : (
                 <span className="text-sm font-medium text-ink-2 lg:hidden">Garminizer</span>

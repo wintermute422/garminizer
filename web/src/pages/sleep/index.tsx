@@ -1,7 +1,7 @@
-import { keepPreviousData } from "@tanstack/react-query";
 import { AlarmClock, BedDouble, Brain, Hourglass, MoonStar, Star } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Chart, type ChartInstance } from "@/components/Chart";
 import {
   Card,
@@ -15,7 +15,6 @@ import { Change, MetricTile, Spark, TileSkeletons } from "@/components/kit";
 import { dayExtent, dayOfPoint, outlineFill } from "@/lib/charts";
 import { fmtDate, fmtHours, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { diff, mean, previousPeriod, spanDays, stdev, weekly } from "@/lib/stats";
 import { measureColors, SLEEP_STAGES } from "@/lib/tokens";
 import { NARROW, useMediaQuery } from "@/lib/useMediaQuery";
@@ -222,17 +221,17 @@ function GroupLegend() {
 }
 
 export default function SleepPage() {
-  const range = useRange("90d");
+  const range = usePageFilters();
   const mode = useMode();
   const narrow = useMediaQuery(NARROW);
-  const days = spanDays(range.query.start, range.query.end);
-  const opts = { enabled: range.ready, placeholderData: keepPreviousData };
-  const nightsQ = api.useQuery("get", "/api/sleep", { params: { query: range.query } }, opts);
-  const statsQ = api.useQuery("get", "/api/sleep/stats", { params: { query: range.query } }, opts);
+  const days = spanDays(range.start, range.end);
+  const opts = range.options;
+  const nightsQ = api.useQuery("get", "/api/sleep", { params: { query: range.dates } }, opts);
+  const statsQ = api.useQuery("get", "/api/sleep/stats", { params: { query: range.dates } }, opts);
   const prevQ = api.useQuery(
     "get",
     "/api/sleep/stats",
-    { params: { query: previousPeriod(range.query) } },
+    { params: { query: previousPeriod(range.dates) } },
     opts,
   );
   const meta = api.useQuery("get", "/api/meta");
@@ -241,10 +240,7 @@ export default function SleepPage() {
   const nights = useMemo(() => nightsQ.data ?? [], [nightsQ.data]);
   const known = useMemo(() => new Set(nights.map((n) => n.day)), [nights]);
   const selected = picked && known.has(picked) ? picked : (nights[nights.length - 1]?.day ?? null);
-  const ext = useMemo(
-    () => dayExtent(range.query.start, range.query.end),
-    [range.query.start, range.query.end],
-  );
+  const ext = useMemo(() => dayExtent(range.start, range.end), [range.start, range.end]);
   const stages = useMemo(
     () =>
       nights.length

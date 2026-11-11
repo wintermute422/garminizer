@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Delta, ErrorState, PageHeader, Skeleton, Sparkline, StatTile } from "@/components/ui";
 import { DASH, fmtDate, fmtDelta, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { sportColor } from "@/lib/sports";
 import {
   EfficiencyCard,
@@ -107,19 +107,19 @@ function Tiles({ s, age }: { s: Series; age: number | null }) {
 }
 
 export default function PerformancePage() {
-  const range = useRange("90d");
+  const range = usePageFilters();
   const meta = api.useQuery("get", "/api/meta");
   const perf = api.useQuery(
     "get",
     "/api/performance",
-    { params: { query: range.query } },
-    { enabled: range.ready, placeholderData: (prev) => prev },
+    { params: { query: range.dates } },
+    range.options,
   );
   const eff = api.useQuery(
     "get",
     "/api/performance/efficiency",
-    { params: { query: { ...range.query, sport: "run" } } },
-    { enabled: range.ready, placeholderData: (prev) => prev },
+    { params: { query: { ...range.dates, sport: "run" } } },
+    range.options,
   );
   const distances = api.useQuery("get", "/api/records/distances", {
     params: { query: { sport: "run" } },

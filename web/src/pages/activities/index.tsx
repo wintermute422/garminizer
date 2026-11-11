@@ -3,6 +3,7 @@ import { clsx } from "clsx";
 import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Card, EmptyState, ErrorState, PageHeader, ScrollArea, Skeleton } from "@/components/ui";
 import {
   fmtDate,
@@ -16,7 +17,6 @@ import {
   teLabel,
 } from "@/lib/format";
 import { useUnits } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { bySlot, sportLabel, usesPace } from "@/lib/sports";
 import { SportBadge, SportIcon } from "@/components/SportIcon";
 
@@ -25,12 +25,12 @@ type SortKey = "start_time" | "distance" | "duration" | "load" | "elevation" | "
 const PAGE = 50;
 
 function Totals() {
-  const range = useRange("90d");
+  const range = usePageFilters();
   const units = useUnits();
   const q = api.useQuery(
     "get",
     "/api/activities/totals",
-    { params: { query: range.query } },
+    { params: { query: range.dates } },
     { enabled: range.ready },
   );
   if (q.isPending) return <Skeleton height={92} />;
@@ -97,7 +97,7 @@ const COLUMNS: { key: SortKey | null; label: string; className?: string }[] = [
 ];
 
 export default function ActivitiesPage() {
-  const range = useRange("90d");
+  const range = usePageFilters();
   const units = useUnits();
   const [sort, setSort] = useState<SortKey>("start_time");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
@@ -109,17 +109,11 @@ export default function ActivitiesPage() {
       sort,
       order,
       limit,
-      ...(range.sport ? { sport: range.sport } : {}),
       ...(search.trim() ? { q: search.trim() } : {}),
     }),
-    [range.query.start, range.query.end, range.sport, sort, order, limit, search], // eslint-disable-line react-hooks/exhaustive-deps
+    [range.start, range.end, range.sport, sort, order, limit, search], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const list = api.useQuery(
-    "get",
-    "/api/activities",
-    { params: { query } },
-    { enabled: range.ready, placeholderData: (prev) => prev },
-  );
+  const list = api.useQuery("get", "/api/activities", { params: { query } }, range.options);
 
   const toggleSort = (key: SortKey) => {
     if (key === sort) setOrder(order === "desc" ? "asc" : "desc");
