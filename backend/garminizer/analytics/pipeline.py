@@ -9,9 +9,8 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import numpy as np
 from sqlalchemy import delete, func, insert, select, update
@@ -44,7 +43,6 @@ class AthleteParams:
     hr_floors: tuple[float, ...]
     ftp_w: float | None
     sex: str
-    time_zone: str
 
     @classmethod
     def from_db(cls, session: Session) -> AthleteParams:
@@ -67,7 +65,6 @@ class AthleteParams:
             hr_floors=floors,
             ftp_w=float(a.ftp_w) if a and a.ftp_w else None,
             sex=sex,
-            time_zone=(a.time_zone if a and a.time_zone else "UTC"),
         )
 
 
@@ -250,7 +247,7 @@ def process_activity(
     report.activities += 1
 
 
-def refresh_daily_load(session: Session, p: AthleteParams, today: date | None = None) -> int:
+def refresh_daily_load(session: Session, p: AthleteParams, today: date) -> int:
     """Rebuild daily_load from the first activity day to today (rest days count as 0)."""
     rows = session.execute(
         select(
@@ -265,7 +262,7 @@ def refresh_daily_load(session: Session, p: AthleteParams, today: date | None = 
         return 0
     by_day = {r[0]: (float(r[1]), float(r[2]), int(r[3])) for r in rows}
     first = min(by_day)
-    last = max([*by_day, today or _today(p)])
+    last = max([*by_day, today])
     days = [first + timedelta(days=i) for i in range((last - first).days + 1)]
     loads = np.array([by_day.get(d, (0.0, 0.0, 0))[0] for d in days])
     ctl, atl, tsb = load.pmc(loads)
@@ -296,18 +293,17 @@ def refresh_daily_load(session: Session, p: AthleteParams, today: date | None = 
     return len(days)
 
 
-def _today(p: AthleteParams) -> date:
-    return datetime.now(ZoneInfo(p.time_zone)).date()
-
-
 def run(
     session: Session,
     *,
     activity_ids: Sequence[int] | None = None,
     force: bool = False,
-    today: date | None = None,
+    today: date,
 ) -> PipelineReport:
-    """Process pending (or the given / all, when forced) activities, then rebuild daily load."""
+    """Process pending (or the given / all, when forced) activities, then rebuild daily load.
+
+    ``today`` (the athlete's, see garminizer.athlete) is the last day of the load series.
+    """
     p = AthleteParams.from_db(session)
     report = PipelineReport()
     query = select(m.Activity).order_by(m.Activity.start_time_utc)

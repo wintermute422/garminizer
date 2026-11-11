@@ -1,4 +1,4 @@
-"""Request dependencies: DB session, date range and sport filters, small query helpers."""
+"""Request dependencies: DB session, athlete clock, date range and sport filters, query helpers."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from garminizer.athlete import AthleteClock, athlete_clock
 from garminizer.sports import SPORT_GROUPS
 
 
@@ -24,6 +25,14 @@ def get_session(request: Request) -> Iterator[Session]:
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+
+def get_clock(request: Request, session: SessionDep) -> AthleteClock:
+    """The athlete's time zone (stored by Garmin, else the configured TZ) and "now"."""
+    return athlete_clock(session, request.app.state.settings.tz)
+
+
+ClockDep = Annotated[AthleteClock, Depends(get_clock)]
 
 
 def rows(session: Session, sql: str, **params: Any) -> list[dict[str, Any]]:
@@ -67,13 +76,14 @@ class DateRange:
 
 def date_range(
     session: SessionDep,
+    clock: ClockDep,
     start: Annotated[
         date | None, Query(description="First day (default: 1 year before end)")
     ] = None,
     end: Annotated[date | None, Query(description="Last day (default: last day with data)")] = None,
 ) -> DateRange:
     if end is None:
-        end = data_bounds(session)[1] or date.today()
+        end = data_bounds(session)[1] or clock.today()
     if start is None:
         start = end - timedelta(days=364)
     if start > end:

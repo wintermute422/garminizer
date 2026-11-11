@@ -2,7 +2,7 @@
 
 The caller owns the transaction: these functions only flush; the API route or the MCP tool
 commits. A meal's ``day`` is the local date of ``eaten_at`` in the athlete's time zone
-(``garmin.athlete.time_zone``, else the configured fallback). Garmin's daily summary supplies
+(the caller's ``AthleteClock``, see garminizer.athlete). Garmin's daily summary supplies
 the energy expenditure; ``balance = intake - Garmin total kcal``.
 """
 
@@ -12,13 +12,14 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from garminizer import models as m
+from garminizer.athlete import AthleteClock
 from garminizer.nutrition.schemas import (
     ITEM_NUTRIENTS,
     MACRO_FIELDS,
@@ -68,29 +69,7 @@ class MealNotFoundError(LookupError):
         self.meal_id = meal_id
 
 
-# --- time zone and small helpers -------------------------------------------------------------
-
-
-def zone_name(session: Session, fallback: str = "UTC") -> str:
-    """The athlete's IANA time zone, else ``fallback``, else UTC (unknown names are skipped)."""
-    stored = session.scalar(select(m.Athlete.time_zone).order_by(m.Athlete.id).limit(1))
-    for candidate in (stored, fallback):
-        if not candidate:
-            continue
-        try:
-            ZoneInfo(candidate)
-        except (ZoneInfoNotFoundError, ValueError):
-            continue
-        return candidate
-    return "UTC"
-
-
-def athlete_zone(session: Session, fallback: str = "UTC") -> ZoneInfo:
-    return ZoneInfo(zone_name(session, fallback))
-
-
-def local_today(session: Session, fallback: str = "UTC", now: datetime | None = None) -> date:
-    return (now or datetime.now(UTC)).astimezone(athlete_zone(session, fallback)).date()
+# --- small helpers -------------------------------------------------------------------------
 
 
 def _r(value: float | None, ndigits: int = 1) -> float | None:
@@ -278,12 +257,11 @@ def log_meal(
     data: NutritionMealIn,
     *,
     source: MealSource,
-    fallback_tz: str = "UTC",
-    now: datetime | None = None,
+    clock: AthleteClock,
 ) -> NutritionMeal:
     """Store a meal; totals come from the items unless given explicitly."""
-    tz = athlete_zone(session, fallback_tz)
-    now = now or datetime.now(UTC)
+    tz = clock.zone
+    now = clock.now_utc()
     eaten = resolve_eaten_at(data.eaten_at, tz, now)
     local = eaten.astimezone(tz)
     totals = compute_totals(data.items, data.totals)
@@ -312,8 +290,8 @@ def _get(session: Session, meal_id: int) -> m.Meal:
     return meal
 
 
-def get_meal(session: Session, meal_id: int, *, fallback_tz: str = "UTC") -> NutritionMeal:
-    return to_meal_out(_get(session, meal_id), athlete_zone(session, fallback_tz))
+def get_meal(session: Session, meal_id: int, *, clock: AthleteClock) -> NutritionMeal:
+    return to_meal_out(_get(session, meal_id), clock.zone)
 
 
 def update_meal(
@@ -321,13 +299,12 @@ def update_meal(
     meal_id: int,
     patch: NutritionMealPatch,
     *,
-    fallback_tz: str = "UTC",
-    now: datetime | None = None,
+    clock: AthleteClock,
 ) -> NutritionMeal:
     """Apply ``patch``; new items replace the old ones and recompute kcal and macros."""
     meal = _get(session, meal_id)
-    tz = athlete_zone(session, fallback_tz)
-    now = now or datetime.now(UTC)
+    tz = clock.zone
+    now = clock.now_utc()
     given = patch.model_fields_set
     if patch.name is not None:
         meal.name = patch.name.strip()
@@ -360,10 +337,10 @@ def update_meal(
     return to_meal_out(meal, tz)
 
 
-def delete_meal(session: Session, meal_id: int, *, fallback_tz: str = "UTC") -> NutritionMeal:
+def delete_meal(session: Session, meal_id: int, *, clock: AthleteClock) -> NutritionMeal:
     """Delete a meal and its items; returns the deleted meal."""
     meal = _get(session, meal_id)
-    out = to_meal_out(meal, athlete_zone(session, fallback_tz))
+    out = to_meal_out(meal, clock.zone)
     session.delete(meal)
     session.flush()
     return out
@@ -390,12 +367,12 @@ def list_meals(
     start: date,
     end: date,
     *,
-    fallback_tz: str = "UTC",
+    clock: AthleteClock,
     newest_first: bool = False,
     limit: int | None = None,
 ) -> list[NutritionMeal]:
     """Meals whose local day is within [start, end], with their items."""
-    tz = athlete_zone(session, fallback_tz)
+    tz = clock.zone
     return _meals(session, start, end, tz, newest_first=newest_first, limit=limit)
 
 
@@ -529,24 +506,20 @@ def _day_summary(
     }
 
 
-def day_summary(
-    session: Session, day: date, *, fallback_tz: str = "UTC", now: datetime | None = None
-) -> NutritionDaySummary:
+def day_summary(session: Session, day: date, *, clock: AthleteClock) -> NutritionDaySummary:
     """Intake totals, targets, what is left, Garmin's burn and the balance of one day."""
-    tz = athlete_zone(session, fallback_tz)
+    tz = clock.zone
     meals = _meals(session, day, day, tz)
     return NutritionDaySummary.model_validate(
-        _day_summary(session, day, tz, meals, now or datetime.now(UTC))
+        _day_summary(session, day, tz, meals, clock.now_utc())
     )
 
 
-def get_day(
-    session: Session, day: date, *, fallback_tz: str = "UTC", now: datetime | None = None
-) -> NutritionDay:
+def get_day(session: Session, day: date, *, clock: AthleteClock) -> NutritionDay:
     """The day summary plus every meal of the day with its items."""
-    tz = athlete_zone(session, fallback_tz)
+    tz = clock.zone
     meals = _meals(session, day, day, tz)
-    summary = _day_summary(session, day, tz, meals, now or datetime.now(UTC))
+    summary = _day_summary(session, day, tz, meals, clock.now_utc())
     return NutritionDay.model_validate({**summary, "meals": meals})
 
 
@@ -652,11 +625,9 @@ def _weeks(
     ]
 
 
-def summary(
-    session: Session, start: date, end: date, *, fallback_tz: str = "UTC"
-) -> NutritionSummary:
+def summary(session: Session, start: date, end: date, *, clock: AthleteClock) -> NutritionSummary:
     """Averages per logged day, macro split, protein per kg, targets and weekly averages."""
-    tz = athlete_zone(session, fallback_tz)
+    tz = clock.zone
     points = daily_series(session, start, end)
     logged = [p for p in points if p.meals]
     weight = weight_on(session, end, tz)
@@ -703,12 +674,10 @@ ORDER BY start_time_local
 """
 
 
-def energy_context(
-    session: Session, day: date, *, fallback_tz: str = "UTC", now: datetime | None = None
-) -> NutritionEnergyContext:
+def energy_context(session: Session, day: date, *, clock: AthleteClock) -> NutritionEnergyContext:
     """Garmin's view of a day: calories burned, activities, training load, readiness."""
-    tz = athlete_zone(session, fallback_tz)
-    now = now or datetime.now(UTC)
+    tz = clock.zone
+    now = clock.now_utc()
     garmin, steps = _garmin(session, day)
     d0 = datetime.combine(day, time())
     acts = [
@@ -749,7 +718,6 @@ __all__ = [
     "MACRO_FIELDS",
     "MealNotFoundError",
     "NutritionError",
-    "athlete_zone",
     "average_burn",
     "compute_totals",
     "daily_series",
@@ -763,7 +731,6 @@ __all__ = [
     "infer_meal_type",
     "last_meal_day",
     "list_meals",
-    "local_today",
     "log_meal",
     "meal_warnings",
     "protein_target",
@@ -772,5 +739,4 @@ __all__ = [
     "summary",
     "update_meal",
     "weight_on",
-    "zone_name",
 ]

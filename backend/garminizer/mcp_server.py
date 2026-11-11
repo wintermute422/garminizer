@@ -29,6 +29,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from garminizer import __version__
+from garminizer.athlete import AthleteClock, athlete_clock
 from garminizer.nutrition import service
 from garminizer.nutrition.schemas import (
     Confidence,
@@ -274,11 +275,15 @@ class _Runtime:
         finally:
             session.close()
 
-    def zone(self, session: Session) -> ZoneInfo:
-        return service.athlete_zone(session, self.fallback_tz)
+    def clock(self, session: Session) -> AthleteClock:
+        """The athlete's clock, with "now" fixed for the whole tool call."""
+        moment = self.now()
+        return athlete_clock(session, self.fallback_tz, now=lambda: moment)
 
-    def meal_result(self, session: Session, meal: NutritionMeal, now: datetime) -> dict[str, Any]:
-        day = service.day_summary(session, meal.day, fallback_tz=self.fallback_tz, now=now)
+    def meal_result(
+        self, session: Session, meal: NutritionMeal, clock: AthleteClock
+    ) -> dict[str, Any]:
+        day = service.day_summary(session, meal.day, clock=clock)
         return {
             "meal": meal.model_dump(mode="json"),
             "warnings": [w.model_dump(mode="json") for w in meal.warnings],
@@ -286,9 +291,9 @@ class _Runtime:
         }
 
     def targets_view(self, session: Session, targets: NutritionTargets) -> dict[str, Any]:
-        tz = self.zone(session)
-        today = self.now().astimezone(tz).date()
-        weight = service.weight_on(session, today, tz)
+        clock = self.clock(session)
+        today = clock.today()
+        weight = service.weight_on(session, today, clock.zone)
         return {
             "targets": targets.model_dump(mode="json"),
             "protein_target_g": service.protein_target(targets, weight),
@@ -369,22 +374,20 @@ def _register_meal_tools(server: MCPServer[Any], rt: _Runtime) -> None:
         ] = None,
     ) -> dict[str, Any]:
         with rt.transaction() as s:
-            moment = rt.now()
+            clock = rt.clock(s)
             data = _validated(
                 NutritionMealIn,
                 name=name,
-                eaten_at=parse_eaten_at(eaten_at, rt.zone(s), moment),
+                eaten_at=parse_eaten_at(eaten_at, clock.zone, clock.now_utc()),
                 meal_type=meal_type,
                 items=items or [],
                 totals=totals,
                 notes=notes,
                 confidence=confidence,
             )
-            meal = service.log_meal(
-                s, data, source="claude", fallback_tz=rt.fallback_tz, now=moment
-            )
+            meal = service.log_meal(s, data, source="claude", clock=clock)
             log.info("logged meal %s (%s kcal)", meal.meal_id, round(meal.kcal))
-            return {"stored": True, **rt.meal_result(s, meal, moment)}
+            return {"stored": True, **rt.meal_result(s, meal, clock)}
 
     @server.tool(
         name="update_meal",
@@ -411,11 +414,11 @@ def _register_meal_tools(server: MCPServer[Any], rt: _Runtime) -> None:
         ] = None,
     ) -> dict[str, Any]:
         with rt.transaction() as s:
-            moment = rt.now()
+            clock = rt.clock(s)
             given = {
                 "name": name,
                 "items": items,
-                "eaten_at": parse_eaten_at(eaten_at, rt.zone(s), moment),
+                "eaten_at": parse_eaten_at(eaten_at, clock.zone, clock.now_utc()),
                 "meal_type": meal_type,
                 "notes": notes,
                 "confidence": confidence,
@@ -424,8 +427,8 @@ def _register_meal_tools(server: MCPServer[Any], rt: _Runtime) -> None:
             patch = _validated(
                 NutritionMealPatch, **{k: v for k, v in given.items() if v is not None}
             )
-            meal = service.update_meal(s, meal_id, patch, fallback_tz=rt.fallback_tz, now=moment)
-            return {"updated": True, **rt.meal_result(s, meal, moment)}
+            meal = service.update_meal(s, meal_id, patch, clock=clock)
+            return {"updated": True, **rt.meal_result(s, meal, clock)}
 
     @server.tool(
         name="delete_meal",
@@ -438,9 +441,9 @@ def _register_meal_tools(server: MCPServer[Any], rt: _Runtime) -> None:
         meal_id: Annotated[int, Field(description="meal_id of the meal to delete")],
     ) -> dict[str, Any]:
         with rt.transaction() as s:
-            moment = rt.now()
-            meal = service.delete_meal(s, meal_id, fallback_tz=rt.fallback_tz)
-            day = service.day_summary(s, meal.day, fallback_tz=rt.fallback_tz, now=moment)
+            clock = rt.clock(s)
+            meal = service.delete_meal(s, meal_id, clock=clock)
+            day = service.day_summary(s, meal.day, clock=clock)
             return {"deleted": compact_meal(meal), "day_summary": day.model_dump(mode="json")}
 
 
@@ -458,9 +461,9 @@ def _register_day_tools(server: MCPServer[Any], rt: _Runtime) -> None:
         ] = None,
     ) -> dict[str, Any]:
         with rt.transaction() as s:
-            moment = rt.now()
-            d = parse_day(day, rt.zone(s), moment)
-            out = service.get_day(s, d, fallback_tz=rt.fallback_tz, now=moment)
+            clock = rt.clock(s)
+            d = parse_day(day, clock.zone, clock.now_utc())
+            out = service.get_day(s, d, clock=clock)
             return out.model_dump(mode="json")
 
     @server.tool(
@@ -474,10 +477,11 @@ def _register_day_tools(server: MCPServer[Any], rt: _Runtime) -> None:
         days: Annotated[int, Field(ge=1, le=60, description="How many days back (1-60)")] = 7,
     ) -> dict[str, Any]:
         with rt.transaction() as s:
-            today = parse_day(None, rt.zone(s), rt.now())
+            clock = rt.clock(s)
+            today = parse_day(None, clock.zone, clock.now_utc())
             start = today - timedelta(days=days - 1)
             meals = service.list_meals(
-                s, start, today + timedelta(days=1), fallback_tz=rt.fallback_tz, newest_first=True
+                s, start, today + timedelta(days=1), clock=clock, newest_first=True
             )
             by_day: dict[date, list[NutritionMeal]] = {}
             for meal in meals:
@@ -509,9 +513,9 @@ def _register_day_tools(server: MCPServer[Any], rt: _Runtime) -> None:
         ] = None,
     ) -> dict[str, Any]:
         with rt.transaction() as s:
-            moment = rt.now()
-            d = parse_day(day, rt.zone(s), moment)
-            ctx = service.energy_context(s, d, fallback_tz=rt.fallback_tz, now=moment)
+            clock = rt.clock(s)
+            d = parse_day(day, clock.zone, clock.now_utc())
+            ctx = service.energy_context(s, d, clock=clock)
             return ctx.model_dump(mode="json")
 
 

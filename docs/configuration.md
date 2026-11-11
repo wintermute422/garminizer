@@ -17,7 +17,7 @@ After changing `.env`, apply it with `docker compose up -d`.
 | `SYNC_INTERVAL_HOURS` | `2` | incremental sync interval of the worker |
 | `SYNC_REQUEST_DELAY_S` | `1.0` | minimum pause between Garmin requests (be kind; don't lower it much) |
 | `BACKUP_KEEP` | `14` | number of nightly backups kept in `data/backups` |
-| `TZ` | `UTC` | your time zone (daily boundaries, backup time) |
+| `TZ` | `UTC` | your time zone (backup time; daily boundaries when Garmin has not sent one for your profile) |
 | `GARMINIZER_DATA` | `./data` | host folder for tokens and backups (Docker) |
 | `MAP_STYLE_URL`, `MAP_STYLE_URL_DARK` | OpenFreeMap positron / dark | MapLibre style URLs |
 | `DEMO_PORT` | `8430` | port of the demo stack (`compose.demo.yml`) |

@@ -10,7 +10,7 @@ from pydantic import AfterValidator, Field
 from sqlalchemy.orm import Session
 
 from garminizer.analytics.stats import streaks
-from garminizer.api.deps import SessionDep, data_bounds, one, rows
+from garminizer.api.deps import ClockDep, SessionDep, data_bounds, one, rows
 from garminizer.api.routers.activities import SUMMARY_COLUMNS
 from garminizer.api.schemas import ActivitySummary, Model
 
@@ -20,7 +20,6 @@ INTENSITY_GOAL_MIN = 150  # WHO weekly recommendation, used when Garmin has no g
 RECENT_ACTIVITIES = 6
 # Floats rounded to 0.1 (averages and sums of REAL columns carry binary noise).
 R1 = Annotated[float, AfterValidator(lambda v: round(v, 1))]
-ATHLETE_TZ = "coalesce((SELECT time_zone FROM garmin.athlete ORDER BY id LIMIT 1), 'UTC')"
 
 
 class OverviewReadiness(Model):
@@ -208,12 +207,13 @@ def _week(session: Session, day: date) -> OverviewWeek:
 @router.get("", response_model=OverviewToday)
 def overview(
     session: SessionDep,
+    clock: ClockDep,
     day: Annotated[
         date | None, Query(description="Day to show (default: last day with data)")
     ] = None,
 ) -> OverviewToday:
     if day is None:
-        day = data_bounds(session)[1] or date.today()
+        day = data_bounds(session)[1] or clock.today()
     p = {"day": day}
     d = _daily(session, day)
     readiness = one(
@@ -271,13 +271,14 @@ def overview(
     )
     battery = rows(
         session,
-        f"""
+        """
         SELECT ts, level AS value FROM garmin.body_battery_sample
-        WHERE ts >= (CAST(:day AS timestamp) AT TIME ZONE {ATHLETE_TZ})
-          AND ts < (CAST(:next_day AS timestamp) AT TIME ZONE {ATHLETE_TZ})
+        WHERE ts >= (CAST(:day AS timestamp) AT TIME ZONE :tz)
+          AND ts < (CAST(:next_day AS timestamp) AT TIME ZONE :tz)
         ORDER BY ts
-        """,  # noqa: S608 - constant SQL fragment
+        """,
         next_day=day + timedelta(days=1),
+        tz=clock.name,
         **p,
     )
     recent = rows(

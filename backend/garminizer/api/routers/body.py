@@ -11,8 +11,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import Field
 
-from garminizer.api.deps import RangeDep, SessionDep, rows
-from garminizer.api.routers.wellness import athlete_tz, local_midnight
+from garminizer.api.deps import ClockDep, RangeDep, SessionDep, rows
 from garminizer.api.schemas import Model
 
 router = APIRouter(prefix="/api/body", tags=["body"])
@@ -108,10 +107,8 @@ def change_30d(points: list[BodyTrendPoint]) -> float | None:
 
 
 @router.get("", response_model=BodyOverview)
-def body(session: SessionDep, rng: RangeDep) -> BodyOverview:
-    tz = athlete_tz(session)
-    t0 = local_midnight(rng.start, tz)
-    t1 = local_midnight(rng.end + timedelta(days=1), tz)
+def body(session: SessionDep, clock: ClockDep, rng: RangeDep) -> BodyOverview:
+    t0, t1 = clock.day_span(rng.start, rng.end)
     weigh_ins = rows(
         session,
         "SELECT * FROM garmin.body_composition WHERE measured_at >= :t0 AND measured_at < :t1 "
@@ -135,7 +132,7 @@ def body(session: SessionDep, rng: RangeDep) -> BodyOverview:
         FROM garmin.body_composition WHERE measured_at < :t1
         GROUP BY 1 ORDER BY 1
         """,
-        tz=tz,
+        tz=clock.name,
         t1=t1,
     )
     full = trend(daily)

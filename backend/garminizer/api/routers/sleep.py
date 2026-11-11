@@ -14,8 +14,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 
-from garminizer.api.deps import RangeDep, SessionDep, rows
-from garminizer.api.routers.wellness import as_utc, athlete_tz, series_rows
+from garminizer.api.deps import ClockDep, RangeDep, SessionDep, rows
+from garminizer.api.routers.wellness import as_utc, series_rows
 from garminizer.api.schemas import Model
 
 router = APIRouter(prefix="/api/sleep", tags=["sleep"])
@@ -126,11 +126,11 @@ class SleepStats(Model):
     score_distribution: list[SleepQualityCount]
 
 
-def _nights(session: Session, where: str, **params: Any) -> list[SleepNight]:
+def _nights(session: Session, tz: str, where: str, **params: Any) -> list[SleepNight]:
     data = rows(
         session,
         f"{NIGHT_SQL} WHERE {where} ORDER BY s.day",
-        tz=athlete_tz(session),
+        tz=tz,
         **params,
     )
     for r in data:
@@ -159,13 +159,17 @@ def _group(nights: list[SleepNight]) -> SleepGroupStats:
 
 
 @router.get("", response_model=list[SleepNight])
-def list_nights(session: SessionDep, rng: RangeDep) -> list[SleepNight]:
-    return _nights(session, "s.day BETWEEN :start AND :end", start=rng.start, end=rng.end)
+def list_nights(session: SessionDep, clock: ClockDep, rng: RangeDep) -> list[SleepNight]:
+    return _nights(
+        session, clock.name, "s.day BETWEEN :start AND :end", start=rng.start, end=rng.end
+    )
 
 
 @router.get("/stats", response_model=SleepStats)
-def sleep_stats(session: SessionDep, rng: RangeDep) -> SleepStats:
-    nights = _nights(session, "s.day BETWEEN :start AND :end", start=rng.start, end=rng.end)
+def sleep_stats(session: SessionDep, clock: ClockDep, rng: RangeDep) -> SleepStats:
+    nights = _nights(
+        session, clock.name, "s.day BETWEEN :start AND :end", start=rng.start, end=rng.end
+    )
     debts = [
         max(0, n.sleep_need_min * 60 - n.duration_s)
         for n in nights[-7:]
@@ -194,8 +198,8 @@ def sleep_stats(session: SessionDep, rng: RangeDep) -> SleepStats:
 
 
 @router.get("/{day}", response_model=SleepDetail)
-def night_detail(day: date, session: SessionDep) -> SleepDetail:
-    found = _nights(session, "s.day = :day", day=day)
+def night_detail(day: date, session: SessionDep, clock: ClockDep) -> SleepDetail:
+    found = _nights(session, clock.name, "s.day = :day", day=day)
     if not found:
         raise HTTPException(status_code=404, detail="no sleep recorded for this day")
     night = found[0]
