@@ -12,9 +12,9 @@ import { Chart, type ChartOption } from "@/components/Chart";
 import {
   Card,
   EmptyState,
-  ErrorState,
   LegendItem,
   PageHeader,
+  QueryState,
   Segmented,
   Skeleton,
   StatTile,
@@ -343,34 +343,36 @@ function PunchcardCard({ query, sport }: { query: PageFilters["query"]; sport: s
       subtitle="Start times by weekday and hour · bubble size = activities"
     >
       <div ref={measure}>
-        {q.isPending ? (
-          <Skeleton height={250} />
-        ) : q.error ? (
-          <ErrorState error={q.error} />
-        ) : !cells.length ? (
-          <EmptyState title="No activities in this period" />
-        ) : (
-          <>
-            <Chart
-              option={option}
-              height={250}
-              ariaLabel="Punchcard of activity start times by weekday and hour"
-            />
-            {peak && (
-              <p className="mt-3 text-xs text-ink-3">
-                Most common slot{" "}
-                <span className="font-medium text-ink-2">
-                  {WEEKDAYS[peak.weekday]}s at {String(peak.hour).padStart(2, "0")}:00
-                </span>{" "}
-                · busiest day <span className="font-medium text-ink-2">{WEEKDAYS[busiest]}</span> ·{" "}
-                <span className="font-medium text-ink-2">
-                  {fmtPercent((evening / total) * 100)}
-                </span>{" "}
-                start after 17:00
-              </p>
-            )}
-          </>
-        )}
+        <QueryState
+          query={q}
+          height={250}
+          isEmpty={(c) => !c.length}
+          empty={<EmptyState title="No activities in this period" />}
+        >
+          {() => (
+            <>
+              <Chart
+                option={option}
+                height={250}
+                ariaLabel="Punchcard of activity start times by weekday and hour"
+              />
+              {peak && (
+                <p className="mt-3 text-xs text-ink-3">
+                  Most common slot{" "}
+                  <span className="font-medium text-ink-2">
+                    {WEEKDAYS[peak.weekday]}s at {String(peak.hour).padStart(2, "0")}:00
+                  </span>{" "}
+                  · busiest day <span className="font-medium text-ink-2">{WEEKDAYS[busiest]}</span>{" "}
+                  ·{" "}
+                  <span className="font-medium text-ink-2">
+                    {fmtPercent((evening / total) * 100)}
+                  </span>{" "}
+                  start after 17:00
+                </p>
+              )}
+            </>
+          )}
+        </QueryState>
       </div>
     </Card>
   );
@@ -485,16 +487,6 @@ export default function CalendarPage() {
 
   const { start, end, sport, query } = range;
   const cal = api.useQuery("get", "/api/calendar", { params: { query } }, { enabled: range.ready });
-  const days = cal.data?.days;
-  const error = cal.error;
-  const streaks = cal.data
-    ? {
-        current: cal.data.streak.current,
-        longest: cal.data.streak.longest,
-        longestStart: cal.data.streak.longest_start,
-        weeks: cal.data.active_weeks_in_row,
-      }
-    : null;
 
   return (
     <>
@@ -502,31 +494,44 @@ export default function CalendarPage() {
         title="Calendar"
         description={`Consistency over time · ${fmtDate(start)} – ${fmtDate(end)}${sport ? ` · ${sportLabel(sport)}` : ""}`}
       />
-      {error ? (
-        <ErrorState error={error} />
-      ) : !days ? (
-        <div className="flex flex-col gap-5">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
-              <Skeleton key={i} height={104} />
-            ))}
+      <QueryState
+        query={cal}
+        skeleton={
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} height={104} />
+              ))}
+            </div>
+            <Skeleton height={380} />
+            <div className="grid gap-5 lg:grid-cols-2">
+              <Skeleton height={340} />
+              <Skeleton height={340} />
+            </div>
           </div>
-          <Skeleton height={380} />
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Skeleton height={340} />
-            <Skeleton height={340} />
+        }
+      >
+        {({ days, streak, active_weeks_in_row }) => (
+          <div className="flex flex-col gap-5">
+            <StreakTiles
+              days={days}
+              start={start}
+              end={end}
+              api={{
+                current: streak.current,
+                longest: streak.longest,
+                longestStart: streak.longest_start,
+                weeks: active_weeks_in_row,
+              }}
+            />
+            <HeatmapCard days={days} start={start} end={end} sport={sport} />
+            <div className="grid gap-5 lg:grid-cols-2">
+              <PunchcardCard query={query} sport={sport} />
+              <MonthlyCard days={days} start={start} end={end} sport={sport} />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-5">
-          <StreakTiles days={days} start={start} end={end} api={streaks} />
-          <HeatmapCard days={days} start={start} end={end} sport={sport} />
-          <div className="grid gap-5 lg:grid-cols-2">
-            <PunchcardCard query={query} sport={sport} />
-            <MonthlyCard days={days} start={start} end={end} sport={sport} />
-          </div>
-        </div>
-      )}
+        )}
+      </QueryState>
     </>
   );
 }

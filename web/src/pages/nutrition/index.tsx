@@ -3,15 +3,7 @@ import { useState } from "react";
 import { api, type Schemas } from "@/api/client";
 import { usePageFilters } from "@/app/pageFilters";
 import { Chart, type ChartOption } from "@/components/Chart";
-import {
-  Card,
-  EmptyState,
-  ErrorState,
-  LegendItem,
-  PageHeader,
-  Skeleton,
-  StatTile,
-} from "@/components/ui";
+import { Card, EmptyState, LegendItem, PageHeader, QueryState, StatTile } from "@/components/ui";
 import {
   axisTooltip,
   bars,
@@ -402,51 +394,36 @@ function Tiles({ s }: { s: Summary }) {
 }
 
 export default function NutritionPage() {
-  const mode = useMode();
   const range = usePageFilters();
   const query = { params: { query: range.dates } };
-  const opts = range.options;
-  const summary = api.useQuery("get", "/api/nutrition/summary", query, opts);
-  const daily = api.useQuery("get", "/api/nutrition/daily", query, opts);
+  const summary = api.useQuery("get", "/api/nutrition/summary", query, range.options);
+  const daily = api.useQuery("get", "/api/nutrition/daily", query, range.options);
+  return (
+    <>
+      <PageHeader
+        title="Nutrition"
+        description={`Meals you log through Claude Desktop, against what Garmin says you burned · ${fmtShortDate(range.start)} – ${fmtDate(range.end)}`}
+      />
+      <QueryState queries={[summary, daily]} height={420}>
+        {([s, points]) => <NutritionBody s={s} points={points} />}
+      </QueryState>
+    </>
+  );
+}
+
+function NutritionBody({ s, points }: { s: Summary; points: Point[] }) {
+  const mode = useMode();
   const [picked, setPicked] = useState<string | null>(null);
   const narrow = useMediaQuery(NARROW);
-
-  const header = (
-    <PageHeader
-      title="Nutrition"
-      description={`Meals you log through Claude Desktop, against what Garmin says you burned · ${fmtShortDate(range.start)} – ${fmtDate(range.end)}`}
-    />
-  );
-  if (summary.isPending || daily.isPending) {
-    return (
-      <>
-        {header}
-        <Skeleton height={420} />
-      </>
-    );
-  }
-  if (summary.isError || daily.isError) {
-    return (
-      <>
-        {header}
-        <ErrorState error={(summary.error ?? daily.error) as unknown} />
-      </>
-    );
-  }
-  const s = summary.data;
-  const points = daily.data;
   const lastLogged = [...points].reverse().find((p) => p.meals > 0)?.day ?? s.end;
   const day = picked ?? lastLogged;
 
   if (s.meals === 0) {
     return (
-      <>
-        {header}
-        <div className="grid gap-5">
-          <Setup />
-          <DayCard day={day} onDay={setPicked} maxDay={s.end} />
-        </div>
-      </>
+      <div className="grid gap-5">
+        <Setup />
+        <DayCard day={day} onDay={setPicked} maxDay={s.end} />
+      </div>
     );
   }
 
@@ -458,99 +435,96 @@ export default function NutritionPage() {
   const c = MEASURE_COLORS[mode];
   const d = DIVERGING[mode];
   return (
-    <>
-      {header}
-      <div className="flex flex-col gap-5">
-        <Tiles s={s} />
-        <DayCard day={day} onDay={setPicked} maxDay={s.end} />
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Card title="Eaten vs Garmin burn" subtitle="kcal per day; bars only on logged days">
-            <div className="mb-2 flex flex-wrap gap-4">
-              <LegendItem color={c.intake} label="Eaten" />
-              <LegendItem color={c.burn} label="Garmin burn (total)" shape="line" />
-            </div>
-            <Chart
-              option={intakeOption(points, s, mode, ext)}
-              height={240}
-              ariaLabel="Daily intake against Garmin's total burn"
-              onEvents={{
-                click: (e) => {
-                  const v = (e as { value?: [number, unknown] }).value;
-                  if (Array.isArray(v)) setPicked(new Date(v[0]).toISOString().slice(0, 10));
-                },
-              }}
-            />
-          </Card>
+    <div className="flex flex-col gap-5">
+      <Tiles s={s} />
+      <DayCard day={day} onDay={setPicked} maxDay={s.end} />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Eaten vs Garmin burn" subtitle="kcal per day; bars only on logged days">
+          <div className="mb-2 flex flex-wrap gap-4">
+            <LegendItem color={c.intake} label="Eaten" />
+            <LegendItem color={c.burn} label="Garmin burn (total)" shape="line" />
+          </div>
+          <Chart
+            option={intakeOption(points, s, mode, ext)}
+            height={240}
+            ariaLabel="Daily intake against Garmin's total burn"
+            onEvents={{
+              click: (e) => {
+                const v = (e as { value?: [number, unknown] }).value;
+                if (Array.isArray(v)) setPicked(new Date(v[0]).toISOString().slice(0, 10));
+              },
+            }}
+          />
+        </Card>
+        <Card
+          title="Daily energy balance"
+          subtitle="Eaten minus Garmin's total burn, on days with both"
+        >
+          <div className="mb-2 flex flex-wrap gap-4">
+            <LegendItem color={d.negative} label="Deficit" />
+            <LegendItem color={d.positive} label="Surplus" />
+          </div>
+          <Chart
+            option={balanceOption(points, mode, ext)}
+            height={240}
+            ariaLabel="Daily energy balance"
+          />
+        </Card>
+        <Card title="Macros per day" subtitle="kcal from protein, carbs and fat">
+          <div className="mb-2 flex flex-wrap gap-4">
+            <LegendItem color={c.protein} label="Protein" />
+            <LegendItem color={c.carbs} label="Carbs" />
+            <LegendItem color={c.fat} label="Fat" />
+          </div>
+          <Chart
+            option={macroOption(points, mode, ext, dense)}
+            height={240}
+            ariaLabel="Energy from protein, carbs and fat per day"
+          />
+        </Card>
+        {protein ? (
           <Card
-            title="Daily energy balance"
-            subtitle="Eaten minus Garmin's total burn, on days with both"
+            title="Protein per kg body weight"
+            subtitle={`g/kg per logged day, using your latest weight (${fmtNumber(s.weight_kg, 1)} kg)`}
           >
-            <div className="mb-2 flex flex-wrap gap-4">
-              <LegendItem color={d.negative} label="Deficit" />
-              <LegendItem color={d.positive} label="Surplus" />
-            </div>
-            <Chart
-              option={balanceOption(points, mode, ext)}
-              height={240}
-              ariaLabel="Daily energy balance"
-            />
+            <Chart option={protein} height={268} ariaLabel="Protein per kg body weight" />
           </Card>
-          <Card title="Macros per day" subtitle="kcal from protein, carbs and fat">
-            <div className="mb-2 flex flex-wrap gap-4">
-              <LegendItem color={c.protein} label="Protein" />
-              <LegendItem color={c.carbs} label="Carbs" />
-              <LegendItem color={c.fat} label="Fat" />
-            </div>
-            <Chart
-              option={macroOption(points, mode, ext, dense)}
-              height={240}
-              ariaLabel="Energy from protein, carbs and fat per day"
-            />
+        ) : (
+          <Card title="Protein per kg body weight">
+            <EmptyState title="No weigh-in yet">
+              Protein per kg needs at least one weight measurement from Garmin.
+            </EmptyState>
           </Card>
-          {protein ? (
-            <Card
-              title="Protein per kg body weight"
-              subtitle={`g/kg per logged day, using your latest weight (${fmtNumber(s.weight_kg, 1)} kg)`}
-            >
-              <Chart option={protein} height={268} ariaLabel="Protein per kg body weight" />
-            </Card>
-          ) : (
-            <Card title="Protein per kg body weight">
-              <EmptyState title="No weigh-in yet">
-                Protein per kg needs at least one weight measurement from Garmin.
-              </EmptyState>
-            </Card>
-          )}
-          <EnergySplit s={s} />
-          <MealTypes s={s} />
-          {(weeklyBalance || weeklyWeight) && (
-            <Card
-              title="Week by week: balance and weight"
-              subtitle="Average balance per logged day next to the week's average weight"
-              className="lg:col-span-2"
-            >
-              <div className="grid gap-5 md:grid-cols-2">
-                <div>
-                  <p className="mb-1 text-xs font-medium text-ink-2">Average balance (kcal/day)</p>
-                  {weeklyBalance ? (
-                    <Chart option={weeklyBalance} height={200} ariaLabel="Weekly energy balance" />
-                  ) : (
-                    <EmptyState title="Not enough weeks with Garmin calories" />
-                  )}
-                </div>
-                <div>
-                  <p className="mb-1 text-xs font-medium text-ink-2">Average weight (kg)</p>
-                  {weeklyWeight ? (
-                    <Chart option={weeklyWeight} height={200} ariaLabel="Weekly average weight" />
-                  ) : (
-                    <EmptyState title="Not enough weigh-ins" />
-                  )}
-                </div>
+        )}
+        <EnergySplit s={s} />
+        <MealTypes s={s} />
+        {(weeklyBalance || weeklyWeight) && (
+          <Card
+            title="Week by week: balance and weight"
+            subtitle="Average balance per logged day next to the week's average weight"
+            className="lg:col-span-2"
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs font-medium text-ink-2">Average balance (kcal/day)</p>
+                {weeklyBalance ? (
+                  <Chart option={weeklyBalance} height={200} ariaLabel="Weekly energy balance" />
+                ) : (
+                  <EmptyState title="Not enough weeks with Garmin calories" />
+                )}
               </div>
-            </Card>
-          )}
-        </div>
+              <div>
+                <p className="mb-1 text-xs font-medium text-ink-2">Average weight (kg)</p>
+                {weeklyWeight ? (
+                  <Chart option={weeklyWeight} height={200} ariaLabel="Weekly average weight" />
+                ) : (
+                  <EmptyState title="Not enough weigh-ins" />
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
-    </>
+    </div>
   );
 }

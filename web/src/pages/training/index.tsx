@@ -1,7 +1,7 @@
 import { CircleCheck } from "lucide-react";
 import { api, type Schemas } from "@/api/client";
 import { usePageFilters } from "@/app/pageFilters";
-import { Delta, ErrorState, PageHeader, Skeleton, Sparkline, StatTile } from "@/components/ui";
+import { Delta, PageHeader, QueryState, Sparkline, StatTile } from "@/components/ui";
 import { DASH, fmtDate, fmtDelta, fmtNumber, signed } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { addDays } from "@/lib/range";
@@ -112,13 +112,9 @@ export default function TrainingPage() {
         }`}
       />
       <div className="flex flex-col gap-5">
-        {load.isPending || status.isPending ? (
-          <Skeleton height={104} />
-        ) : load.error ? (
-          <ErrorState error={load.error} />
-        ) : (
-          <LoadTiles data={load.data ?? []} status={status.data ?? []} />
-        )}
+        <QueryState queries={[load, status]} height={104}>
+          {([l, st]) => <LoadTiles data={l} status={st} />}
+        </QueryState>
         <div className="grid gap-5 lg:grid-cols-2">
           <PmcCard
             query={load}
