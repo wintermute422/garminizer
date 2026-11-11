@@ -48,8 +48,8 @@ const ACWR: Record<string, Status | null> = {
 const SLEEP: Record<string, Status | null> = {
   EXCELLENT: "good",
   GOOD: "good",
-  FAIR: null,
-  POOR: "serious",
+  FAIR: "warning",
+  POOR: "critical",
 };
 
 export const readinessState = (k: string | null | undefined) => lookup(READINESS, k);
