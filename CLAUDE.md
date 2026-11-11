@@ -52,6 +52,7 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `scripts/dev_api.sh`, `scripts/dev_web.sh` | development API (8425, dev DB) and Vite (5180) — never the real DB |
 | `scripts/init_env.py [--tz Zone]` | creates `.env` from `.env.example` with random secrets; never prints them; refuses to overwrite |
 | `scripts/screenshots.sh` | README screenshots from the demo e2e DB only (refuses non-demo), writes MANIFEST.sha256 |
+| `scripts/gen_badges.sh` | README badges from shields.io into `docs/badges/` (by hand, needs network); the README never hot-links shields.io/camo, which privacy filters block |
 | `scripts/e2e_dev.sh API_PORT WEB_PORT "page x"` | same checks against Vite dev on private ports (parallel page work, no shared build) |
 
 ## Git workflow

@@ -10,11 +10,11 @@ VO2max, weight and more — stores it in a well-documented PostgreSQL database o
 computer, and turns it into fast, interactive dashboards.
 
 [![CI](https://github.com/wintermute422/garminizer/actions/workflows/ci.yml/badge.svg)](https://github.com/wintermute422/garminizer/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Self-hosted](https://img.shields.io/badge/self--hosted-Docker%20Compose-2496ED?logo=docker&logoColor=white)
-![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
-![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
-![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+[![License: MIT](docs/badges/license.svg)](LICENSE)
+[![Self-hosted with Docker Compose](docs/badges/docker.svg)](docs/installation.md)
+![PostgreSQL 17](docs/badges/postgresql.svg)
+![Python 3.12+](docs/badges/python.svg)
+![React 19](docs/badges/react.svg)
 
 **Local-first** · **read-only access to Garmin** · **documented SQL schema** · **16 dashboards** ·
 **meal logging with Claude**
