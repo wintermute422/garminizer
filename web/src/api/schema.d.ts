@@ -1454,7 +1454,10 @@ export interface components {
             day: string;
             /** Distance M */
             distance_m: number;
-            /** Duration S */
+            /**
+             * Duration S
+             * @description Moving time (elapsed when an activity has none)
+             */
             duration_s: number;
             /** Sport Groups */
             sport_groups: string[];
@@ -1477,7 +1480,10 @@ export interface components {
         CalendarPunchcardCell: {
             /** Activities */
             activities: number;
-            /** Duration S */
+            /**
+             * Duration S
+             * @description Moving time (elapsed when an activity has none)
+             */
             duration_s: number;
             /** Hour */
             hour: number;
@@ -2995,11 +3001,17 @@ export interface components {
             calories: number | null;
             /** Distance M */
             distance_m: number | null;
-            /** Duration S */
+            /**
+             * Duration S
+             * @description Elapsed time
+             */
             duration_s: number | null;
             /** Elevation Gain M */
             elevation_gain_m: number | null;
-            /** Moving S */
+            /**
+             * Moving S
+             * @description Moving time (elapsed when an activity has none)
+             */
             moving_s: number | null;
             /** Sport Group */
             sport_group: string;

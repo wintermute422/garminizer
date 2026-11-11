@@ -52,7 +52,7 @@ def test_calendar_days_match_activities(client: TestClient, sql: Session) -> Non
     for d in body["days"][-5:]:
         db = sql.execute(
             text(
-                "SELECT count(*) AS n, coalesce(sum(duration_s), 0) AS dur, "
+                "SELECT count(*) AS n, coalesce(sum(coalesce(moving_s, duration_s)), 0) AS dur, "
                 "coalesce(sum(distance_m), 0) AS dist, coalesce(sum(training_load), 0) AS load, "
                 "array_agg(DISTINCT sport_group) AS groups "
                 "FROM garmin.activity WHERE start_time_local::date = :d"
@@ -122,7 +122,8 @@ def test_punchcard_totals(client: TestClient, sql: Session) -> None:
     top = max(cells, key=lambda c: c["activities"])
     db = sql.execute(
         text(
-            "SELECT count(*) AS n, coalesce(sum(duration_s), 0) AS dur FROM garmin.activity "
+            "SELECT count(*) AS n, coalesce(sum(coalesce(moving_s, duration_s)), 0) AS dur "
+            "FROM garmin.activity "
             f"WHERE {IN_RANGE} AND extract(isodow FROM start_time_local) = :wd "
             "AND extract(hour FROM start_time_local) = :h"
         ),

@@ -715,7 +715,8 @@ def cards(session: SessionDep, rng: RangeDep) -> list[InsightCard]:
     grid = _grid(session, min(start, rng.end - timedelta(days=89)), rng.end, CARD_METRICS)
     activities = rows(
         session,
-        "SELECT start_time_local, duration_s FROM garmin.activity "
+        "SELECT start_time_local, coalesce(moving_s, duration_s) AS duration_s "
+        "FROM garmin.activity "
         "WHERE start_time_local >= :start AND start_time_local < :end_excl "
         "ORDER BY start_time_local",
         start=start,
