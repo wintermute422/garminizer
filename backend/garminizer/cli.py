@@ -11,6 +11,10 @@ from garminizer.db import migrate
 from garminizer.ops import ops_app
 
 if TYPE_CHECKING:
+    from datetime import date
+
+    from sqlalchemy.orm import Session
+
     from garminizer.garmin.client import GarminClient
     from garminizer.sync.engine import RunSummary
 
@@ -34,6 +38,14 @@ def worker() -> None:
     worker_module.run()
 
 
+def _athlete_today(session: Session) -> date:
+    """Today in the athlete's time zone (Garmin's, else TZ)."""
+    from garminizer.athlete import athlete_clock  # noqa: PLC0415 - keep CLI start-up light
+    from garminizer.config import get_settings  # noqa: PLC0415
+
+    return athlete_clock(session, get_settings().tz).today()
+
+
 @analytics_app.command("refresh")
 def analytics_refresh(
     force: bool = typer.Option(False, help="Reprocess every activity, not only pending ones."),
@@ -43,7 +55,8 @@ def analytics_refresh(
     from garminizer.db import session_scope  # noqa: PLC0415
 
     with session_scope() as session:
-        report = pipeline.run(session, force=force)
+        today = _athlete_today(session)
+        report = pipeline.run(session, force=force, today=today)
     typer.echo(f"analytics: {report.activities} activities, {report.daily_rows} days of load")
 
 
@@ -277,7 +290,7 @@ def reparse() -> None:
     migrate.upgrade()
     try:
         with session_scope() as session:
-            summary = engine.reparse(session)
+            summary = engine.reparse(session, today=_athlete_today(session))
     except engine.DemoDatabaseError as exc:
         _fail(f"refused: {exc}", 2)
     except engine.SyncBusyError as exc:
@@ -289,12 +302,11 @@ def reparse() -> None:
 def verify() -> None:
     """Compare the database with Garmin (activity count, 3 activities, one day's steps)."""
     from garminizer.db import session_scope  # noqa: PLC0415
-    from garminizer.sync import engine  # noqa: PLC0415
     from garminizer.sync import verify as verify_mod  # noqa: PLC0415
 
     client = _garmin_client()
     with session_scope() as session:
-        report = verify_mod.verify(session, client, today=engine.local_today(session))
+        report = verify_mod.verify(session, client, today=_athlete_today(session))
     typer.echo(verify_mod.format_report(report))
     if not report.ok:
         raise typer.Exit(1)
@@ -306,12 +318,11 @@ def probe() -> None:
     from datetime import timedelta  # noqa: PLC0415
 
     from garminizer.db import session_scope  # noqa: PLC0415
-    from garminizer.sync import engine  # noqa: PLC0415
     from garminizer.sync import verify as verify_mod  # noqa: PLC0415
 
     client = _garmin_client()
     with session_scope() as session:
-        day = engine.local_today(session) - timedelta(days=1)
+        day = _athlete_today(session) - timedelta(days=1)
     for name, result in verify_mod.probe(client, day):
         typer.echo(f"{name:<22} {result}")
 

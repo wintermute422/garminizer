@@ -20,7 +20,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import Connection, Engine, func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
@@ -28,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from garminizer import models as m
 from garminizer.analytics import pipeline
+from garminizer.athlete import athlete_clock
 from garminizer.config import Settings, get_settings
 from garminizer.garmin import auth
 from garminizer.garmin.client import (
@@ -127,16 +127,6 @@ def is_demo(session: Session) -> bool:
 def ensure_not_demo(session: Session) -> None:
     if is_demo(session):
         raise DemoDatabaseError(DEMO_MESSAGE)
-
-
-def local_today(session: Session, settings: Settings | None = None) -> date:
-    """Today in the athlete's time zone (Garmin's calendarDate), else settings.tz."""
-    tz_name = session.scalar(select(m.Athlete.time_zone)) or (settings or get_settings()).tz
-    try:
-        tz = ZoneInfo(tz_name)
-    except (ZoneInfoNotFoundError, ValueError):
-        tz = ZoneInfo("UTC")
-    return datetime.now(tz).date()
 
 
 def is_running(session: Session) -> bool:
@@ -822,7 +812,7 @@ def _execute(
     settings = settings or get_settings()
     with session_factory() as s:
         ensure_not_demo(s)
-        today = today or local_today(s, settings)
+        today = today or athlete_clock(s, settings.tz).today()
     with run_lock(_bind_of(session_factory)):
         run = _Run(
             session_factory=session_factory,
@@ -937,7 +927,7 @@ def backfill(
     )
 
 
-def reparse(session: Session, *, today: date | None = None) -> RunSummary:
+def reparse(session: Session, *, today: date) -> RunSummary:
     """Rebuild the typed tables from raw_payload (+ stored activity files); no Garmin calls."""
     ensure_not_demo(session)
     bind = session.get_bind()
@@ -1111,7 +1101,6 @@ __all__ = [
     "incremental",
     "is_demo",
     "is_running",
-    "local_today",
     "parse_payload",
     "record_failed_run",
     "reparse",

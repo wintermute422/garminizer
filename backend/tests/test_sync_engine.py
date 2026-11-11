@@ -319,7 +319,7 @@ def test_refuses_a_demo_database(sf: sessionmaker[Session], settings: Settings) 
     with pytest.raises(engine.DemoDatabaseError):
         engine.backfill(sf, client_for(fake), today=TODAY, settings=settings)
     with sf() as s, pytest.raises(engine.DemoDatabaseError):
-        engine.reparse(s)
+        engine.reparse(s, today=TODAY)
     assert fake.calls == []
     assert scalar(sf, "SELECT count(*) FROM garmin.sync_run") == 0
 

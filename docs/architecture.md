@@ -29,6 +29,7 @@ Claude Desktop ──(MCP over stdio: docker exec … garminizer mcp)──▶ m
 | Package | Responsibility |
 |---|---|
 | `config.py` | settings from environment / `.env`; refuses unsafe exposure without a password |
+| `athlete.py` | the athlete's clock: the one rule for "today" and local days (Garmin's profile time zone, else `TZ`, else UTC), used by the API, MCP, sync and analytics |
 | `db/` | SQLAlchemy base, sessions, bulk COPY/upsert helpers, Alembic migrations (shipped in the package) |
 | `models/` | every table, each with a comment ([data model](data-model.md)) |
 | `garmin/` | read-only client wrapper (whitelist, throttle, backoff) and login/MFA/token handling |

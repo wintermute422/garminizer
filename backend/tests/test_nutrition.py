@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from garminizer import models as m
+from garminizer.athlete import AthleteClock, athlete_clock
 from garminizer.nutrition import service
 from garminizer.nutrition.schemas import (
     NutritionItemIn,
@@ -29,6 +30,11 @@ LATER = datetime(2026, 12, 31, tzinfo=UTC)
 def _athlete(db: Session, tz: str | None = BERLIN, weight: float | None = 70.0) -> None:
     db.add(m.Athlete(id=1, time_zone=tz, weight_kg=weight, is_demo=False))
     db.flush()
+
+
+def _clock(db: Session, now: datetime = NOW, fallback: str | None = "UTC") -> AthleteClock:
+    """The athlete's clock with a fixed "now" (zone: athlete row, else ``fallback``)."""
+    return athlete_clock(db, fallback, now=lambda: now)
 
 
 def _item(
@@ -143,7 +149,7 @@ def test_meal_type_from_local_time(hhmm: str, expected: str) -> None:
 
 def test_log_meal_stores_meal_and_items(db: Session) -> None:
     _athlete(db)
-    meal = service.log_meal(db, _meal(notes="assumed 10 g oil"), source="claude", now=NOW)
+    meal = service.log_meal(db, _meal(notes="assumed 10 g oil"), source="claude", clock=_clock(db))
     assert meal.meal_id > 0
     assert meal.kcal == pytest.approx(447.0)
     assert meal.meal_type == "lunch"  # 13:00 local
@@ -161,14 +167,16 @@ def test_log_meal_stores_meal_and_items(db: Session) -> None:
 def test_mismatching_meal_is_stored_with_warning(db: Session) -> None:
     _athlete(db)
     data = _meal(items=[], totals=NutritionTotalsIn(kcal=300, protein_g=40, carbs_g=60, fat_g=20))
-    meal = service.log_meal(db, data, source="manual", now=NOW)
+    meal = service.log_meal(db, data, source="manual", clock=_clock(db))
     assert [w.code for w in meal.warnings] == ["macro_kcal_mismatch"]
     assert db.get(m.Meal, meal.meal_id) is not None
 
 
 def test_items_total_mismatch_is_flagged(db: Session) -> None:
     _athlete(db)
-    meal = service.log_meal(db, _meal(totals=NutritionTotalsIn(kcal=900)), source="claude", now=NOW)
+    meal = service.log_meal(
+        db, _meal(totals=NutritionTotalsIn(kcal=900)), source="claude", clock=_clock(db)
+    )
     assert "items_kcal_mismatch" in [w.code for w in meal.warnings]
 
 
@@ -192,7 +200,7 @@ def test_day_is_the_local_date_of_eaten_at(
     db: Session, tz: str, eaten_at: datetime, expected_day: date, expected_type: str
 ) -> None:
     _athlete(db, tz=tz)
-    meal = service.log_meal(db, _meal(eaten_at=eaten_at), source="claude", now=LATER)
+    meal = service.log_meal(db, _meal(eaten_at=eaten_at), source="claude", clock=_clock(db, LATER))
     assert meal.day == expected_day
     assert meal.meal_type == expected_type
     assert meal.eaten_at.astimezone(ZoneInfo(tz)).date() == expected_day
@@ -201,29 +209,31 @@ def test_day_is_the_local_date_of_eaten_at(
 def test_fallback_time_zone_without_athlete(db: Session) -> None:
     eaten = datetime(2026, 3, 11, 3, 0, tzinfo=UTC)
     meal = service.log_meal(
-        db, _meal(eaten_at=eaten), source="claude", fallback_tz="America/New_York", now=NOW
+        db, _meal(eaten_at=eaten), source="claude", clock=_clock(db, fallback="America/New_York")
     )
     assert meal.day == date(2026, 3, 10)
-    utc_meal = service.log_meal(db, _meal(eaten_at=eaten), source="claude", now=NOW)
+    utc_meal = service.log_meal(db, _meal(eaten_at=eaten), source="claude", clock=_clock(db))
     assert utc_meal.day == date(2026, 3, 11)
-    assert service.zone_name(db, "Not/AZone") == "UTC"
+    assert _clock(db, fallback="Not/AZone").name == "UTC"
 
 
 def test_default_eaten_at_is_now_and_future_is_rejected(db: Session) -> None:
     _athlete(db)
-    meal = service.log_meal(db, _meal(eaten_at=None), source="claude", now=NOW)
+    meal = service.log_meal(db, _meal(eaten_at=None), source="claude", clock=_clock(db))
     assert meal.eaten_at == NOW
     with pytest.raises(service.NutritionError, match="future"):
-        service.log_meal(db, _meal(eaten_at=NOW + timedelta(hours=13)), source="claude", now=NOW)
+        service.log_meal(
+            db, _meal(eaten_at=NOW + timedelta(hours=13)), source="claude", clock=_clock(db)
+        )
 
 
 def test_update_replaces_items_and_recomputes_totals(db: Session) -> None:
     _athlete(db)
     meal = service.log_meal(
-        db, _meal(totals=NutritionTotalsIn(sodium_mg=600)), source="claude", now=NOW
+        db, _meal(totals=NutritionTotalsIn(sodium_mg=600)), source="claude", clock=_clock(db)
     )
     patch = NutritionMealPatch(items=[_item("Rice, cooked", 260, 5.4, 56.4, 0.6)])
-    updated = service.update_meal(db, meal.meal_id, patch, now=NOW)
+    updated = service.update_meal(db, meal.meal_id, patch, clock=_clock(db))
     assert updated.kcal == 260
     assert updated.protein_g == pytest.approx(5.4)
     assert updated.sodium_mg == 600  # not derivable from items: kept
@@ -233,11 +243,13 @@ def test_update_replaces_items_and_recomputes_totals(db: Session) -> None:
 
 def test_update_moves_day_and_clears_notes(db: Session) -> None:
     _athlete(db)
-    meal = service.log_meal(db, _meal(notes="guess", confidence="low"), source="claude", now=NOW)
+    meal = service.log_meal(
+        db, _meal(notes="guess", confidence="low"), source="claude", clock=_clock(db)
+    )
     patch = NutritionMealPatch.model_validate(
         {"eaten_at": "2026-03-10T19:30:00", "notes": None, "totals": {"kcal": 480}}
     )
-    updated = service.update_meal(db, meal.meal_id, patch, now=NOW)
+    updated = service.update_meal(db, meal.meal_id, patch, clock=_clock(db))
     assert updated.day == date(2026, 3, 10)
     assert updated.notes is None
     assert updated.confidence == "low"  # not in the patch
@@ -247,15 +259,15 @@ def test_update_moves_day_and_clears_notes(db: Session) -> None:
 
 def test_update_and_delete_unknown_meal(db: Session) -> None:
     with pytest.raises(service.MealNotFoundError):
-        service.update_meal(db, 987654, NutritionMealPatch(name="x"))
+        service.update_meal(db, 987654, NutritionMealPatch(name="x"), clock=_clock(db))
     with pytest.raises(service.MealNotFoundError):
-        service.delete_meal(db, 987654)
+        service.delete_meal(db, 987654, clock=_clock(db))
 
 
 def test_delete_removes_items(db: Session) -> None:
     _athlete(db)
-    meal = service.log_meal(db, _meal(), source="claude", now=NOW)
-    deleted = service.delete_meal(db, meal.meal_id)
+    meal = service.log_meal(db, _meal(), source="claude", clock=_clock(db))
+    deleted = service.delete_meal(db, meal.meal_id, clock=_clock(db))
     assert deleted.meal_id == meal.meal_id
     assert db.get(m.Meal, meal.meal_id) is None
     assert db.scalar(select(func.count()).select_from(m.MealItem)) == 0
@@ -296,14 +308,14 @@ def test_day_summary_against_garmin_and_targets(db: Session) -> None:
     db.add(m.BodyComposition(measured_at=datetime(2026, 3, 11, 6, 0, tzinfo=UTC), weight_kg=70.0))
     db.add(m.BodyComposition(measured_at=datetime(2026, 3, 12, 6, 0, tzinfo=UTC), weight_kg=69.0))
     service.set_targets(db, NutritionTargets(kcal=2700, protein_g_per_kg=2.0, carbs_g=350))
-    service.log_meal(db, _meal(), source="claude", now=NOW)
+    service.log_meal(db, _meal(), source="claude", clock=_clock(db))
     service.log_meal(
         db,
         _meal(name="Shake", items=[_item("Whey", 120, 24, 3, 1.5)], meal_type="snack"),
         source="claude",
-        now=NOW,
+        clock=_clock(db),
     )
-    out = service.get_day(db, day, now=NOW)
+    out = service.get_day(db, day, clock=_clock(db))
     assert out.is_today
     assert out.totals.meals == 2
     assert out.totals.kcal == pytest.approx(567.0)
@@ -318,7 +330,7 @@ def test_day_summary_against_garmin_and_targets(db: Session) -> None:
     assert out.protein_g_per_kg == pytest.approx(36.8 / 70, abs=0.01)
     assert [x.name for x in out.meals] == ["Pasta", "Shake"]
 
-    empty = service.get_day(db, day - timedelta(days=1), now=NOW)
+    empty = service.get_day(db, day - timedelta(days=1), clock=_clock(db))
     assert empty.totals.meals == 0
     assert empty.totals.kcal == 0
     assert empty.balance_kcal is None
@@ -334,7 +346,9 @@ def test_daily_series_and_summary(db: Session) -> None:
     for d, kcal, protein in ((d1, 2400, 140), (d3, 2900, 150)):
         totals = NutritionTotalsIn(kcal=kcal, protein_g=protein, carbs_g=300, fat_g=80)
         at = datetime.combine(d, datetime.min.time()) + timedelta(hours=12)
-        service.log_meal(db, _meal(items=[], totals=totals, eaten_at=at), source="manual", now=NOW)
+        service.log_meal(
+            db, _meal(items=[], totals=totals, eaten_at=at), source="manual", clock=_clock(db)
+        )
 
     points = service.daily_series(db, d1, d3)
     assert [p.day for p in points] == [d1, d2, d3]
@@ -344,7 +358,7 @@ def test_daily_series_and_summary(db: Session) -> None:
     assert points[0].balance_kcal == -100
     assert points[2].balance_kcal == -100
 
-    s = service.summary(db, d1, d3)
+    s = service.summary(db, d1, d3, clock=_clock(db))
     assert (s.days, s.days_logged, s.meals) == (3, 2, 2)
     assert s.avg_intake_kcal == 2650
     assert s.avg_total_kcal == 2750  # Garmin burn on logged days only
@@ -380,8 +394,8 @@ def test_energy_context(db: Session) -> None:
     )
     db.add(m.DailyLoad(day=day, load=210, trimp=200, activities=1, ctl=60, atl=70, tsb=-5))
     db.flush()
-    service.log_meal(db, _meal(), source="claude", now=NOW)
-    ctx = service.energy_context(db, day, now=NOW)
+    service.log_meal(db, _meal(), source="claude", clock=_clock(db))
+    ctx = service.energy_context(db, day, clock=_clock(db))
     assert ctx.garmin.total_kcal == 3100
     assert ctx.steps == 14000
     assert [a.name for a in ctx.activities] == ["Long run"]

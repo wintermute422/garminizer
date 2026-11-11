@@ -1,19 +1,18 @@
 """Wellness: daily summaries with HRV and readiness, intraday series and hour-of-day heatmaps.
 
 Daily tables are keyed by the athlete's local day; intraday samples are UTC timestamps that are
-bucketed in the athlete's time zone (``garmin.athlete.time_zone``, UTC when unset).
+bucketed in the athlete's time zone (garminizer.athlete: Garmin's zone, else TZ).
 """
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Literal
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Query
 from sqlalchemy.orm import Session
 
-from garminizer.api.deps import RangeDep, SessionDep, data_bounds, one, rows
+from garminizer.api.deps import ClockDep, RangeDep, SessionDep, data_bounds, one, rows
 from garminizer.api.schemas import Model
 
 router = APIRouter(prefix="/api/wellness", tags=["wellness"])
@@ -48,24 +47,6 @@ HEATMAP_SQL = """
     FROM bins GROUP BY 1
 """
 HeatmapMetric = Literal["hr", "stress", "body_battery", "steps", "respiration"]
-
-
-def athlete_tz(session: Session) -> str:
-    """The athlete's IANA time zone; UTC when unset or unknown."""
-    r = one(session, "SELECT time_zone FROM garmin.athlete ORDER BY id LIMIT 1")
-    name = r["time_zone"] if r else None
-    if not name:
-        return "UTC"
-    try:
-        ZoneInfo(name)
-    except (ZoneInfoNotFoundError, ValueError):
-        return "UTC"
-    return str(name)
-
-
-def local_midnight(day: date, tz: str) -> datetime:
-    """00:00 of ``day`` in ``tz`` as an aware UTC datetime."""
-    return datetime.combine(day, time(), ZoneInfo(tz)).astimezone(UTC)
 
 
 def as_utc(ts: datetime | None) -> datetime | None:
@@ -224,14 +205,14 @@ def daily(session: SessionDep, rng: RangeDep) -> list[WellnessDay]:
 @router.get("/intraday", response_model=WellnessIntraday)
 def intraday(
     session: SessionDep,
+    clock: ClockDep,
     day: Annotated[
         date | None, Query(description="Local day (default: last day with data)")
     ] = None,
 ) -> WellnessIntraday:
     if day is None:
-        day = data_bounds(session)[1] or date.today()
-    tz = athlete_tz(session)
-    t0, t1 = local_midnight(day, tz), local_midnight(day + timedelta(days=1), tz)
+        day = data_bounds(session)[1] or clock.today()
+    t0, t1 = clock.day_span(day, day)
     points = {
         key: [WellnessPoint(**p) for p in series_rows(session, key, t0, t1)] for key in SERIES
     }
@@ -263,7 +244,7 @@ def intraday(
     )
     return WellnessIntraday(
         day=day,
-        time_zone=tz,
+        time_zone=clock.name,
         hr=points["hr"],
         stress=points["stress"],
         body_battery=points["body_battery"],
@@ -299,19 +280,20 @@ def intraday(
 @router.get("/heatmap", response_model=WellnessHeatmap)
 def heatmap(
     session: SessionDep,
+    clock: ClockDep,
     rng: RangeDep,
     metric: Annotated[HeatmapMetric, Query()] = "hr",
 ) -> WellnessHeatmap:
     """Days from the first to the last day with data in the range (gaps inside are kept)."""
     table, ts_col, value, cond, mean = HEATMAP[metric]
-    tz = athlete_tz(session)
+    t0, t1 = clock.day_span(rng.start, rng.end)
     final = "sum(s) / nullif(sum(n), 0)" if mean else "sum(s)"
     data = rows(
         session,
         HEATMAP_SQL.format(ts=ts_col, value=value, cond=cond, table=table, final=final),
-        tz=tz,
-        t0=local_midnight(rng.start, tz),
-        t1=local_midnight(rng.end + timedelta(days=1), tz),
+        tz=clock.name,
+        t0=t0,
+        t1=t1,
     )
     cells: dict[date, list[float | None]] = {}
     for r in data:
