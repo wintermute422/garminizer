@@ -464,6 +464,32 @@ def test_body_composition_converts_grams() -> None:
     assert (row["visceral_fat"], row["metabolic_age"], row["source"]) == (6.0, 30.0, "INDEX_SCALE")
 
 
+def test_body_composition_zero_readings_are_missing() -> None:
+    """A weigh-in without a composition reading reports 0s: weight kept, the rest None."""
+    payload = {
+        "dateWeightList": [
+            {
+                "timestampGMT": 1714539600000,
+                "weight": 72400.0,
+                "bmi": 0.0,
+                "bodyFat": 0.0,
+                "bodyWater": 0,
+                "muscleMass": 0,
+                "boneMass": 0,
+                "visceralFat": 0.0,
+                "metabolicAge": 0,
+                "sourceType": "MANUAL",
+            }
+        ]
+    }
+    row = only(run_parser(p.parse_body_composition, None, payload=payload), m.BodyComposition)
+    assert row["weight_kg"] == 72.4
+    composition = ("bmi", "body_fat_pct", "body_water_pct", "muscle_mass_kg", "bone_mass_kg")
+    assert {k: row[k] for k in (*composition, "visceral_fat", "metabolic_age")} == dict.fromkeys(
+        (*composition, "visceral_fat", "metabolic_age")
+    )
+
+
 def test_blood_pressure() -> None:
     row = only(run_parser(p.parse_blood_pressure, "get_blood_pressure", "2024-05"), m.BloodPressure)
     assert row == {

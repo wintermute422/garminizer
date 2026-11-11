@@ -18,7 +18,7 @@ from garminizer.sync.parsers.common import (
     integer,
     num,
     obj_or_empty,
-    rnd,
+    positive,
     small,
     text,
     ts_utc,
@@ -41,8 +41,18 @@ PR_TYPES = {
 }
 
 
+def _reading(value: Any) -> float | None:
+    """A composition reading rounded to 0.1, or None for Garmin's 0 = "not measured"."""
+    f = positive(value)
+    return None if f is None else round(f, 1)
+
+
 def parse_body_composition(payload: Any, ctx: ParseContext) -> list[RowOp]:
-    """get_body_composition(range): dateWeightList (weights and masses in grams)."""
+    """get_body_composition(range): dateWeightList (weights and masses in grams).
+
+    Scales without a composition reading (or a manual weight entry) report 0 for fat, water,
+    BMI, visceral fat and metabolic age; those become None (masses: see grams_to_kg).
+    """
     p = obj_or_empty(payload, "body composition")
     rows = []
     for w in dicts(p.get("dateWeightList"), "dateWeightList"):
@@ -54,13 +64,13 @@ def parse_body_composition(payload: Any, ctx: ParseContext) -> list[RowOp]:
             {
                 "measured_at": when,
                 "weight_kg": weight,
-                "bmi": rnd(w.get("bmi"), 1),
-                "body_fat_pct": rnd(w.get("bodyFat"), 1),
-                "body_water_pct": rnd(w.get("bodyWater"), 1),
+                "bmi": _reading(w.get("bmi")),
+                "body_fat_pct": _reading(w.get("bodyFat")),
+                "body_water_pct": _reading(w.get("bodyWater")),
                 "muscle_mass_kg": grams_to_kg(w.get("muscleMass")),
                 "bone_mass_kg": grams_to_kg(w.get("boneMass"), threshold=100.0),
-                "visceral_fat": rnd(w.get("visceralFat"), 1),
-                "metabolic_age": rnd(w.get("metabolicAge"), 1),
+                "visceral_fat": _reading(w.get("visceralFat")),
+                "metabolic_age": _reading(w.get("metabolicAge")),
                 "source": text(w.get("sourceType")),
             }
         )
