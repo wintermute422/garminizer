@@ -24,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from garminizer import models as m
-from garminizer.garmin.client import Identity
+from garminizer.garmin.client import GarminClient, Identity
 from garminizer.sync import parsers as p
 from garminizer.sync.parsers.common import Parser
 
@@ -85,6 +85,11 @@ def _download(unit: Unit, ctx: FetchContext) -> Args:
     return args, {"dl_fmt": Garmin.ActivityDownloadFormat.ORIGINAL}
 
 
+def _page(unit: Unit, ctx: FetchContext) -> Args:
+    """Activity list page: ``unit.key`` is the start index."""
+    return (int(unit.key), ACTIVITY_PAGE_SIZE), {}
+
+
 def _profile_number(unit: Unit, ctx: FetchContext) -> Args:
     return (str(ctx.identity.profile_id),), {}
 
@@ -111,11 +116,18 @@ class Dataset:
     scope: Scope
     method: str | None  # None: produced locally (identity from the login profile)
     parser: Parser
-    tables: tuple[str, ...]
+    tables: tuple[str, ...]  # every table the parser writes (enforced by a test)
     args: Callable[[Unit, FetchContext], Args] = _no_args
     keys: Callable[[Session], list[str]] | None = None
     requires_profile_id: bool = False
     binary: bool = False
+
+    def fetch(self, client: GarminClient, unit: Unit, ctx: FetchContext) -> Any:
+        """One Garmin request for ``unit`` (raises the client's GarminError subclasses)."""
+        if self.method is None:
+            raise ValueError(f"{self.name} is produced locally, not fetched")
+        args, kwargs = self.args(unit, ctx)
+        return client.call(self.method, *args, **kwargs)
 
 
 REGISTRY: tuple[Dataset, ...] = (
@@ -165,7 +177,7 @@ REGISTRY: tuple[Dataset, ...] = (
         "goals", "static", "get_goals", p.parse_goals, ("goal",), args=_goal_status, keys=_goal_keys
     ),
     # --- activities -------------------------------------------------------------------------
-    Dataset("activity", "activity", "get_activities", p.parse_activity, ("activity",)),
+    Dataset("activity", "activity", "get_activities", p.parse_activity, ("activity",), _page),
     Dataset(
         "activity_summary",
         "detail",

@@ -33,7 +33,7 @@ Claude Desktop ──(MCP over stdio: docker exec … garminizer mcp)──▶ m
 | `db/` | SQLAlchemy base, sessions, bulk COPY/upsert helpers, Alembic migrations (shipped in the package) |
 | `models/` | every table, each with a comment ([data model](data-model.md)) |
 | `garmin/` | read-only client wrapper (whitelist, throttle, backoff) and login/MFA/token handling |
-| `sync/` | dataset registry, parsers, FIT decoding, sync engine (incremental, backfill, reparse), verify |
+| `sync/` | dataset registry, parsers, FIT decoding, `plan` (pure: which days/months in which order), engine (executes the plan: incremental, backfill, reparse, run bookkeeping), `service` (the one entry point for worker, API and CLI: preconditions, token resume, an `Outcome` each caller maps), verify |
 | `analytics/` | pure numpy functions (TRIMP, mean-max, PMC, LTTB, tiles, …) and the pipeline that writes derived tables |
 | `api/` | FastAPI app, auth, one thin router per dashboard; `activity_sql.py` holds the shared activity filter (range + sport), summary columns and moving time |
 | `insights.py` | insights read model: daily metric grid, correlations, scatter and plain-English cards (pure, unit-tested without a database) |

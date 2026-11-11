@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -20,31 +20,35 @@ from garminizer import backup
 from garminizer.config import Settings, get_settings
 from garminizer.db import migrate
 
+if TYPE_CHECKING:
+    from garminizer.sync.service import SyncDeps
+
 log = logging.getLogger("garminizer.worker")
 BACKFILL_EVERY_MIN = 15
 BACKFILL_BUDGET_S = 10 * 60
 
 
-def _engine() -> Any:
-    from garminizer.sync import engine  # noqa: PLC0415 - optional until sync is configured
+def job_incremental(deps: SyncDeps) -> None:
+    from garminizer.sync import service  # noqa: PLC0415 - heavy imports, worker only
 
-    return engine
-
-
-def job_incremental(settings: Settings) -> None:
     try:
-        summary = _engine().run_incremental(settings)
-        log.info("incremental sync: %s", summary)
+        log.info(service.describe_outcome("incremental", service.start("incremental", deps)))
     except Exception:
         log.exception("incremental sync failed")
 
 
-def job_backfill(settings: Settings, scheduler: BlockingScheduler) -> None:
+def job_backfill(deps: SyncDeps, scheduler: BlockingScheduler) -> None:
+    from garminizer.sync import service  # noqa: PLC0415
+
     try:
-        done = bool(_engine().run_backfill_chunk(settings, BACKFILL_BUDGET_S))
+        outcome = service.start("backfill", deps, budget_s=BACKFILL_BUDGET_S, skip_if_complete=True)
     except Exception:
         log.exception("backfill chunk failed")
         return
+    log.info(service.describe_outcome("backfill", outcome))
+    done = (isinstance(outcome, service.Ran) and outcome.summary.done) or (
+        isinstance(outcome, service.Skipped) and outcome.reason == "complete"
+    )
     if done:
         log.info("backfill complete; stopping the backfill job")
         scheduler.remove_job("backfill")
@@ -58,7 +62,7 @@ def job_backup(settings: Settings) -> None:
         log.exception("backup failed")
 
 
-def build_scheduler(settings: Settings) -> BlockingScheduler:
+def build_scheduler(settings: Settings, deps: SyncDeps) -> BlockingScheduler:
     tz = ZoneInfo(settings.tz)
     scheduler = BlockingScheduler(timezone=tz)
     now = datetime.now(tz)
@@ -67,7 +71,7 @@ def build_scheduler(settings: Settings) -> BlockingScheduler:
         "interval",
         hours=settings.sync_interval_hours,
         next_run_time=now + timedelta(seconds=30),
-        args=[settings],
+        args=[deps],
         id="incremental",
         max_instances=1,
         coalesce=True,
@@ -77,7 +81,7 @@ def build_scheduler(settings: Settings) -> BlockingScheduler:
         "interval",
         minutes=BACKFILL_EVERY_MIN,
         next_run_time=now + timedelta(minutes=3),
-        args=[settings, scheduler],
+        args=[deps, scheduler],
         id="backfill",
         max_instances=1,
         coalesce=True,
@@ -99,9 +103,13 @@ def run() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
+    from garminizer.db.session import session_factory  # noqa: PLC0415
+    from garminizer.sync.service import SyncDeps  # noqa: PLC0415
+
     settings = get_settings()
     migrate.upgrade()
-    scheduler = build_scheduler(settings)
+    deps = SyncDeps(session_factory(settings.database_url), settings)
+    scheduler = build_scheduler(settings, deps)
     log.info(
         "worker started: sync every %.1f h, backups at 03:30 %s",
         settings.sync_interval_hours,

@@ -16,6 +16,8 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from garminizer import models as m
+from garminizer.db import SCHEMA
+from garminizer.sync.parsers.profile import identifying_values
 
 FILE_NAME = "private_values.txt"
 
@@ -35,27 +37,19 @@ def _str(value: Any) -> str | None:
 
 def collect(session: Session) -> list[str]:
     """Identifying values from the stored profile and activities (order kept, no duplicates)."""
-    values: list[str | None] = []
-    identity = _raw(session, "identity")
-    if isinstance(identity, dict):
-        values += [_str(identity.get(k)) for k in ("displayName", "fullName", "profileId")]
+    raw = identifying_values(_raw(session, "identity"), _raw(session, "personal_information"))
+    values: list[str | None] = [_str(v) for v in raw]
     athlete = session.scalar(select(m.Athlete))
     if athlete is not None:
         values += [_str(athlete.display_name), _str(athlete.full_name), _str(athlete.profile_id)]
-    info = _raw(session, "personal_information")
-    if isinstance(info, dict):
-        user_info = info.get("userInfo")
-        values.append(_str(info.get("email")))
-        if isinstance(user_info, dict):
-            values.append(_str(user_info.get("email")))
     home = session.execute(
         text(
-            """
+            f"""
             SELECT round(start_lat::numeric, 3) AS lat, round(start_lon::numeric, 3) AS lon
-            FROM garmin.activity
+            FROM {SCHEMA}.activity
             WHERE start_lat IS NOT NULL AND start_lon IS NOT NULL
             GROUP BY 1, 2 ORDER BY count(*) DESC, 1, 2 LIMIT 1
-            """
+            """  # noqa: S608 - schema constant
         )
     ).first()
     if home is not None:

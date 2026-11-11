@@ -24,7 +24,7 @@ from garminizer.api.schemas import Model
 from garminizer.config import Settings
 from garminizer.garmin import auth
 from garminizer.garmin.client import GarminAuthError, GarminError, GarminRateLimitError
-from garminizer.sync import engine
+from garminizer.sync import engine, service
 from garminizer.sync.datasets import DAILY
 
 log = logging.getLogger(__name__)
@@ -240,15 +240,8 @@ def _job(
     factory: auth.GarminFactory | None,
 ) -> None:
     try:
-        client = auth.resume(settings, factory)
-        if kind == "incremental":
-            engine.incremental(session_factory, client, settings=settings)
-        else:
-            engine.backfill(session_factory, client, settings=settings)
-    except GarminError as exc:
-        engine.record_failed_run(session_factory, kind, str(exc))
-    except engine.SyncBusyError as exc:
-        log.info("sync not started: %s", exc)
+        outcome = service.start(kind, service.SyncDeps(session_factory, settings, factory))
+        log.info(service.describe_outcome(kind, outcome))
     except Exception as exc:  # keep the background thread from dying silently
         log.error("sync %s failed: %s", kind, type(exc).__name__)
     finally:

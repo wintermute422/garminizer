@@ -169,10 +169,8 @@ def probe(client: GarminClient, day: date) -> list[tuple[str, str]]:
     ctx = FetchContext(today=day, identity=client.identity)
     out: list[tuple[str, str]] = []
     for ds in DAILY:
-        assert ds.method is not None
-        args, kwargs = ds.args(Unit(day.isoformat(), day=day), ctx)
         try:
-            payload = client.call(ds.method, *args, **kwargs)
+            payload = ds.fetch(client, Unit(day.isoformat(), day=day), ctx)
         except GarminNotFoundError:
             out.append((ds.name, "empty"))
             continue
