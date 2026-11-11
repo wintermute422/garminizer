@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { api, type Schemas } from "@/api/client";
 import { usePageFilters } from "@/app/pageFilters";
-import { Delta, ErrorState, PageHeader, Skeleton, Sparkline, StatTile } from "@/components/ui";
-import { DASH, fmtDate, fmtDelta, fmtNumber } from "@/lib/format";
+import { Delta, PageHeader, QueryState, Skeleton, Sparkline, StatTile } from "@/components/ui";
+import { fmtDate, fmtDelta, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { sportColor } from "@/lib/sports";
 import {
@@ -142,34 +142,34 @@ export default function PerformancePage() {
         title="Performance"
         description={`VO2max, race predictions and efficiency · ${fmtDate(range.start)} – ${fmtDate(range.end)}`}
       />
-      {perf.isPending ? (
-        <div className="flex flex-col gap-5">
-          <Skeleton height={104} />
-          <Skeleton height={320} />
-        </div>
-      ) : perf.error ? (
-        <ErrorState error={perf.error} />
-      ) : perf.data ? (
-        <div className="flex flex-col gap-5">
-          <Tiles s={perf.data} age={age} />
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Vo2Card data={perf.data.vo2max} />
-            <EnduranceCard data={perf.data.endurance} />
-            <RaceCard data={perf.data.race_predictions} latest={perf.data.latest} bests={bests} />
-            <HillCard data={perf.data.hill} />
-            <FitnessAgeCard data={perf.data.fitness_age} age={age} />
-            {eff.isPending ? (
-              <Skeleton height={320} className="lg:col-span-2" />
-            ) : eff.error ? (
-              <ErrorState error={eff.error} />
-            ) : (
-              <EfficiencyCard data={eff.data ?? []} />
-            )}
+      <QueryState
+        query={perf}
+        skeleton={
+          <div className="flex flex-col gap-5">
+            <Skeleton height={104} />
+            <Skeleton height={320} />
           </div>
-        </div>
-      ) : (
-        <p className="text-sm text-ink-3">{DASH}</p>
-      )}
+        }
+      >
+        {(p) => (
+          <div className="flex flex-col gap-5">
+            <Tiles s={p} age={age} />
+            <div className="grid gap-5 lg:grid-cols-2">
+              <Vo2Card data={p.vo2max} />
+              <EnduranceCard data={p.endurance} />
+              <RaceCard data={p.race_predictions} latest={p.latest} bests={bests} />
+              <HillCard data={p.hill} />
+              <FitnessAgeCard data={p.fitness_age} age={age} />
+              <QueryState
+                query={eff}
+                skeleton={<Skeleton height={320} className="lg:col-span-2" />}
+              >
+                {(rows) => <EfficiencyCard data={rows} />}
+              </QueryState>
+            </div>
+          </div>
+        )}
+      </QueryState>
     </>
   );
 }

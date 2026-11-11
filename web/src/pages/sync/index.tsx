@@ -19,6 +19,7 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  QueryState,
   ScrollArea,
   Skeleton,
   StatusPill,
@@ -490,42 +491,40 @@ export default function SyncPage() {
         title="Sync & settings"
         description="Connect Garmin, watch the sync and see how much of your history is in the database."
       />
-      {status.isPending ? (
-        <Skeleton height={240} />
-      ) : status.isError ? (
-        <ErrorState error={status.error as unknown} />
-      ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Connection s={status.data} />
-          <Card title="Recent sync runs">
-            <Runs runs={status.data.last_runs} />
-          </Card>
-          <div className="lg:col-span-2">
-            <Coverage isDemo={status.data.is_demo} />
-          </div>
-          {!status.data.is_demo && <Progress cursors={status.data.cursors} />}
-          <Profile />
-          {status.data.recent_errors.length > 0 && (
-            <Card
-              title="Recent problems"
-              subtitle="Data that could not be read; usually retried automatically"
-              className="lg:col-span-2"
-            >
-              <ul className="flex flex-col gap-2 text-sm">
-                {status.data.recent_errors.slice(0, 10).map((e) => (
-                  <li key={e.id} className="flex gap-2 text-ink-2">
-                    <KeyRound size={14} className="mt-1 shrink-0 text-ink-3" aria-hidden />
-                    <span>
-                      <span className="font-medium text-ink">{titleCase(e.dataset)}</span>{" "}
-                      {e.key ?? ""} — {e.error}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+      <QueryState query={status} height={240}>
+        {(data) => (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Connection s={data} />
+            <Card title="Recent sync runs">
+              <Runs runs={data.last_runs} />
             </Card>
-          )}
-        </div>
-      )}
+            <div className="lg:col-span-2">
+              <Coverage isDemo={data.is_demo} />
+            </div>
+            {!data.is_demo && <Progress cursors={data.cursors} />}
+            <Profile />
+            {data.recent_errors.length > 0 && (
+              <Card
+                title="Recent problems"
+                subtitle="Data that could not be read; usually retried automatically"
+                className="lg:col-span-2"
+              >
+                <ul className="flex flex-col gap-2 text-sm">
+                  {data.recent_errors.slice(0, 10).map((e) => (
+                    <li key={e.id} className="flex gap-2 text-ink-2">
+                      <KeyRound size={14} className="mt-1 shrink-0 text-ink-3" aria-hidden />
+                      <span>
+                        <span className="font-medium text-ink">{titleCase(e.dataset)}</span>{" "}
+                        {e.key ?? ""} — {e.error}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </div>
+        )}
+      </QueryState>
     </>
   );
 }

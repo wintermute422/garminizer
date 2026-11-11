@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Info, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { api, type Schemas } from "@/api/client";
-import { Card, ErrorState, Skeleton, StatusPill } from "@/components/ui";
+import { Card, ErrorState, QueryState, StatusPill } from "@/components/ui";
 import { addDays } from "@/lib/range";
 import { DASH, fmtDate, fmtNumber, signed, titleCase } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
@@ -318,13 +318,9 @@ export function DayCard({
         </div>
       }
     >
-      {q.isPending ? (
-        <Skeleton height={280} />
-      ) : q.isError ? (
-        <ErrorState error={q.error as unknown} />
-      ) : (
-        <DayBody d={q.data} />
-      )}
+      <QueryState query={q} height={280}>
+        {(d) => <DayBody d={d} />}
+      </QueryState>
     </Card>
   );
 }

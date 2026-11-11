@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { api } from "@/api/client";
 import { usePageFilters } from "@/app/pageFilters";
-import { Card, ErrorState, PageHeader, Segmented, Skeleton } from "@/components/ui";
+import { Card, PageHeader, QueryState, Segmented, Skeleton } from "@/components/ui";
 import { fmtDate } from "@/lib/format";
 import { useUnits } from "@/lib/preferences";
 import { CorrelationMatrix } from "./CorrelationMatrix";
@@ -86,17 +86,18 @@ export default function InsightsPage() {
         description={`Patterns and correlations in your daily data · ${fmtDate(range.start)} – ${fmtDate(range.end)}`}
       />
       <div className="flex flex-col gap-5">
-        {cardsQ.error ? (
-          <ErrorState error={cardsQ.error} />
-        ) : !cardsQ.data ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton key={i} height={168} />
-            ))}
-          </div>
-        ) : (
-          <InsightCards cards={cardsQ.data} onExplore={explore} />
-        )}
+        <QueryState
+          query={cardsQ}
+          skeleton={
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} height={168} />
+              ))}
+            </div>
+          }
+        >
+          {(cards) => <InsightCards cards={cards} onExplore={explore} />}
+        </QueryState>
 
         <Card
           title="How your metrics move together"
@@ -117,20 +118,20 @@ export default function InsightsPage() {
             />
           }
         >
-          {corrQ.error ? (
-            <ErrorState error={corrQ.error} />
-          ) : !corrQ.data || !metrics ? (
-            <Skeleton height={wide ? 640 : 480} />
-          ) : wide ? (
-            <CorrelationMatrix
-              data={corrQ.data}
-              labelOf={labelOf}
-              selected={pair}
-              onSelect={selectCell}
-            />
-          ) : (
-            <StrongestLinks data={corrQ.data} labelOf={labelOf} onSelect={selectCell} />
-          )}
+          <QueryState queries={[corrQ, metricsQ]} height={wide ? 640 : 480}>
+            {([corr]) =>
+              wide ? (
+                <CorrelationMatrix
+                  data={corr}
+                  labelOf={labelOf}
+                  selected={pair}
+                  onSelect={selectCell}
+                />
+              ) : (
+                <StrongestLinks data={corr} labelOf={labelOf} onSelect={selectCell} />
+              )
+            }
+          </QueryState>
         </Card>
 
         <Card
@@ -144,26 +145,18 @@ export default function InsightsPage() {
               <ScatterControls pair={pair} metrics={metrics} onChange={setPair} />
             </div>
           )}
-          {scatterQ.error ? (
-            <ErrorState error={scatterQ.error} />
-          ) : !scatterQ.data || !metrics ? (
-            <Skeleton height={360} />
-          ) : (
-            <ScatterView data={scatterQ.data} xv={xv} yv={yv} />
-          )}
+          <QueryState queries={[scatterQ, metricsQ]} height={360}>
+            {([points]) => <ScatterView data={points} xv={xv} yv={yv} />}
+          </QueryState>
         </Card>
 
         <Card
           title="Weekly rhythm"
           subtitle="Average per weekday in this period; the highest day is highlighted, the dashed line is the weekly average."
         >
-          {weekdayQ.error ? (
-            <ErrorState error={weekdayQ.error} />
-          ) : !weekdayQ.data || !metrics ? (
-            <Skeleton height={340} />
-          ) : (
-            <WeekdayPatterns rows={weekdayQ.data} view={weekdayView} />
-          )}
+          <QueryState queries={[weekdayQ, metricsQ]} height={340}>
+            {([rows]) => <WeekdayPatterns rows={rows} view={weekdayView} />}
+          </QueryState>
         </Card>
       </div>
     </>

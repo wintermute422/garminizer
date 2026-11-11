@@ -1,6 +1,6 @@
 import { api, type Schemas } from "@/api/client";
 import { usePageFilters } from "@/app/pageFilters";
-import { Delta, ErrorState, PageHeader, Skeleton, StatTile } from "@/components/ui";
+import { Delta, PageHeader, QueryState, Skeleton, StatTile } from "@/components/ui";
 import {
   distanceUnit,
   fmtDistance,
@@ -121,22 +121,18 @@ export default function RecordsPage() {
         description={`All-time bests, year-over-year totals and Garmin's personal records for ${sportLabel(sport).toLowerCase()}`}
       />
       <div className="flex flex-col gap-5">
-        {distances.isPending || cumulative.isPending ? (
-          <Skeleton height={104} />
-        ) : distances.error ? (
-          <ErrorState error={distances.error} />
-        ) : (
-          <Tiles sport={sport} distances={distances.data ?? []} cumulative={cumulative.data} />
-        )}
+        {/* Both feed the tiles: an error in either is shown (cumulative's used to be dropped). */}
+        <QueryState queries={[distances, cumulative]} height={104}>
+          {([d, c]) => <Tiles sport={sport} distances={d} cumulative={c} />}
+        </QueryState>
         <div className="grid gap-5 lg:grid-cols-2">
           <CurveCard sport={sport} />
-          {distances.isPending ? (
-            <Skeleton height={360} className="lg:col-span-2" />
-          ) : distances.error ? (
-            <ErrorState error={distances.error} />
-          ) : (
-            <DistancesCard rows={distances.data ?? []} sport={sport} lastDay={lastDay} />
-          )}
+          <QueryState
+            query={distances}
+            skeleton={<Skeleton height={360} className="lg:col-span-2" />}
+          >
+            {(rows) => <DistancesCard rows={rows} sport={sport} lastDay={lastDay} />}
+          </QueryState>
           <CumulativeCard sport={sport} />
           <TopCard sport={sport} />
           <PersonalCard />
