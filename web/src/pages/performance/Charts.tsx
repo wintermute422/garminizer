@@ -7,39 +7,40 @@ import { Chart, type ChartOption } from "@/components/Chart";
 import { Card, Delta, EmptyState, LegendItem, Segmented } from "@/components/ui";
 import {
   axisTooltip,
+  dayX,
   GRID,
+  haloLine,
   itemTooltip,
   line,
-  refLine,
+  niceScale,
   tooltipRow,
   tooltipTitle,
   valueYAxis,
 } from "@/lib/charts";
-import { DASH, fmtDate, fmtDuration, fmtNumber, fmtPace, fmtPercent, smooth } from "@/lib/format";
+import {
+  DASH,
+  fmtDate,
+  fmtDuration,
+  fmtNumber,
+  fmtPace,
+  fmtPercent,
+  fmtTimeDelta,
+  smooth,
+} from "@/lib/format";
 import { useMode, useUnits } from "@/lib/preferences";
 import { sportColor } from "@/lib/sports";
-import { CATEGORICAL, CHROME, DIVERGING, NEUTRAL, wash, type Mode, barEnd } from "@/lib/tokens";
+import { CATEGORICAL, CHROME, DIVERGING, NEUTRAL, wash, barEnd } from "@/lib/tokens";
 import {
-  dayMs,
   ENDURANCE_CLASSES,
   firstLast,
   RACES,
   sentenceCase,
-  fmtTimeDelta,
-  halo,
-  niceAxis,
   type RaceField,
   withGaps,
 } from "./util";
 
 type Series = Schemas["PerformanceSeries"];
 type Efficiency = Schemas["PerformanceEfficiencyPoint"];
-
-/** Reference line whose label sits on a surface-coloured halo (legible over data). */
-function haloLine(value: number, label: string, mode: Mode, axis: "y" | "x" = "y") {
-  const base = refLine(value, label, mode, axis);
-  return { ...base, label: { ...(base.label as object), ...halo(mode) } };
-}
 
 const longDay = (iso: string) =>
   fmtDate(iso, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
@@ -74,7 +75,7 @@ export function Vo2Card({ data }: { data: Series["vo2max"] }) {
           data: withGaps(
             data
               .filter((d) => d.running !== null)
-              .map((d) => [dayMs(d.day), d.running!] as [number, number]),
+              .map((d) => [dayX(d.day), d.running!] as [number, number]),
           ),
         },
         {
@@ -83,7 +84,7 @@ export function Vo2Card({ data }: { data: Series["vo2max"] }) {
           data: withGaps(
             data
               .filter((d) => d.cycling !== null)
-              .map((d) => [dayMs(d.day), d.cycling!] as [number, number]),
+              .map((d) => [dayX(d.day), d.cycling!] as [number, number]),
           ),
         },
       ].filter((l) => l.data.length > 0),
@@ -171,7 +172,7 @@ export function EnduranceCard({ data }: { data: Series["endurance"] }) {
         {
           ...line(
             "Endurance score",
-            points.map((d) => [dayMs(d.day), d.score]),
+            points.map((d) => [dayX(d.day), d.score]),
             color,
           ),
           markArea: {
@@ -227,10 +228,10 @@ export function RaceCard({
   const option = useMemo<ChartOption>(() => {
     const values = points.map((d) => d[race.field]!);
     const all = pr !== null ? [...values, pr] : values;
-    const axis = niceAxis(
+    const axis = niceScale(
       Math.min(...all) - (Math.max(...all) - Math.min(...all)) * 0.05,
       Math.max(...all) + (Math.max(...all) - Math.min(...all)) * 0.05,
-      [5, 10, 15, 20, 30, 60, 120, 300, 600, 900, 1800],
+      { steps: [5, 10, 15, 20, 30, 60, 120, 300, 600, 900, 1800] },
     );
     return {
       grid: { ...GRID, top: 16, right: 16 },
@@ -254,7 +255,7 @@ export function RaceCard({
         {
           ...line(
             `${race.label} prediction`,
-            points.map((d) => [dayMs(d.day), d[race.field]]),
+            points.map((d) => [dayX(d.day), d[race.field]]),
             color,
           ),
           ...(pr !== null ? { markLine: haloLine(pr, `Your best ${fmtDuration(pr)}`, mode) } : {}),
@@ -354,7 +355,7 @@ export function HillCard({ data }: { data: Series["hill"] }) {
   const lines = useMemo(() => {
     const cat = CATEGORICAL[mode];
     const pick = (k: "score" | "endurance" | "strength") =>
-      data.filter((d) => d[k] !== null).map((d) => [dayMs(d.day), d[k]!]);
+      data.filter((d) => d[k] !== null).map((d) => [dayX(d.day), d[k]!]);
     return [
       { name: "Hill score", color: cat[0]!, data: pick("score"), area: true },
       { name: "Endurance", color: cat[1]!, data: pick("endurance"), area: false },
@@ -409,13 +410,13 @@ export function FitnessAgeCard({ data, age }: { data: Series["fitness_age"]; age
       tooltip: seriesTooltip((v) => `${fmtNumber(v, 1)} yrs`),
       xAxis: timeAxis(),
       yAxis: valueYAxis(undefined, (v) => fmtNumber(v), {
-        ...niceAxis(Math.min(...all) - 1, Math.max(...all) + 1, [1, 2, 5, 10]),
+        ...niceScale(Math.min(...all) - 1, Math.max(...all) + 1, { steps: [1, 2, 5, 10] }),
       }),
       series: [
         {
           ...line(
             "Fitness age",
-            points.map((d) => [dayMs(d.day), d.value]),
+            points.map((d) => [dayX(d.day), d.value]),
             color,
             { area: false },
           ),
@@ -499,11 +500,11 @@ export function EfficiencyCard({ data }: { data: Efficiency[] }) {
           symbolSize: 7,
           cursor: "pointer",
           itemStyle: { color: NEUTRAL[mode], opacity: 0.75 },
-          data: data.map((d) => [dayMs(d.day), d.efficiency_factor, d.activity_id]),
+          data: data.map((d) => [dayX(d.day), d.efficiency_factor, d.activity_id]),
         },
         line(
           `${runs}-run average`,
-          data.map((d, i) => [dayMs(d.day), mean[i]]),
+          data.map((d, i) => [dayX(d.day), mean[i]]),
           color,
           { z: 3 },
         ),

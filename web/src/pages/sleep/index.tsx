@@ -11,28 +11,18 @@ import {
   Skeleton,
   type DeltaDirection,
 } from "@/components/ui";
+import { Change, MetricTile, Spark, TileSkeletons } from "@/components/kit";
+import { dayExtent, dayOfPoint, outlineFill } from "@/lib/charts";
 import { fmtDate, fmtHours, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { useRange } from "@/lib/range";
-import { SLEEP_STAGES } from "@/lib/tokens";
-import { Change, MetricTile, Spark, TileSkeletons } from "../health/kit";
-import {
-  dayOfPoint,
-  diff,
-  mean,
-  measureColors,
-  previousPeriod,
-  spanDays,
-  stdev,
-  useNarrow,
-  outlineFill,
-  weekly,
-} from "../health/util";
+import { diff, mean, previousPeriod, spanDays, stdev, weekly } from "@/lib/stats";
+import { measureColors, SLEEP_STAGES } from "@/lib/tokens";
+import { NARROW, useMediaQuery } from "@/lib/useMediaQuery";
 import { NightDetail } from "./NightDetail";
 import {
   asleep,
   distributionOption,
-  nightExtent,
   scheduleOption,
   scoreOption,
   stagesOption,
@@ -234,7 +224,7 @@ function GroupLegend() {
 export default function SleepPage() {
   const range = useRange("90d");
   const mode = useMode();
-  const narrow = useNarrow();
+  const narrow = useMediaQuery(NARROW);
   const days = spanDays(range.query.start, range.query.end);
   const opts = { enabled: range.ready, placeholderData: keepPreviousData };
   const nightsQ = api.useQuery("get", "/api/sleep", { params: { query: range.query } }, opts);
@@ -252,7 +242,7 @@ export default function SleepPage() {
   const known = useMemo(() => new Set(nights.map((n) => n.day)), [nights]);
   const selected = picked && known.has(picked) ? picked : (nights[nights.length - 1]?.day ?? null);
   const ext = useMemo(
-    () => nightExtent(range.query.start, range.query.end),
+    () => dayExtent(range.query.start, range.query.end),
     [range.query.start, range.query.end],
   );
   const stages = useMemo(

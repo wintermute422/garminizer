@@ -5,21 +5,13 @@ import { api, type Schemas } from "@/api/client";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { SportIcon } from "@/components/SportIcon";
 import { Card, EmptyState, ErrorState, LegendItem, Skeleton } from "@/components/ui";
-import { axisTooltip, bars, line, tooltipRow, valueYAxis } from "@/lib/charts";
+import { Stepper } from "@/components/kit";
+import { axisTooltip, bars, DAY_MS, line, smallTitle, tooltipRow, valueYAxis } from "@/lib/charts";
 import { DASH, fmtDate, fmtNumber } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { sportColor, sportLabel } from "@/lib/sports";
-import { CHROME, NEUTRAL, wash, type Mode } from "@/lib/tokens";
-import { Stepper } from "./kit";
-import {
-  DAY_MS,
-  HOUR_MS,
-  fmtWallTime,
-  measureColors,
-  smallTitle,
-  wallClock,
-  wallMidnight,
-} from "./util";
+import { CHROME, measureColors, NEUTRAL, wash, type Mode } from "@/lib/tokens";
+import { HOUR_MS, fmtWallTime, wallClock, wallMidnight } from "@/lib/wallClock";
 
 type Intraday = Schemas["WellnessIntraday"];
 type Day = Schemas["WellnessDay"];
@@ -154,8 +146,7 @@ function panelOption(
     title: smallTitle(`${p.label} (${p.unit})`, mode),
     // Top padding keeps the panel title clear of the first tick label.
     grid: { left: 40, right: 12, top: 32, bottom: last ? 24 : 6, outerBoundsMode: "none" },
-    tooltip: axisTooltip((params) => {
-      const arr = params as { value: [number, number | null] }[];
+    tooltip: axisTooltip<{ value: [number, number | null] }>((arr) => {
       const v = arr[0]?.value;
       if (!v) return "";
       return `<div style="color:${c.muted};margin-bottom:4px">${fmtWallTime(v[0])}</div>${tooltipRow(

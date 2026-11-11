@@ -7,7 +7,8 @@ import { tooltipRow, tooltipTitle } from "@/lib/charts";
 import { fmtCompact, fmtDate, fmtNumber, fmtShortDate } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
 import { CHROME, SEQUENTIAL, type Mode } from "@/lib/tokens";
-import { quantile, useNarrow } from "./util";
+import { quantile } from "@/lib/stats";
+import { NARROW, useMediaQuery } from "@/lib/useMediaQuery";
 
 export type HeatMetric = "hr" | "stress" | "body_battery" | "steps";
 
@@ -203,7 +204,7 @@ export function HourHeatmap({
   timeZone: string;
 }) {
   const mode = useMode();
-  const narrow = useNarrow();
+  const narrow = useMediaQuery(NARROW);
   const [metric, setMetric] = useState<HeatMetric>("hr");
   const spec = METRICS.find((m) => m.value === metric)!;
   const q = api.useQuery(

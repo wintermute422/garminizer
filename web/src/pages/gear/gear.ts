@@ -1,6 +1,7 @@
 /** Page-local helpers for gear: names, types, wear levels and fixed colour slots. */
 import { Bike, Footprints, Package, type LucideIcon } from "lucide-react";
 import type { Schemas } from "@/api/client";
+import { niceScale, niceStep } from "@/lib/charts";
 import { titleCase } from "@/lib/format";
 import { CATEGORICAL, NEUTRAL, type Mode, type Status } from "@/lib/tokens";
 
@@ -84,9 +85,6 @@ export function slotColor(slot: number | null | undefined, mode: Mode): string {
 /** Axis maximum and tick interval with about `ticks` round steps covering `v`. */
 export function niceAxis(v: number, ticks = 4): { max: number; interval: number } {
   if (!(v > 0)) return { max: 1, interval: 0.25 };
-  const raw = v / ticks;
-  const p = 10 ** Math.floor(Math.log10(raw));
-  const f = raw / p;
-  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 3 ? 3 : f <= 5 ? 5 : 10) * p;
-  return { max: Math.ceil(v / step) * step, interval: step };
+  const { max, interval } = niceScale(0, v, { steps: niceStep, ticks });
+  return { max, interval };
 }

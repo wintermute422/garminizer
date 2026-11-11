@@ -1,12 +1,11 @@
 /**
- * Presentational pieces shared by the health, sleep and body pages: a metric tile with a
+ * Metric pieces shared by the health, sleep and body pages: a metric tile with a
  * full-width sparkline (fits two-up on a phone), a stepper for day/night navigation and fact rows.
  */
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { Delta, Skeleton, type DeltaDirection } from "@/components/ui";
-import { fmtDelta } from "@/lib/format";
-import { shown } from "./util";
+import { fmtDelta, shown } from "@/lib/format";
 
 /** Sparkline that stretches to its container: de-emphasised line, accented last point. */
 export function Spark({

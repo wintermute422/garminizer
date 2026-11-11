@@ -1,37 +1,6 @@
-/** Training page helpers: day ↔ time-axis conversion, Garmin status swatches, load zones. */
+/** Training page helpers: Garmin status swatches and icons, load zones, period labels. */
 import { titleCase } from "@/lib/format";
-import { addDays } from "@/lib/range";
-import {
-  CATEGORICAL,
-  CHROME,
-  NEUTRAL,
-  STATUS,
-  type Mode,
-  type Status,
-  MARK_RADIUS,
-} from "@/lib/tokens";
-
-/** Local midnight of an ISO day (time-axis bounds). */
-export function dayStartMs(day: string): number {
-  return new Date(`${day}T00:00:00`).getTime();
-}
-
-/** Local noon of an ISO day (where a day's mark sits on a time axis). */
-export function dayMs(day: string): number {
-  return new Date(`${day}T12:00:00`).getTime();
-}
-
-/** Time-axis extent covering whole days `start`…`end`, shared by linked charts. */
-export function dayExtent(start: string, end: string): [number, number] {
-  return [dayStartMs(start), dayStartMs(addDays(end, 1))];
-}
-
-/** Garmin status key without its phrase suffix ("PRODUCTIVE_3" → "PRODUCTIVE"). */
-export function statusKey(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const key = raw.toUpperCase().replace(/_\d+$/, "");
-  return key === "NO_STATUS" || key === "NONE" ? null : key;
-}
+import { CATEGORICAL, CHROME, NEUTRAL, STATUS, type Mode, type Status } from "@/lib/tokens";
 
 /** Garmin training statuses, best → worst (legend order). */
 export const STATUS_ORDER = [
@@ -128,9 +97,4 @@ export function periodTitle(iso: string, period: "week" | "month"): string {
 export function jitter(id: number, salt: number, amp: number): number {
   const x = Math.sin((id % 100_003) * 12.9898 + salt * 78.233) * 43758.5453;
   return (x - Math.floor(x) - 0.5) * 2 * amp;
-}
-
-/** Text label halo so reference labels stay legible where they cross data. */
-export function halo(mode: Mode): Record<string, unknown> {
-  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: MARK_RADIUS };
 }

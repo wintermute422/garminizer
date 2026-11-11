@@ -21,17 +21,17 @@ import {
   StatusPill,
   type DeltaDirection,
 } from "@/components/ui";
+import { dayExtent } from "@/lib/charts";
 import { DASH, fmtDate, fmtHours, fmtNumber, fmtShortDate, titleCase } from "@/lib/format";
-import { STRESS_LEVELS } from "@/lib/tokens";
+import { measureColors, STRESS_LEVELS } from "@/lib/tokens";
 import { hrvState, readinessState } from "@/lib/status";
 import { useMode, useUnits } from "@/lib/preferences";
 import { addDays, useRange } from "@/lib/range";
 import { DayView } from "./DayView";
 import { HourHeatmap } from "./Heatmap";
-import { Change, MetricTile, Spark, TileSkeletons } from "./kit";
+import { Change, MetricTile, Spark, TileSkeletons } from "@/components/kit";
 import {
   bodyBatteryOption,
-  dayExtent,
   hrvOption,
   readinessOption,
   restingHrOption,
@@ -40,7 +40,7 @@ import {
   stressWeeklyOption,
   weeklyExtent,
 } from "./options";
-import { diff, mean, measureColors, minOf, previousPeriod, spanDays, weekly } from "./util";
+import { diff, mean, minOf, previousPeriod, spanDays, weekly } from "@/lib/stats";
 
 type Day = Schemas["WellnessDay"];
 

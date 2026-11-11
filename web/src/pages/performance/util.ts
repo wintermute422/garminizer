@@ -1,10 +1,5 @@
 /** Performance page helpers: race distances, endurance classes, deltas over a series. */
-import { fmtDuration, titleCase } from "@/lib/format";
-import { CHROME, type Mode, MARK_RADIUS } from "@/lib/tokens";
-
-export function dayMs(day: string): number {
-  return new Date(`${day}T12:00:00`).getTime();
-}
+import { titleCase } from "@/lib/format";
 
 export type RaceField = "time_5k_s" | "time_10k_s" | "time_half_s" | "time_marathon_s";
 
@@ -58,22 +53,6 @@ export function firstLast<T>(
     : { first, last, firstRow };
 }
 
-/** Axis bounds aligned to a round step giving about `ticks` intervals (labels never crowd). */
-export function niceAxis(
-  lo: number,
-  hi: number,
-  steps: number[],
-  ticks = 4,
-): { min: number; max: number; interval: number } {
-  const raw = Math.max(hi - lo, 1e-9) / ticks;
-  const interval = steps.find((s) => s >= raw) ?? steps[steps.length - 1]!;
-  return {
-    min: Math.floor(lo / interval) * interval,
-    max: Math.ceil(hi / interval) * interval,
-    interval,
-  };
-}
-
 /** [ms, value] points with a null inserted where consecutive points are > `days` apart. */
 export function withGaps(points: [number, number][], days = 14): [number, number | null][] {
   const out: [number, number | null][] = [];
@@ -86,14 +65,6 @@ export function withGaps(points: [number, number][], days = 14): [number, number
   return out;
 }
 
-/** A change in time: "−18 s" under a minute, "−1:23" from a minute up, "no change" at 0. */
-export function fmtTimeDelta(s: number): string {
-  const r = Math.round(s);
-  if (r === 0) return "no change";
-  const a = Math.abs(r);
-  return `${r > 0 ? "+" : "−"}${a < 60 ? `${a} s` : fmtDuration(a)}`;
-}
-
 /** Whole years between an ISO birth date and an ISO day. */
 export function ageOn(birth: string, day: string): number {
   const b = new Date(`${birth}T12:00:00`);
@@ -102,9 +73,4 @@ export function ageOn(birth: string, day: string): number {
   if (d.getMonth() < b.getMonth() || (d.getMonth() === b.getMonth() && d.getDate() < b.getDate()))
     age -= 1;
   return age;
-}
-
-/** Text label halo so reference labels stay legible where they cross data. */
-export function halo(mode: Mode): Record<string, unknown> {
-  return { backgroundColor: CHROME[mode].surface, padding: [1, 4], borderRadius: MARK_RADIUS };
 }

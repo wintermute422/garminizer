@@ -219,3 +219,17 @@ export function titleCase(key: string | null | undefined): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
+
+/** Value rounded the way it is displayed (so "no change" never wears an arrow colour). */
+export function shown(v: number | null, digits: number): number | null {
+  if (v == null) return null;
+  return Math.abs(v) < 0.5 * 10 ** -digits ? 0 : v;
+}
+
+/** A change in time: "+18 s" under a minute, "−1:23" from a minute up, "no change" at 0. */
+export function fmtTimeDelta(s: number): string {
+  const r = Math.round(s);
+  if (r === 0) return "no change";
+  const a = Math.abs(r);
+  return `${r > 0 ? "+" : "−"}${a < 60 ? `${a} s` : fmtDuration(a)}`;
+}
