@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query
 
+from garminizer.api.activity_sql import ActivityFilterDep, sport_only
 from garminizer.api.deps import RangeDep, SessionDep, SportDep, rows
 from garminizer.api.schemas import Model
 
@@ -132,11 +133,10 @@ def training_volume(
     mid-week includes that whole week).
     """
     view, column = VOLUME_VIEWS[period]
-    params: dict[str, Any] = {**rng.params(), "period": period}
+    sport_sql, sport_params = sport_only(sport, "")
+    params: dict[str, Any] = {**rng.params(), "period": period, **sport_params}
     where = f"{column} >= date_trunc(:period, CAST(:start AS timestamp))::date AND {column} <= :end"
-    if sport:
-        where += " AND sport_group = :sport"
-        params["sport"] = sport
+    where += sport_sql
     data = rows(
         session,
         f"""
@@ -157,11 +157,9 @@ def training_intensity(
 
     Periods are selected like in /volume: every period overlapping the range, full totals.
     """
-    params: dict[str, Any] = {**rng.params(), "period": period}
-    where = "z.kind = 'hr'"
-    if sport:
-        where += " AND a.sport_group = :sport"
-        params["sport"] = sport
+    sport_sql, sport_params = sport_only(sport)
+    params: dict[str, Any] = {**rng.params(), "period": period, **sport_params}
+    where = "z.kind = 'hr'" + sport_sql
     data = rows(
         session,
         f"""
@@ -189,16 +187,10 @@ def training_intensity(
 
 
 @router.get("/effects", response_model=TrainingEffects)
-def training_effects(session: SessionDep, rng: RangeDep, sport: SportDep) -> TrainingEffects:
+def training_effects(session: SessionDep, flt: ActivityFilterDep) -> TrainingEffects:
     """Aerobic/anaerobic training effect of every activity in the range, and label counts."""
-    params: dict[str, Any] = rng.params()
-    where = (
-        "start_time_local >= :start AND start_time_local < :end_excl "
-        "AND (aerobic_te IS NOT NULL OR anaerobic_te IS NOT NULL)"
-    )
-    if sport:
-        where += " AND sport_group = :sport"
-        params["sport"] = sport
+    where, params = flt.sql("")
+    where += " AND (aerobic_te IS NOT NULL OR anaerobic_te IS NOT NULL)"
     data = rows(
         session,
         f"""

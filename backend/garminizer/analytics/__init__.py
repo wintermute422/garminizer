@@ -2,8 +2,10 @@
 
 ``physio`` (TRIMP, HR zones, NP/IF/TSS, efficiency, decoupling), ``curves`` (1 Hz resampling,
 mean-max curves, best efforts), ``load`` (EWMA load, PMC, ACWR, monotony/strain), ``series``
-(LTTB, splits, elevation, rolling mean, trend, correlation), ``geo`` (distances, map tiles,
-squares/clusters, track simplification) and ``stats`` (day streaks).
+(LTTB, thinning, splits, elevation, rolling mean, trend, lagged pairs, correlation), ``geo``
+(distances, map tiles, squares/clusters, start places, track simplification), ``stats`` (day
+streaks, active weeks) and ``body`` (weight trend). The one exception is ``pipeline``, which
+reads activities and writes the derived tables with these functions.
 
 Every function accepts array-likes and converts them with ``np.asarray(..., dtype=float)``.
 """

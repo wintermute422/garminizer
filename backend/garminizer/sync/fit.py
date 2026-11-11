@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from garminizer import models as m
+from garminizer.sports import FOOT_GROUPS
 from garminizer.sync import store
 from garminizer.sync.parsers.common import Patch, Replace, Upsert, num
 
@@ -27,7 +28,6 @@ log = logging.getLogger(__name__)
 MAX_FIT_BYTES = 64 * 1024 * 1024
 FIT_EPOCH = datetime(1989, 12, 31, tzinfo=UTC)
 SEMICIRCLE_DEG = 180.0 / 2**31
-FOOT_GROUPS = frozenset({"run", "walk", "hike"})
 MAX_START_SKEW = timedelta(hours=1)
 
 

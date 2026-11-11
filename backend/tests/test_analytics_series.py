@@ -11,7 +11,7 @@ from garminizer.analytics.series import (
     Split,
     elevation_gain_loss,
     even_splits,
-    lagged_correlation,
+    lagged_pairs,
     linear_trend,
     lttb,
     pearson,
@@ -218,15 +218,16 @@ def test_pearson_degenerate() -> None:
     assert n == 3
 
 
-def test_lagged_correlation() -> None:
+def test_lagged_pairs() -> None:
     x = [1, 3, 2, 5, 4, 6]
     y = [0, 1, 3, 2, 5, 4]  # y[t + 1] == x[t]
-    got = lagged_correlation(x, y, 2)
-    assert [k for k, _, _ in got] == [0, 1, 2]
-    assert [n for _, _, n in got] == [6, 5, 4]
-    _close([r for _, r, _ in got], [0.6, 1.0, 0.5 / math.sqrt(43.75)])
-    tail = lagged_correlation([1, 2, 3], [1, 2, 3], 4)
-    assert [(k, n) for k, _, n in tail] == [(0, 3), (1, 2), (2, 1), (3, 0), (4, 0)]
-    assert all(math.isnan(r) for _, r, _ in tail[1:])
+    rs = [pearson(*lagged_pairs(x, y, k)) for k in range(3)]
+    assert [n for _, n in rs] == [6, 5, 4]
+    _close([r for r, _ in rs], [0.6, 1.0, 0.5 / math.sqrt(43.75)])
+    xs, ys = lagged_pairs([1, 2, 3], [4, 5, 6], 1)
+    assert xs.tolist() == [1, 2] and ys.tolist() == [5, 6]
+    assert [a.size for a in lagged_pairs([1, 2, 3], [1, 2, 3], 3)] == [0, 0]
     with pytest.raises(ValueError):
-        lagged_correlation([1], [1], -1)
+        lagged_pairs([1], [1], -1)
+    with pytest.raises(ValueError):
+        lagged_pairs([1, 2], [1], 0)

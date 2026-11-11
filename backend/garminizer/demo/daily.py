@@ -13,6 +13,7 @@ from garminizer import models as m
 from garminizer.db.base import Base
 from garminizer.demo import physiology as phys
 from garminizer.demo.calendar import Calendar
+from garminizer.sports import FOOT_GROUPS
 
 AGE, HEIGHT_CM = 35.0, 178.0
 Rows = dict[type[Base], list[dict[str, Any]]]
@@ -73,12 +74,8 @@ def _summary_row(
     frac = tl.hr_frac[sl]
     steps = float(np.sum(tl.steps[sl]))
     act_steps = sum(a["steps"] or 0 for a in acts)
-    foot_dist = sum(
-        a["distance_m"] or 0 for a in acts if a["sport_group"] in {"run", "walk", "hike"}
-    )
-    gain = sum(
-        a["elevation_gain_m"] or 0 for a in acts if a["sport_group"] in {"run", "walk", "hike"}
-    )
+    foot_dist = sum(a["distance_m"] or 0 for a in acts if a["sport_group"] in FOOT_GROUPS)
+    gain = sum(a["elevation_gain_m"] or 0 for a in acts if a["sport_group"] in FOOT_GROUPS)
     bmr = 10 * st.weight + 6.25 * HEIGHT_CM - 5 * AGE + 5
     active = sum(a["calories"] or 0 for a in acts) + max(steps - act_steps, 0) * 0.04
     cats = np.where(valid, stress, -1)

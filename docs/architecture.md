@@ -35,7 +35,8 @@ Claude Desktop ──(MCP over stdio: docker exec … garminizer mcp)──▶ m
 | `garmin/` | read-only client wrapper (whitelist, throttle, backoff) and login/MFA/token handling |
 | `sync/` | dataset registry, parsers, FIT decoding, sync engine (incremental, backfill, reparse), verify |
 | `analytics/` | pure numpy functions (TRIMP, mean-max, PMC, LTTB, tiles, …) and the pipeline that writes derived tables |
-| `api/` | FastAPI app, auth, one router per dashboard |
+| `api/` | FastAPI app, auth, one thin router per dashboard; `activity_sql.py` holds the shared activity filter (range + sport), summary columns and moving time |
+| `insights.py` | insights read model: daily metric grid, correlations, scatter and plain-English cards (pure, unit-tested without a database) |
 | `demo/` | the synthetic athlete simulator behind `garminizer demo seed` (including a meal diary) |
 | `nutrition/` | meal log: validation, totals and plausibility warnings, day/period summaries against Garmin's energy burn, targets |
 | `mcp_server.py` | `garminizer mcp`: Model Context Protocol server over stdio for Claude Desktop (log/correct meals, day summaries, energy context); see [claude-desktop.md](claude-desktop.md) |

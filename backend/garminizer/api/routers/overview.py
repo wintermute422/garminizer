@@ -10,8 +10,8 @@ from pydantic import AfterValidator, Field
 from sqlalchemy.orm import Session
 
 from garminizer.analytics.stats import streaks
+from garminizer.api.activity_sql import SUMMARY_COLUMNS, moving_time
 from garminizer.api.deps import ClockDep, SessionDep, data_bounds, one, rows
-from garminizer.api.routers.activities import SUMMARY_COLUMNS
 from garminizer.api.schemas import ActivitySummary, Model
 
 router = APIRouter(prefix="/api/overview", tags=["overview"])
@@ -186,14 +186,14 @@ def _week(session: Session, day: date) -> OverviewWeek:
     monday = day - timedelta(days=day.weekday())
     data = rows(
         session,
-        """
+        f"""
         SELECT start_time_local >= :monday AS this_week, sport_group, count(*) AS activities,
                sum(distance_m) AS distance_m,
-               sum(coalesce(moving_s, duration_s)) AS duration_s  -- moving time
+               sum({moving_time("")}) AS duration_s
         FROM garmin.activity
         WHERE start_time_local >= :last_monday AND start_time_local < :day_excl
         GROUP BY 1, 2 ORDER BY 1, count(*) DESC, sport_group
-        """,
+        """,  # noqa: S608 - constant SQL fragment
         monday=monday,
         last_monday=monday - timedelta(days=7),
         day_excl=day + timedelta(days=1),

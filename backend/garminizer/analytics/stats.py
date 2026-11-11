@@ -1,4 +1,4 @@
-"""Small statistics over calendar days: activity streaks."""
+"""Small statistics over calendar days: activity streaks and active weeks in a row."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ from datetime import date, datetime, timedelta
 from itertools import pairwise
 
 ONE_DAY = timedelta(days=1)
+
+_ONE_WEEK = timedelta(days=7)
 
 
 def streaks(days: Iterable[date], today: date | None = None) -> tuple[int, int, date | None]:
@@ -41,3 +43,19 @@ def streaks(days: Iterable[date], today: date | None = None) -> tuple[int, int, 
         current += 1
         ref -= ONE_DAY
     return current, longest, longest_start
+
+
+def weeks_in_row(days: list[date], end: date) -> int:
+    """Consecutive ISO weeks with an activity, ending with the week of ``end``.
+
+    Like the day streak, a still-empty current week does not break the run.
+    """
+    weeks = {d - timedelta(days=d.weekday()) for d in days}
+    ref = end - timedelta(days=end.weekday())
+    if ref not in weeks:
+        ref -= _ONE_WEEK
+    count = 0
+    while ref in weeks:
+        count += 1
+        ref -= _ONE_WEEK
+    return count

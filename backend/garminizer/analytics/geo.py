@@ -198,3 +198,32 @@ def simplify_track(lat: ArrayLike, lon: ArrayLike, epsilon_m: float) -> IndexArr
             stack.append((s, mid))
             stack.append((mid, e))
     return valid[keep]
+
+
+def cluster_places(
+    points: Iterable[tuple[float, float, int]], radius_m: float
+) -> list[tuple[float, float, int]]:
+    """Group start points ``(lat, lon, activities)`` into places ``(lat, lon, activities)``.
+
+    Deterministic; coordinates are rounded to 4 decimals (about 11 m).
+
+    Points are visited most used first (ties by lat, lon). A point joins the nearest place whose
+    centre (its most used point) lies within ``radius_m``, otherwise it becomes a new place, so
+    place centres are always more than ``radius_m`` apart. Places come most used first.
+    """
+    centres: list[tuple[float, float]] = []
+    counts: list[int] = []
+    for lat, lon, n in sorted(points, key=lambda p: (-p[2], p[0], p[1])):
+        if centres:
+            lats, lons = zip(*centres, strict=True)
+            dist = haversine_m(lat, lon, lats, lons)
+            nearest = int(np.argmin(dist))
+            if float(dist[nearest]) <= radius_m:
+                counts[nearest] += n
+                continue
+        centres.append((lat, lon))
+        counts.append(n)
+    places = [
+        (round(lat, 4), round(lon, 4), n) for (lat, lon), n in zip(centres, counts, strict=True)
+    ]
+    return sorted(places, key=lambda p: (-p[2], p[0], p[1]))

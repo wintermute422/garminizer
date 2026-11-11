@@ -8,8 +8,8 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Query
 
 from garminizer.analytics.curves import STANDARD_DISTANCES_M
+from garminizer.api.activity_sql import SUMMARY_COLUMNS, sport_only
 from garminizer.api.deps import SessionDep, SportDep, data_bounds, rows
-from garminizer.api.routers.activities import SUMMARY_COLUMNS
 from garminizer.api.schemas import ActivitySummary, Model
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -328,11 +328,9 @@ def top(
 ) -> list[ActivitySummary]:
     """All-time top activities by distance, duration, elevation gain, load or average speed."""
     column = TOP_COLUMNS[by]
-    params: dict[str, Any] = {"limit": limit}
-    where = f"{column} IS NOT NULL"
-    if sport:
-        where += " AND a.sport_group = :sport"
-        params["sport"] = sport
+    sport_sql, sport_params = sport_only(sport)
+    params: dict[str, Any] = {"limit": limit, **sport_params}
+    where = f"{column} IS NOT NULL" + sport_sql
     data = rows(
         session,
         f"SELECT {SUMMARY_COLUMNS} FROM garmin.activity a WHERE {where} "  # noqa: S608 - whitelisted

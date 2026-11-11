@@ -95,5 +95,7 @@ def sport_group(type_key: str | None) -> str:
     return "other"
 
 
-def has_distance(group: str) -> bool:
-    return group in {"run", "ride", "swim", "walk", "hike", "winter", "water"}
+# Sport groups whose activities cover a distance (pace/speed, distance curves).
+DISTANCE_GROUPS = frozenset({"run", "ride", "swim", "walk", "hike", "winter", "water"})
+# On foot: cadence is steps per minute, steps are counted.
+FOOT_GROUPS = frozenset({"run", "walk", "hike"})

@@ -10,8 +10,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import AfterValidator
 from sqlalchemy.orm import Session
 
+from garminizer.api.activity_sql import SUMMARY_COLUMNS
 from garminizer.api.deps import SessionDep, rows
-from garminizer.api.routers.activities import SUMMARY_COLUMNS
 from garminizer.api.schemas import ActivitySummary, Model
 
 router = APIRouter(prefix="/api/gear", tags=["gear"])

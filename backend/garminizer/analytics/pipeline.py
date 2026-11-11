@@ -18,11 +18,11 @@ from sqlalchemy.orm import Session
 
 from garminizer import models as m
 from garminizer.analytics import FloatArray, curves, geo, load, physio, series
+from garminizer.sports import DISTANCE_GROUPS
 
 ANALYTICS_VERSION = 1
 TILE_ZOOM = 14
 TRACK_MAX_POINTS = 600
-DISTANCE_GROUPS = frozenset({"run", "ride", "walk", "hike", "winter", "water", "swim"})
 _SAMPLE_COLS = (
     "t_s",
     "hr",

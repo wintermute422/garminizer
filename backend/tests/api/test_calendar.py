@@ -12,8 +12,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from garminizer.analytics.stats import streaks
-from garminizer.api.routers.calendar import weeks_in_row
+from garminizer.analytics.stats import streaks, weeks_in_row
 from tests.api.conftest import API_END
 
 IN_RANGE = "start_time_local >= :a AND start_time_local < :b"

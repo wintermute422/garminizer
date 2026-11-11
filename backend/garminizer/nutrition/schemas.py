@@ -130,6 +130,17 @@ class NutritionTargets(_In):
 # --- output ----------------------------------------------------------------------------------
 
 
+class NutritionTargetsView(_Out):
+    """Targets plus what they mean today: protein in grams, weight, Garmin's average burn."""
+
+    targets: NutritionTargets
+    protein_target_g: float | None = Field(description="Explicit, else per kg x today's weight")
+    weight_kg: float | None = Field(description="Latest weigh-in on or before today")
+    garmin_avg_total_kcal_28d: float | None = Field(
+        description="Mean Garmin total kcal per day over the last 28 days (rounded)"
+    )
+
+
 class NutritionWarning(_Out):
     code: str = Field(description="macro_kcal_mismatch | items_kcal_mismatch")
     message: str
