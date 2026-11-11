@@ -24,7 +24,7 @@ export interface NavItem {
   icon: LucideIcon;
   /** Pages that react to the global date range / sport filter show the filter bar. */
   filters?: "range" | "range+sport" | "sport";
-  /** Default range preset when the URL has none (must match the page's useRange fallback). */
+  /** Default preset when the URL has none (usePageFilters: page data and filter bar). */
   defaultPreset?: PresetKey;
   /** The page always shows one sport (no "All sports"); this one when none is chosen. */
   defaultSport?: string;

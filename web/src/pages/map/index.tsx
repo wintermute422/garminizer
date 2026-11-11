@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { MapView, type MapLayer } from "@/components/MapView";
 import { SportBadge } from "@/components/SportIcon";
@@ -30,7 +31,6 @@ import { axisTooltip, GRID, line, tooltipRow, tooltipTitle, valueYAxis } from "@
 import { fmtDate, fmtDistance, fmtNumber, type UnitSystem } from "@/lib/format";
 import { boundsOf } from "@/lib/geo";
 import { useMode, useUnits } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
 import { BLUE, CATEGORICAL, CHROME, SEQUENTIAL, wash, type Mode } from "@/lib/tokens";
 import {
@@ -410,7 +410,7 @@ function TilePanel({
 function SportsCard({ rows, active }: { rows: SportRow[]; active: string | null }) {
   const mode = useMode();
   const units = useUnits();
-  const range = useRange("90d");
+  const range = usePageFilters();
   const total = rows.reduce((s, r) => s + r.distance, 0) || 1;
   return (
     <Card
@@ -613,7 +613,7 @@ function ExplorationCard({ tiles }: { tiles: Tiles | undefined }) {
 }
 
 export default function MapPage() {
-  const range = useRange("90d");
+  const range = usePageFilters();
   const mode = useMode();
   const units = useUnits();
   const [view, setView] = useState<View>("routes");
@@ -622,7 +622,7 @@ export default function MapPage() {
   const [focus, setFocus] = useState<Place | null>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
 
-  const query = { ...range.query, ...(range.sport ? { sport: range.sport } : {}) };
+  const { query } = range;
   const tracksQ = api.useQuery(
     "get",
     "/api/map/tracks",

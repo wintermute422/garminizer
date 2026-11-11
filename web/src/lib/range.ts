@@ -3,8 +3,6 @@
  * so every view is shareable and survives reloads. Presets are relative to the last day with
  * data (not today), so a paused sync never shows empty charts.
  */
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { api } from "@/api/client";
 
 export const PRESETS = [
   { key: "30d", label: "30 days", days: 30 },
@@ -63,33 +61,4 @@ export function resolveRange(
   if (preset.key === "all") return { start: firstDay ?? addDays(end, -3650), end, preset: "all" };
   if (preset.key === "ytd") return { start: `${end.slice(0, 4)}-01-01`, end, preset: "ytd" };
   return { start: addDays(end, -((preset.days ?? 90) - 1)), end, preset: preset.key };
-}
-
-/** Current range + setters. `fallback` is the page's default preset. */
-export function useRange(fallback: PresetKey = "90d") {
-  const search = useSearch({ strict: false }) as GlobalSearch;
-  const navigate = useNavigate();
-  const meta = api.useQuery("get", "/api/meta");
-  const range = resolveRange(search, meta.data?.last_day, meta.data?.first_day, fallback);
-
-  const update = (patch: Partial<GlobalSearch>) =>
-    navigate({
-      to: ".",
-      search: (prev: Record<string, unknown>) => {
-        const next = { ...prev, ...patch } as Record<string, unknown>;
-        for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
-        return next;
-      },
-      replace: true,
-    } as never);
-
-  return {
-    ...range,
-    sport: search.sport ?? null,
-    ready: meta.isSuccess,
-    query: { start: range.start, end: range.end },
-    setPreset: (preset: PresetKey) => update({ preset, start: undefined, end: undefined }),
-    setCustom: (start: string, end: string) => update({ start, end, preset: undefined }),
-    setSport: (sport: string | null) => update({ sport: sport ?? undefined }),
-  };
 }

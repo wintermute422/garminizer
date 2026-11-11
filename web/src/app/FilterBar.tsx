@@ -1,18 +1,19 @@
 import { clsx } from "clsx";
 import { SlidersHorizontal } from "lucide-react";
+import { useRouterState } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { api } from "@/api/client";
 import { fmtShortDate } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { PRESETS, useRange, type PresetKey } from "@/lib/range";
+import { PRESETS, type PresetKey } from "@/lib/range";
 import { bySlot, sportColor, sportLabel } from "@/lib/sports";
+import { navItemFor } from "./nav";
+import { usePageFilters } from "./pageFilters";
 
+/** Which controls the page has (its nav.ts entry holds the defaults: usePageFilters). */
 interface FilterProps {
   withRange: boolean;
   withSport: boolean;
-  fallback?: PresetKey;
-  /** The page always shows one sport; this one when none is chosen (no "All sports"). */
-  defaultSport?: string;
 }
 
 function chip(active: boolean) {
@@ -24,14 +25,10 @@ function chip(active: boolean) {
   );
 }
 
-function Controls({
-  withRange,
-  withSport,
-  fallback = "90d",
-  defaultSport,
-  stacked,
-}: FilterProps & { stacked: boolean }) {
-  const range = useRange(fallback);
+function Controls({ withRange, withSport, stacked }: FilterProps & { stacked: boolean }) {
+  const range = usePageFilters();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const defaultSport = navItemFor(pathname)?.defaultSport;
   const meta = api.useQuery("get", "/api/meta");
   const mode = useMode();
   const id = useId();
@@ -39,7 +36,7 @@ function Controls({
   const sports = [...(meta.data?.sports ?? [])].sort((a, b) =>
     bySlot(a.sport_group, b.sport_group),
   );
-  const selectedSport = range.sport ?? defaultSport ?? null;
+  const selectedSport = range.sport;
 
   return (
     <div
@@ -156,15 +153,15 @@ function Controls({
 }
 
 /** One-line summary of the current filters (mobile trigger). */
-function Summary({ withRange, withSport, fallback = "90d", defaultSport }: FilterProps) {
-  const range = useRange(fallback);
+function Summary({ withRange, withSport }: FilterProps) {
+  const range = usePageFilters();
   const parts: string[] = [];
   if (withRange) {
     const preset = PRESETS.find((p) => p.key === range.preset);
     parts.push(preset ? preset.label : `${fmtShortDate(range.start)} – ${fmtShortDate(range.end)}`);
   }
   if (withSport) {
-    const sport = range.sport ?? defaultSport ?? null;
+    const sport = range.sport;
     parts.push(sport ? sportLabel(sport) : "All sports");
   }
   return <>{parts.join(" · ")}</>;

@@ -2,6 +2,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters, type PageFilters } from "@/app/pageFilters";
 import { Chart, type ChartOption } from "@/components/Chart";
 import { Card, EmptyState, LegendItem, QueryState, Segmented } from "@/components/ui";
 import {
@@ -32,7 +33,7 @@ import { jitter, periodLabel, periodTitle } from "./util";
 
 type Period = "week" | "month";
 type VolumeMetric = "distance" | "time" | "load";
-type Query = { start: string; end: string; sport?: string };
+type Query = PageFilters["query"];
 
 const PERIODS = [
   { value: "week", label: "Week" },
@@ -65,7 +66,8 @@ function volumeFormat(metric: VolumeMetric, units: UnitSystem): (v: number) => s
 }
 
 /** Weekly / monthly volume stacked by sport (fixed sport colours, slot order). */
-export function VolumeCard({ query, ready }: { query: Query; ready: boolean }) {
+export function VolumeCard() {
+  const { query, options } = usePageFilters();
   const mode = useMode();
   const units = useUnits();
   const [periodChoice, setPeriod] = useState<Period | null>(null);
@@ -75,7 +77,7 @@ export function VolumeCard({ query, ready }: { query: Query; ready: boolean }) {
     "get",
     "/api/training/volume",
     { params: { query: { ...query, period } } },
-    { enabled: ready, placeholderData: (prev) => prev },
+    options,
   );
 
   const built = useMemo(() => {
@@ -236,7 +238,8 @@ function bandSeconds(r: IntensityRow, b: (typeof BANDS)[number]): number {
 }
 
 /** Time in heart-rate zones per period, absolute hours or 100 % share. */
-export function IntensityCard({ query, ready }: { query: Query; ready: boolean }) {
+export function IntensityCard() {
+  const { query, options } = usePageFilters();
   const mode = useMode();
   const [periodChoice, setPeriod] = useState<Period | null>(null);
   const [scale, setScale] = useState<"time" | "share">("time");
@@ -245,7 +248,7 @@ export function IntensityCard({ query, ready }: { query: Query; ready: boolean }
     "get",
     "/api/training/intensity",
     { params: { query: { ...query, period } } },
-    { enabled: ready, placeholderData: (prev) => prev },
+    options,
   );
   const rows = useMemo(() => (q.data ?? []).filter((r) => r.total_s > 0), [q.data]);
   const sums = useMemo(() => {
@@ -405,15 +408,11 @@ function benefitColor(label: string, mode: Mode): string {
 }
 
 /** Aerobic vs anaerobic training effect per activity, plus the primary-benefit mix. */
-export function EffectsCard({ query, ready }: { query: Query; ready: boolean }) {
+export function EffectsCard() {
+  const { query, options } = usePageFilters();
   const mode = useMode();
   const navigate = useNavigate();
-  const q = api.useQuery(
-    "get",
-    "/api/training/effects",
-    { params: { query } },
-    { enabled: ready, placeholderData: (prev) => prev },
-  );
+  const q = api.useQuery("get", "/api/training/effects", { params: { query } }, options);
   const acts = useMemo(
     () =>
       (q.data?.activities ?? []).filter((a) => a.aerobic_te !== null && a.anaerobic_te !== null),

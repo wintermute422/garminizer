@@ -8,9 +8,9 @@ import {
   Waves,
   Wind,
 } from "lucide-react";
-import { keepPreviousData } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Chart, type ChartOption } from "@/components/Chart";
 import {
   Card,
@@ -26,7 +26,7 @@ import { DASH, fmtDate, fmtHours, fmtNumber, fmtShortDate, titleCase } from "@/l
 import { measureColors, STRESS_LEVELS } from "@/lib/tokens";
 import { hrvState, readinessState } from "@/lib/status";
 import { useMode, useUnits } from "@/lib/preferences";
-import { addDays, useRange } from "@/lib/range";
+import { addDays } from "@/lib/range";
 import { DayView } from "./DayView";
 import { HourHeatmap } from "./Heatmap";
 import { Change, MetricTile, Spark, TileSkeletons } from "@/components/kit";
@@ -281,16 +281,16 @@ function has(rows: Day[], get: (d: Day) => unknown): boolean {
 const STRESS_KEYS = ["rest", "low", "medium", "high"] as const;
 
 export default function HealthPage() {
-  const range = useRange("90d");
+  const range = usePageFilters();
   const mode = useMode();
   const units = useUnits();
-  const prevQuery = previousPeriod(range.query);
-  const days = spanDays(range.query.start, range.query.end);
-  const opts = { enabled: range.ready, placeholderData: keepPreviousData };
+  const prevQuery = previousPeriod(range.dates);
+  const days = spanDays(range.start, range.end);
+  const opts = range.options;
   const daily = api.useQuery(
     "get",
     "/api/wellness/daily",
-    { params: { query: range.query } },
+    { params: { query: range.dates } },
     opts,
   );
   const prevDaily = api.useQuery(
@@ -302,7 +302,7 @@ export default function HealthPage() {
   const readiness = api.useQuery(
     "get",
     "/api/wellness/readiness",
-    { params: { query: range.query } },
+    { params: { query: range.dates } },
     opts,
   );
   const meta = api.useQuery("get", "/api/meta");
@@ -318,10 +318,7 @@ export default function HealthPage() {
       }),
     [rows],
   );
-  const ext = useMemo(
-    () => dayExtent(range.query.start, range.query.end),
-    [range.query.start, range.query.end],
-  );
+  const ext = useMemo(() => dayExtent(range.start, range.end), [range.start, range.end]);
   const charts = useMemo(() => {
     const wext = weeklyExtent(rows, ext);
     return {
@@ -343,8 +340,7 @@ export default function HealthPage() {
   );
 
   const lastDay = rows.length ? rows[rows.length - 1]!.day : null;
-  const inRange = (d: string | null) =>
-    d !== null && d >= range.query.start && d <= range.query.end;
+  const inRange = (d: string | null) => d !== null && d >= range.start && d <= range.end;
   const day = inRange(picked) ? picked : lastDay;
   const step = (n: number) => {
     if (!day) return null;
@@ -496,7 +492,7 @@ export default function HealthPage() {
               empty="No steps in this period"
             />
             <HourHeatmap
-              query={range.query}
+              query={range.dates}
               enabled={range.ready}
               selected={day}
               onSelect={onSelectDay}

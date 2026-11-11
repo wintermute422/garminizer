@@ -1,9 +1,10 @@
 import { CircleCheck } from "lucide-react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Delta, ErrorState, PageHeader, Skeleton, Sparkline, StatTile } from "@/components/ui";
 import { DASH, fmtDate, fmtDelta, fmtNumber, signed } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { addDays, useRange } from "@/lib/range";
+import { addDays } from "@/lib/range";
 import { sportLabel } from "@/lib/sports";
 import { CATEGORICAL, DIVERGING, MEASURE_COLORS, STATUS } from "@/lib/tokens";
 import { acwrState } from "@/lib/status";
@@ -86,21 +87,18 @@ function LoadTiles({ data, status }: { data: LoadPoint[]; status: StatusPoint[] 
 }
 
 export default function TrainingPage() {
-  const range = useRange("90d");
-  const sportQuery = range.sport
-    ? { ...range.query, sport: range.sport }
-    : { start: range.query.start, end: range.query.end };
+  const range = usePageFilters();
   const load = api.useQuery(
     "get",
     "/api/training/load",
-    { params: { query: range.query } },
-    { enabled: range.ready, placeholderData: (prev) => prev },
+    { params: { query: range.dates } },
+    range.options,
   );
   const status = api.useQuery(
     "get",
     "/api/training/status",
-    { params: { query: range.query } },
-    { enabled: range.ready, placeholderData: (prev) => prev },
+    { params: { query: range.dates } },
+    range.options,
   );
 
   return (
@@ -131,9 +129,9 @@ export default function TrainingPage() {
           <StatusCard query={status} start={range.start} end={range.end} />
           <AcwrCard query={load} start={range.start} end={range.end} />
           <FocusCard query={status} />
-          <VolumeCard query={sportQuery} ready={range.ready} />
-          <IntensityCard query={sportQuery} ready={range.ready} />
-          <EffectsCard query={sportQuery} ready={range.ready} />
+          <VolumeCard />
+          <IntensityCard />
+          <EffectsCard />
         </div>
       </div>
     </>

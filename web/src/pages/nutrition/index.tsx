@@ -1,7 +1,7 @@
-import { keepPreviousData } from "@tanstack/react-query";
 import { Beef, Flame, Scale, Utensils } from "lucide-react";
 import { useState } from "react";
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Chart, type ChartOption } from "@/components/Chart";
 import {
   Card,
@@ -33,7 +33,6 @@ import {
 } from "@/lib/charts";
 import { DASH, fmtDate, fmtNumber, fmtShortDate, signed, titleCase } from "@/lib/format";
 import { useMode } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { NARROW, useMediaQuery } from "@/lib/useMediaQuery";
 import { CHROME, DIVERGING, MEASURE_COLORS, type Mode, barEnd } from "@/lib/tokens";
 import { DayCard } from "./DayCard";
@@ -404,9 +403,9 @@ function Tiles({ s }: { s: Summary }) {
 
 export default function NutritionPage() {
   const mode = useMode();
-  const range = useRange("90d");
-  const query = { params: { query: range.query } };
-  const opts = { enabled: range.ready, placeholderData: keepPreviousData };
+  const range = usePageFilters();
+  const query = { params: { query: range.dates } };
+  const opts = range.options;
   const summary = api.useQuery("get", "/api/nutrition/summary", query, opts);
   const daily = api.useQuery("get", "/api/nutrition/daily", query, opts);
   const [picked, setPicked] = useState<string | null>(null);

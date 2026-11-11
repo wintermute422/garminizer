@@ -1,4 +1,5 @@
 import { api, type Schemas } from "@/api/client";
+import { usePageFilters } from "@/app/pageFilters";
 import { Delta, ErrorState, PageHeader, Skeleton, StatTile } from "@/components/ui";
 import {
   distanceUnit,
@@ -10,7 +11,6 @@ import {
   signed,
 } from "@/lib/format";
 import { useUnits } from "@/lib/preferences";
-import { useRange } from "@/lib/range";
 import { sportLabel, usesPace } from "@/lib/sports";
 import { CumulativeCard, CurveCard } from "./Curves";
 import { DistancesCard, PersonalCard, TopCard } from "./Lists";
@@ -97,8 +97,8 @@ function Tiles({
 }
 
 export default function RecordsPage() {
-  const range = useRange("90d");
-  const sport = range.sport ?? "run";
+  // Records always show one sport: nav.ts gives the page a default (run).
+  const sport = usePageFilters().sport!;
   const meta = api.useQuery("get", "/api/meta");
   const distances = api.useQuery(
     "get",
