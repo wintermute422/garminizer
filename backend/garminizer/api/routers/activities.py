@@ -10,18 +10,17 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field
 
 from garminizer.analytics.series import lttb
-from garminizer.api.deps import RangeDep, SessionDep, SportDep, one, rows
+from garminizer.api.activity_sql import (
+    SUMMARY_COLUMNS,
+    ActivityFilter,
+    ActivityFilterDep,
+    moving_time,
+)
+from garminizer.api.deps import RangeDep, SessionDep, one, rows
 from garminizer.api.schemas import ActivitySummary, Model
 
 router = APIRouter(prefix="/api/activities", tags=["activities"])
 
-SUMMARY_COLUMNS = """
-    a.activity_id, a.name, a.sport_type, a.sport_group, a.start_time_utc, a.start_time_local,
-    a.duration_s, a.moving_s, a.distance_m, a.elevation_gain_m, a.avg_speed_mps, a.avg_hr,
-    a.max_hr, a.avg_power_w, a.normalized_power_w, a.calories, a.training_load, a.aerobic_te,
-    a.anaerobic_te, a.training_effect_label, a.vo2max, a.location_name,
-    EXISTS (SELECT 1 FROM garmin.activity_track t WHERE t.activity_id = a.activity_id) AS has_track
-"""
 SORTS = {
     "start_time": "a.start_time_utc",
     "distance": "a.distance_m",
@@ -181,19 +180,14 @@ class ActivityCurve(Model):
 @router.get("", response_model=ActivityList)
 def list_activities(
     session: SessionDep,
-    rng: RangeDep,
-    sport: SportDep,
+    flt: ActivityFilterDep,
     q: Annotated[str | None, Query(max_length=100, description="Name contains")] = None,
     sort: Annotated[Literal[tuple(SORTS)], Query()] = "start_time",  # type: ignore[valid-type]
     order: Annotated[Literal["asc", "desc"], Query()] = "desc",
     limit: Annotated[int, Query(ge=1, le=1000)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ActivityList:
-    where = "a.start_time_local >= :start AND a.start_time_local < :end_excl"
-    params: dict[str, Any] = rng.params()
-    if sport:
-        where += " AND a.sport_group = :sport"
-        params["sport"] = sport
+    where, params = flt.sql()
     if q:
         where += " AND a.name ILIKE :q"
         params["q"] = f"%{q}%"
@@ -214,18 +208,18 @@ def list_activities(
 
 @router.get("/totals", response_model=list[SportTotals])
 def totals(session: SessionDep, rng: RangeDep) -> list[SportTotals]:
+    where, params = ActivityFilter(rng.start, rng.end).sql()
     data = rows(
         session,
-        """
-        SELECT sport_group, count(*) AS activities, sum(distance_m) AS distance_m,
-               sum(duration_s) AS duration_s, sum(coalesce(moving_s, duration_s)) AS moving_s,
-               sum(elevation_gain_m) AS elevation_gain_m, sum(training_load) AS training_load,
-               sum(calories) AS calories
-        FROM garmin.activity
-        WHERE start_time_local >= :start AND start_time_local < :end_excl
-        GROUP BY sport_group ORDER BY count(*) DESC
-        """,
-        **rng.params(),
+        f"""
+        SELECT a.sport_group, count(*) AS activities, sum(a.distance_m) AS distance_m,
+               sum(a.duration_s) AS duration_s, sum({moving_time()}) AS moving_s,
+               sum(a.elevation_gain_m) AS elevation_gain_m,
+               sum(a.training_load) AS training_load, sum(a.calories) AS calories
+        FROM garmin.activity a WHERE {where}
+        GROUP BY a.sport_group ORDER BY count(*) DESC
+        """,  # noqa: S608 - fixed fragments, values are bound
+        **params,
     )
     return [SportTotals(**r) for r in data]
 

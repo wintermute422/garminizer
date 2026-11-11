@@ -312,17 +312,21 @@ def pearson(x: ArrayLike, y: ArrayLike) -> tuple[float, int]:
     return max(-1.0, min(1.0, r)), n
 
 
-def lagged_correlation(x: ArrayLike, y: ArrayLike, max_lag: int) -> list[tuple[int, float, int]]:
-    """``(lag, r, n)`` for lag k = 0..max_lag, correlating ``x[t]`` with ``y[t + k]``."""
-    if max_lag < 0:
-        raise ValueError("max_lag must be >= 0")
+def lagged_pairs(x: ArrayLike, y: ArrayLike, lag: int) -> tuple[FloatArray, FloatArray]:
+    """``x[t]`` paired with ``y[t + lag]`` (equally long day series; empty when lag >= n)."""
+    if lag < 0:
+        raise ValueError("lag must be >= 0")
     xa, ya = _pair(x, y)
     n = xa.size
-    out: list[tuple[int, float, int]] = []
-    for k in range(max_lag + 1):
-        if k >= n:
-            out.append((k, math.nan, 0))
-            continue
-        r, used = pearson(xa[: n - k], ya[k:])
-        out.append((k, r, used))
-    return out
+    if lag >= n:
+        return np.empty(0), np.empty(0)
+    return xa[: n - lag], ya[lag:]
+
+
+def thin[T](points: list[T], limit: int) -> list[T]:
+    """Evenly spaced subset of at most ``limit`` points, always keeping the first and last."""
+    n = len(points)
+    if n <= limit:
+        return points
+    idx = np.unique(np.rint(np.linspace(0, n - 1, limit)).astype(np.intp))
+    return [points[int(i)] for i in idx]

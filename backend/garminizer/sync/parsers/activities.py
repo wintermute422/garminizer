@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from garminizer import models as m
-from garminizer.sports import sport_group
+from garminizer.sports import FOOT_GROUPS, sport_group
 from garminizer.sync.parsers.common import (
     ParseContext,
     Patch,
@@ -36,7 +36,6 @@ from garminizer.sync.parsers.common import (
 )
 from garminizer.sync.parsers.profile import gear_row
 
-FOOT_GROUPS = frozenset({"run", "walk", "hike"})
 _CADENCE_KEYS = {
     "run": ("averageRunningCadenceInStepsPerMinute", "maxRunningCadenceInStepsPerMinute"),
     "ride": ("averageBikingCadenceInRevPerMinute", "maxBikingCadenceInRevPerMinute"),

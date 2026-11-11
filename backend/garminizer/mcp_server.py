@@ -291,17 +291,8 @@ class _Runtime:
         }
 
     def targets_view(self, session: Session, targets: NutritionTargets) -> dict[str, Any]:
-        clock = self.clock(session)
-        today = clock.today()
-        weight = service.weight_on(session, today, clock.zone)
-        return {
-            "targets": targets.model_dump(mode="json"),
-            "protein_target_g": service.protein_target(targets, weight),
-            "weight_kg": weight,
-            "garmin_avg_total_kcal_28d": _round(
-                service.average_burn(session, today - timedelta(days=28), today)
-            ),
-        }
+        view = service.targets_view(session, targets, clock=self.clock(session))
+        return view.model_dump(mode="json")
 
 
 def build_server(

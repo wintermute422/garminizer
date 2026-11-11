@@ -30,7 +30,7 @@ from garminizer.demo.calendar import Calendar, Workout, build_calendar
 from garminizer.demo.daily import build_daily_rows
 from garminizer.demo.meals import write_demo_meals
 from garminizer.demo.streams import AthleteState, Places, Synth, synthesize
-from garminizer.sports import sport_group
+from garminizer.sports import FOOT_GROUPS, sport_group
 
 TZ_NAME = "Europe/Berlin"
 # Synthetic places (public landmarks' surroundings; routes are random curves, not real tracks).
@@ -108,7 +108,7 @@ def _minute_view(s: Synth, st: AthleteState) -> phys.ActivityMinutes:
         return out
 
     hr = per_min(s.hr)
-    foot = sport_group(s.workout.sport_type) in {"run", "walk", "hike"}
+    foot = sport_group(s.workout.sport_type) in FOOT_GROUPS
     steps = per_min(np.nan_to_num(s.cadence)) if foot else np.zeros(n_min)
     frac = np.clip(
         (np.nan_to_num(hr, nan=st.hr_rest) - st.hr_rest) / (st.hr_max - st.hr_rest), 0, 1
@@ -226,7 +226,7 @@ def _summarize(
         )
         if group == "run" and w.sport_type != "cross_country_skiing_ws"
         else None,
-        "steps": int(np.nansum(s.cadence) / 60) if group in {"run", "walk", "hike"} else None,
+        "steps": int(np.nansum(s.cadence) / 60) if group in FOOT_GROUPS else None,
         "lap_count": len(s.lap_marks),
         "moderate_intensity_min": int(np.sum((frac >= 0.5) & (frac < 0.7)) / 60),
         "vigorous_intensity_min": int(np.sum(frac >= 0.7) / 60),

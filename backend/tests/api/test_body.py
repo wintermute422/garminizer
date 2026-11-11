@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from garminizer.api.routers.body import BodyTrendPoint, change_30d
+from garminizer.analytics.body import TrendPoint, change_30d
 
 
 @pytest.fixture(scope="module")
@@ -109,14 +109,12 @@ def test_change_30d(client: TestClient) -> None:
 
 
 def test_change_30d_needs_enough_history() -> None:
-    p = [
-        BodyTrendPoint(day=date(2026, 1, d), weight_kg=70.0 + d, body_fat_pct=None) for d in (1, 5)
-    ]
+    p = [TrendPoint(day=date(2026, 1, d), weight_kg=70.0 + d, body_fat_pct=None) for d in (1, 5)]
     assert change_30d(p) is None
     assert change_30d([]) is None
     q = [
-        BodyTrendPoint(day=date(2026, 1, 1), weight_kg=72.0, body_fat_pct=None),
-        BodyTrendPoint(day=date(2026, 1, 31), weight_kg=71.0, body_fat_pct=None),
+        TrendPoint(day=date(2026, 1, 1), weight_kg=72.0, body_fat_pct=None),
+        TrendPoint(day=date(2026, 1, 31), weight_kg=71.0, body_fat_pct=None),
     ]
     assert change_30d(q) == -1.0
 

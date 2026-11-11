@@ -12,8 +12,9 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from garminizer.analytics.geo import haversine_m, max_cluster, max_square
-from garminizer.api.routers.maps import LOW_DETAIL_POINTS, PLACE_RADIUS_M, cluster_places, thin
+from garminizer.analytics.geo import cluster_places, haversine_m, max_cluster, max_square
+from garminizer.analytics.series import thin
+from garminizer.api.routers.maps import LOW_DETAIL_POINTS, PLACE_RADIUS_M
 from tests.api.conftest import API_END
 
 RANGE_START = API_END - timedelta(days=364)  # RangeDep default: one year ending at the last day
@@ -122,16 +123,16 @@ def test_cluster_places_groups_nearby_starts() -> None:
     c = (48.0, 11.0054, 4)  # 400 m from a -> own place
     d = (48.00153, 11.0, 1)  # 170 m from a, 120 m from b (not a centre) -> own place
     e = (48.0, 11.0054, 4)  # same spot as c, equal count: tie broken by position
-    places = cluster_places([d, c, b, a])
-    assert [(p.lat, p.lon, p.activities) for p in places] == [
+    places = cluster_places([d, c, b, a], PLACE_RADIUS_M)
+    assert places == [
         (48.0, 11.0, 8),
         (48.0, 11.0054, 4),
         (48.0015, 11.0, 1),
     ]
     # Input order does not matter.
-    assert cluster_places([a, b, c, d]) == places
-    assert cluster_places([c, e])[0].activities == 8
-    assert cluster_places([]) == []
+    assert cluster_places([a, b, c, d], PLACE_RADIUS_M) == places
+    assert cluster_places([c, e], PLACE_RADIUS_M)[0][2] == 8
+    assert cluster_places([], PLACE_RADIUS_M) == []
 
 
 def test_places_cluster_start_points(client: TestClient, sql: Session) -> None:

@@ -43,6 +43,7 @@ from garminizer.nutrition.schemas import (
     NutritionRemaining,
     NutritionSummary,
     NutritionTargets,
+    NutritionTargetsView,
     NutritionTotals,
     NutritionTotalsIn,
     NutritionWarning,
@@ -665,6 +666,21 @@ def average_burn(session: Session, start: date, end: date) -> float | None:
     return _r(value)
 
 
+def targets_view(
+    session: Session, targets: NutritionTargets, *, clock: AthleteClock
+) -> NutritionTargetsView:
+    """``targets`` with today's protein target, weight and Garmin's 28-day average burn."""
+    today = clock.today()
+    weight = weight_on(session, today, clock.zone)
+    burn = average_burn(session, today - timedelta(days=28), today)
+    return NutritionTargetsView(
+        targets=targets,
+        protein_target_g=protein_target(targets, weight),
+        weight_kg=weight,
+        garmin_avg_total_kcal_28d=None if burn is None else round(burn),
+    )
+
+
 ACTIVITIES_SQL = """
 SELECT activity_id, name, sport_group, sport_type, start_time_local, duration_s, distance_m,
        calories, training_load
@@ -737,6 +753,7 @@ __all__ = [
     "resolve_eaten_at",
     "set_targets",
     "summary",
+    "targets_view",
     "update_meal",
     "weight_on",
 ]

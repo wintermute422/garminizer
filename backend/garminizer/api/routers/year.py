@@ -15,8 +15,8 @@ from sqlalchemy.orm import Session
 
 from garminizer.analytics.pipeline import TILE_ZOOM
 from garminizer.analytics.stats import streaks
+from garminizer.api.activity_sql import SUMMARY_COLUMNS, moving_time
 from garminizer.api.deps import SessionDep, one, rows
-from garminizer.api.routers.activities import SUMMARY_COLUMNS
 from garminizer.api.schemas import ActivitySummary, Model
 
 router = APIRouter(prefix="/api/year", tags=["year"])
@@ -135,7 +135,7 @@ def years(session: SessionDep) -> list[YearSummary]:
     """Every year with data (activities or daily summaries), newest first."""
     data = rows(
         session,
-        """
+        f"""
         WITH years AS (
             SELECT DISTINCT extract(year FROM day)::int AS year FROM garmin.daily_summary
             UNION
@@ -143,13 +143,13 @@ def years(session: SessionDep) -> list[YearSummary]:
         )
         SELECT y.year, count(a.activity_id) AS activities,
                coalesce(sum(a.distance_m), 0) AS distance_m,
-               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s
+               coalesce(sum({moving_time()}), 0) AS duration_s
         FROM years y
         LEFT JOIN garmin.activity a
           ON a.start_time_local >= make_date(y.year, 1, 1)
          AND a.start_time_local < make_date(y.year + 1, 1, 1)
         GROUP BY y.year ORDER BY y.year DESC
-        """,
+        """,  # noqa: S608 - constant SQL fragment
     )
     return [YearSummary(**r) for r in data]
 
@@ -176,7 +176,7 @@ def _monthly(session: Session, p: dict[str, Any]) -> list[YearMonth]:
         f"""
         SELECT extract(month FROM a.start_time_local)::int AS month, count(*) AS activities,
                coalesce(sum(a.distance_m), 0) AS distance_m,
-               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s
+               coalesce(sum({moving_time()}), 0) AS duration_s
         FROM garmin.activity a WHERE {YEAR_WHERE} GROUP BY 1
         """,  # noqa: S608 - constant WHERE
         **p,
@@ -231,7 +231,7 @@ def year_review(session: SessionDep, year: Annotated[int, Path(ge=1900, le=2200)
         f"""
         SELECT count(*) AS activities, coalesce(sum(a.distance_m), 0) AS distance_m,
                coalesce(sum(a.duration_s), 0) AS duration_s,
-               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS moving_s,
+               coalesce(sum({moving_time()}), 0) AS moving_s,
                coalesce(sum(a.elevation_gain_m), 0)::float8 AS elevation_gain_m,
                coalesce(sum(a.calories), 0)::float8 AS calories,
                coalesce(sum(a.training_load), 0)::float8 AS training_load,
@@ -248,7 +248,7 @@ def year_review(session: SessionDep, year: Annotated[int, Path(ge=1900, le=2200)
         f"""
         SELECT a.sport_group, count(*) AS activities,
                coalesce(sum(a.distance_m), 0) AS distance_m,
-               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s,
+               coalesce(sum({moving_time()}), 0) AS duration_s,
                coalesce(sum(a.elevation_gain_m), 0)::float8 AS elevation_gain_m
         FROM garmin.activity a WHERE {YEAR_WHERE}
         GROUP BY 1 ORDER BY count(*) DESC, 1
@@ -259,7 +259,7 @@ def year_review(session: SessionDep, year: Annotated[int, Path(ge=1900, le=2200)
         session,
         f"""
         SELECT a.start_time_local::date AS day,
-               coalesce(sum(coalesce(a.moving_s, a.duration_s)), 0) AS duration_s,
+               coalesce(sum({moving_time()}), 0) AS duration_s,
                coalesce(sum(a.training_load), 0)::float8 AS training_load
         FROM garmin.activity a WHERE {YEAR_WHERE} GROUP BY 1 ORDER BY 1
         """,  # noqa: S608 - constant WHERE

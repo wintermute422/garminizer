@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import date, datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
-import numpy as np
 from fastapi import APIRouter, Query
 
-from garminizer.analytics.geo import haversine_m, max_cluster, max_square
-from garminizer.api.deps import RangeDep, SessionDep, SportDep, rows
+from garminizer.analytics.geo import cluster_places, max_cluster, max_square
+from garminizer.analytics.series import thin
+from garminizer.api.activity_sql import ActivityFilterDep
+from garminizer.api.deps import SessionDep, rows
 from garminizer.api.schemas import Model
 
 router = APIRouter(prefix="/api/map", tags=["map"])
@@ -57,35 +57,16 @@ class MapPlace(Model):
     activities: int
 
 
-def thin(points: list[Any], limit: int) -> list[Any]:
-    """Evenly spaced subset of at most ``limit`` points, always keeping the first and last."""
-    n = len(points)
-    if n <= limit:
-        return points
-    idx = np.unique(np.rint(np.linspace(0, n - 1, limit)).astype(np.intp))
-    return [points[int(i)] for i in idx]
-
-
-def _filter(rng: RangeDep, sport: str | None) -> tuple[str, dict[str, Any]]:
-    where = "a.start_time_local >= :start AND a.start_time_local < :end_excl"
-    params: dict[str, Any] = rng.params()
-    if sport:
-        where += " AND a.sport_group = :sport"
-        params["sport"] = sport
-    return where, params
-
-
 @router.get("/tracks", response_model=list[MapTrack])
 def tracks(
     session: SessionDep,
-    rng: RangeDep,
-    sport: SportDep,
+    flt: ActivityFilterDep,
     detail: Annotated[
         Literal["low", "high"],
         Query(description=f"low: at most {LOW_DETAIL_POINTS} points per track"),
     ] = "low",
 ) -> list[MapTrack]:
-    where, params = _filter(rng, sport)
+    where, params = flt.sql()
     data = rows(
         session,
         f"""
@@ -124,38 +105,10 @@ def tiles(
     )
 
 
-def cluster_places(
-    points: Iterable[tuple[float, float, int]], radius_m: float = PLACE_RADIUS_M
-) -> list[MapPlace]:
-    """Group start points ``(lat, lon, activities)`` into places (deterministic).
-
-    Points are visited most used first (ties by lat, lon). A point joins the nearest place whose
-    centre (its most used point) lies within ``radius_m``, otherwise it becomes a new place, so
-    place centres are always more than ``radius_m`` apart. Places come most used first.
-    """
-    centres: list[tuple[float, float]] = []
-    counts: list[int] = []
-    for lat, lon, n in sorted(points, key=lambda p: (-p[2], p[0], p[1])):
-        if centres:
-            lats, lons = zip(*centres, strict=True)
-            dist = haversine_m(lat, lon, lats, lons)
-            nearest = int(np.argmin(dist))
-            if float(dist[nearest]) <= radius_m:
-                counts[nearest] += n
-                continue
-        centres.append((lat, lon))
-        counts.append(n)
-    places = [
-        MapPlace(lat=round(lat, 4), lon=round(lon, 4), activities=n)
-        for (lat, lon), n in zip(centres, counts, strict=True)
-    ]
-    return sorted(places, key=lambda p: (-p.activities, p.lat, p.lon))
-
-
 @router.get("/places", response_model=list[MapPlace])
-def places(session: SessionDep, rng: RangeDep, sport: SportDep) -> list[MapPlace]:
+def places(session: SessionDep, flt: ActivityFilterDep) -> list[MapPlace]:
     """Favourite start places: activity starts within 150 m of each other, most used first."""
-    where, params = _filter(rng, sport)
+    where, params = flt.sql()
     data = rows(
         session,
         f"""
@@ -167,4 +120,7 @@ def places(session: SessionDep, rng: RangeDep, sport: SportDep) -> list[MapPlace
         """,  # noqa: S608 - where is built from constants, values are bound
         **params,
     )
-    return cluster_places((r["lat"], r["lon"], int(r["activities"])) for r in data)
+    places = cluster_places(
+        ((r["lat"], r["lon"], int(r["activities"])) for r in data), PLACE_RADIUS_M
+    )
+    return [MapPlace(lat=lat, lon=lon, activities=n) for lat, lon, n in places]

@@ -5,20 +5,17 @@ Measurements are timestamps; the range filter and the trend use the athlete's lo
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from dataclasses import asdict
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter
 from pydantic import Field
 
+from garminizer.analytics.body import change_30d, weight_trend
 from garminizer.api.deps import ClockDep, RangeDep, SessionDep, rows
 from garminizer.api.schemas import Model
 
 router = APIRouter(prefix="/api/body", tags=["body"])
-
-TREND_DAYS = 7
-CHANGE_DAYS = 30
-CHANGE_TOLERANCE_DAYS = 7
 
 
 class BodyWeighIn(Model):
@@ -69,43 +66,6 @@ class BodyOverview(Model):
     goal: float | None = Field(default=None, description="Goal weight (kg); not available yet")
 
 
-def _avg(values: list[float | None]) -> float | None:
-    present = [v for v in values if v is not None]
-    return round(sum(present) / len(present), 2) if present else None
-
-
-def trend(daily: list[dict[str, Any]]) -> list[BodyTrendPoint]:
-    """One point per weigh-in day: mean of the daily means within the trailing 7 days."""
-    out: list[BodyTrendPoint] = []
-    lo = 0
-    for hi, cur in enumerate(daily):
-        while daily[lo]["day"] <= cur["day"] - timedelta(days=TREND_DAYS):
-            lo += 1
-        window = daily[lo : hi + 1]
-        out.append(
-            BodyTrendPoint(
-                day=cur["day"],
-                weight_kg=_avg([w["weight_kg"] for w in window]),
-                body_fat_pct=_avg([w["body_fat_pct"] for w in window]),
-            )
-        )
-    return out
-
-
-def change_30d(points: list[BodyTrendPoint]) -> float | None:
-    """Last trend weight minus the trend point closest to 30 days earlier (within 7 days)."""
-    weights = [(p.day, p.weight_kg) for p in points if p.weight_kg is not None]
-    if not weights:
-        return None
-    last_day, last_kg = weights[-1]
-    target = last_day - timedelta(days=CHANGE_DAYS)
-    candidates = [w for w in weights if abs((w[0] - target).days) <= CHANGE_TOLERANCE_DAYS]
-    if not candidates:
-        return None
-    _, ref_kg = min(candidates, key=lambda w: (abs((w[0] - target).days), w[0]))
-    return round(last_kg - ref_kg, 2)
-
-
 @router.get("", response_model=BodyOverview)
 def body(session: SessionDep, clock: ClockDep, rng: RangeDep) -> BodyOverview:
     t0, t1 = clock.day_span(rng.start, rng.end)
@@ -135,7 +95,7 @@ def body(session: SessionDep, clock: ClockDep, rng: RangeDep) -> BodyOverview:
         tz=clock.name,
         t1=t1,
     )
-    full = trend(daily)
+    full = [BodyTrendPoint(**asdict(p)) for p in weight_trend(daily)]
     last = rows(
         session,
         "SELECT weight_kg, bmi, body_fat_pct, muscle_mass_kg, measured_at "
