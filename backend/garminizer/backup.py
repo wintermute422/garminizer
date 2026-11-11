@@ -16,7 +16,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, make_url, text
 from sqlalchemy.pool import NullPool
 
-from garminizer.config import Settings, get_settings
+from garminizer.config import Settings
 from garminizer.db.base import SCHEMA
 
 PREFIX = "garminizer-"
@@ -50,8 +50,7 @@ def _tool(name: str) -> str:
     return found
 
 
-def list_backups(settings: Settings | None = None) -> list[BackupFile]:
-    settings = settings or get_settings()
+def list_backups(settings: Settings) -> list[BackupFile]:
     folder = settings.backups_dir
     if not folder.is_dir():
         return []
@@ -62,9 +61,8 @@ def list_backups(settings: Settings | None = None) -> list[BackupFile]:
     ]
 
 
-def create_backup(settings: Settings | None = None, *, keep: int | None = None) -> BackupFile:
+def create_backup(settings: Settings, *, keep: int | None = None) -> BackupFile:
     """Dump the whole database, then delete the oldest backups beyond `keep`."""
-    settings = settings or get_settings()
     folder = settings.backups_dir
     folder.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -93,9 +91,8 @@ def create_backup(settings: Settings | None = None, *, keep: int | None = None) 
     return BackupFile(target, target.stat().st_size, datetime.now(UTC))
 
 
-def restore_backup(path: Path, settings: Settings | None = None) -> None:
+def restore_backup(path: Path, settings: Settings) -> None:
     """Restore a dump into the configured database (replaces existing objects)."""
-    settings = settings or get_settings()
     if not path.is_file():
         raise BackupError(f"backup file not found: {path}")
     proc = subprocess.run(

@@ -30,7 +30,7 @@ from typing import Any, Literal
 
 from garminconnect import GarminConnectAuthenticationError, GarminConnectTooManyRequestsError
 
-from garminizer.config import Settings, get_settings
+from garminizer.config import Settings
 from garminizer.garmin.client import (
     GarminAuthError,
     GarminClient,
@@ -83,9 +83,9 @@ def ensure_token_dir(settings: Settings) -> Path:
     return path
 
 
-def has_tokens(settings: Settings | None = None) -> bool:
+def has_tokens(settings: Settings) -> bool:
     """True when a token file exists and looks valid (both DI tokens present)."""
-    path = token_file(settings or get_settings())
+    path = token_file(settings)
     try:
         if path.is_symlink() or not path.is_file():
             return False
@@ -125,11 +125,10 @@ def login(
     email: str,
     password: str,
     *,
-    settings: Settings | None = None,
+    settings: Settings,
     factory: GarminFactory | None = None,
 ) -> LoginResult:
     """Start a credential login; returns status ok (tokens saved) or needs_mfa (+ state)."""
-    settings = settings or get_settings()
     factory = factory or default_factory()
     if not email or not password:
         raise GarminAuthError("e-mail and password are required")
@@ -149,10 +148,9 @@ def complete_mfa(
     state: PendingMfa,
     code: str,
     *,
-    settings: Settings | None = None,
+    settings: Settings,
 ) -> GarminClient:
     """Finish a pending login with the MFA code; saves the tokens."""
-    settings = settings or get_settings()
     if state.expired():
         raise GarminAuthError("the MFA code request expired; start the login again")
     code = code.strip()
@@ -168,9 +166,8 @@ def complete_mfa(
     return make_client(state.api, settings)
 
 
-def resume(settings: Settings | None = None, factory: GarminFactory | None = None) -> GarminClient:
+def resume(settings: Settings, factory: GarminFactory | None = None) -> GarminClient:
     """A client from the saved tokens (refreshed by the library when needed)."""
-    settings = settings or get_settings()
     factory = factory or default_factory()
     if not has_tokens(settings):
         raise GarminAuthError(
@@ -188,9 +185,8 @@ def resume(settings: Settings | None = None, factory: GarminFactory | None = Non
     return make_client(api, settings)
 
 
-def disconnect(settings: Settings | None = None) -> bool:
+def disconnect(settings: Settings) -> bool:
     """Delete the local token file(s). Returns True when something was deleted."""
-    settings = settings or get_settings()
     directory = settings.token_dir
     deleted = False
     if not directory.is_dir():

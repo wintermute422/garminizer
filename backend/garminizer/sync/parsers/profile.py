@@ -211,9 +211,31 @@ def first_account_day_candidates(profile_base: Any, user_settings: Any) -> list[
     return out
 
 
+def identity_payload(
+    display_name: str | None, full_name: str | None, profile_id: Any
+) -> dict[str, Any]:
+    """The raw ``identity`` payload stored for the logged-in profile (read by parse_identity)."""
+    return {"displayName": display_name, "fullName": full_name, "profileId": profile_id}
+
+
+def identifying_values(identity: Any, personal_information: Any) -> list[Any]:
+    """Raw values that identify the account (names, profile id, e-mails) for the secret scan."""
+    out: list[Any] = []
+    if isinstance(identity, dict):
+        out += [identity.get(k) for k in ("displayName", "fullName", "profileId")]
+    if isinstance(personal_information, dict):
+        out.append(personal_information.get("email"))
+        user_info = personal_information.get("userInfo")
+        if isinstance(user_info, dict):
+            out.append(user_info.get("email"))
+    return out
+
+
 __all__ = [
     "first_account_day_candidates",
     "gear_row",
+    "identifying_values",
+    "identity_payload",
     "parse_device_last_used",
     "parse_devices",
     "parse_gear",

@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -28,15 +28,14 @@ from sqlalchemy.orm import Session
 from garminizer import models as m
 from garminizer.analytics import pipeline
 from garminizer.athlete import athlete_clock
-from garminizer.config import Settings, get_settings
-from garminizer.garmin import auth
+from garminizer.config import Settings
 from garminizer.garmin.client import (
     GarminClient,
     GarminError,
     GarminNotFoundError,
     GarminRequestError,
 )
-from garminizer.sync import fit, private_values, store
+from garminizer.sync import fit, plan, private_values, store
 from garminizer.sync.datasets import (
     ACTIVITY,
     ACTIVITY_PAGE_SIZE,
@@ -51,7 +50,7 @@ from garminizer.sync.datasets import (
     Unit,
 )
 from garminizer.sync.parsers.common import ParseContext, ShapeError, day_of, month_bounds
-from garminizer.sync.parsers.profile import first_account_day_candidates
+from garminizer.sync.parsers.profile import first_account_day_candidates, identity_payload
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +60,8 @@ OVERLAP_DAYS = 2
 DEFAULT_HISTORY_DAYS = 365
 EARLIEST_PLAUSIBLE_DAY = date(2000, 1, 1)
 _THREAD_LOCK = threading.Lock()
+DAILY_NAMES = tuple(d.name for d in DAILY)
+RANGE_NAMES = tuple(d.name for d in RANGE)
 
 
 class DemoDatabaseError(RuntimeError):
@@ -279,10 +280,8 @@ def _ingest(session: Session, run: _Run, ds: Dataset, key: str, payload: Any) ->
 
 def _fetch(run: _Run, ds: Dataset, unit: Unit) -> tuple[bool, Any, str | None]:
     """(ok, payload, error). 404 = no data; other request errors are terminal for the unit."""
-    assert ds.method is not None
-    args, kwargs = ds.args(unit, run.ctx())
     try:
-        return True, run.client.call(ds.method, *args, **kwargs), None
+        return True, ds.fetch(run.client, unit, run.ctx()), None
     except GarminNotFoundError:
         return True, None, None
     except GarminRequestError as exc:
@@ -353,7 +352,7 @@ def _process_file(
 
 def _identity_payload(client: GarminClient) -> dict[str, Any]:
     i = client.identity
-    return {"displayName": i.display_name, "fullName": i.full_name, "profileId": i.profile_id}
+    return identity_payload(i.display_name, i.full_name, i.profile_id)
 
 
 def _sync_static(run: _Run, *, only_missing: bool) -> bool:
@@ -404,7 +403,7 @@ def _activity_day(item: dict[str, Any], today: date) -> date:
 
 def _activity_page(run: _Run, start: int) -> list[dict[str, Any]]:
     try:
-        page = run.client.call("get_activities", start, ACTIVITY_PAGE_SIZE)
+        page = ACTIVITY.fetch(run.client, Unit(str(start)), run.ctx())
     except GarminNotFoundError:
         return []
     if isinstance(page, dict):
@@ -571,80 +570,47 @@ def _month_unit(run: _Run, ds: Dataset, month_start: date) -> None:
     _process_unit(run, ds, Unit(start.strftime("%Y-%m"), start=start, end=end), cursor)
 
 
-def _months(first: date, last: date) -> list[date]:
-    out, cur = [], first.replace(day=1)
-    while cur <= last:
-        out.append(cur)
-        cur = month_bounds(cur)[1] + timedelta(days=1)
-    return out
+def _newest(cursors: dict[str, m.SyncCursor]) -> dict[str, date | None]:
+    return {name: c.newest_day for name, c in cursors.items()}
+
+
+def _run_days(run: _Run, units: Iterable[tuple[str, date]]) -> bool:
+    """Execute a day plan; False when the time budget ran out."""
+    for name, day in units:
+        if run.out_of_time():
+            return False
+        _daily_unit(run, DATASETS[name], day)
+    return True
+
+
+def _run_months(run: _Run, ds: Dataset, months: Iterable[date]) -> bool:
+    for month in months:
+        if run.out_of_time():
+            return False
+        _month_unit(run, ds, month)
+    return True
 
 
 def _sync_daily_incremental(run: _Run) -> bool:
-    cursors = _with_session(run, _cursors)
-    default = run.today - timedelta(days=OVERLAP_DAYS)
-    starts = {
-        ds.name: min(run.today, cur.newest_day - timedelta(days=OVERLAP_DAYS))
-        if (cur := cursors.get(ds.name)) is not None and cur.newest_day
-        else default
-        for ds in DAILY
-    }
-    day = min(starts.values())
-    while day <= run.today:
-        for ds in DAILY:
-            if day < starts[ds.name]:
-                continue
-            if run.out_of_time():
-                return False
-            _daily_unit(run, ds, day)
-        day += timedelta(days=1)
-    return True
+    newest = _newest(_with_session(run, _cursors))
+    starts = plan.incremental_starts(DAILY_NAMES, newest, run.today, OVERLAP_DAYS)
+    return _run_days(run, plan.days_forward(starts, run.today))
 
 
 def _sync_ranges_incremental(run: _Run) -> bool:
-    cursors = _with_session(run, _cursors)
-    for ds in RANGE:
-        cur = cursors.get(ds.name)
-        start = (cur.newest_day if cur and cur.newest_day else run.today) - timedelta(
-            days=OVERLAP_DAYS
-        )
-        for month in _months(min(start, run.today), run.today):
-            if run.out_of_time():
-                return False
-            _month_unit(run, ds, month)
-    return True
+    newest = _newest(_with_session(run, _cursors))
+    starts = plan.incremental_starts(RANGE_NAMES, newest, run.today, OVERLAP_DAYS)
+    return all(_run_months(run, ds, plan.months(starts[ds.name], run.today)) for ds in RANGE)
 
 
 def _sync_recent_days(run: _Run) -> bool:
-    """The last OVERLAP_DAYS of every daily/range dataset, skipping days already stored.
-
-    Starts after each dataset's newest day, so a resumed run (or a later backfill chunk on the
-    same day) asks Garmin for nothing twice.
-    """
-    cursors = _with_session(run, _cursors)
-    floor = run.today - timedelta(days=OVERLAP_DAYS)
-
-    def start(name: str) -> date:
-        cur = cursors.get(name)
-        newest: date | None = cur.newest_day if cur is not None else None
-        return floor if newest is None else max(floor, newest + timedelta(days=1))
-
-    for ds in RANGE:
-        first = start(ds.name)
-        for month in _months(first, run.today) if first <= run.today else []:
-            if run.out_of_time():
-                return False
-            _month_unit(run, ds, month)
-    starts = {ds.name: start(ds.name) for ds in DAILY}
-    day = min(starts.values())
-    while day <= run.today:
-        for ds in DAILY:
-            if day < starts[ds.name]:
-                continue
-            if run.out_of_time():
-                return False
-            _daily_unit(run, ds, day)
-        day += timedelta(days=1)
-    return True
+    """The last OVERLAP_DAYS of every daily/range dataset, skipping days already stored."""
+    newest = _newest(_with_session(run, _cursors))
+    months = plan.recent_starts(RANGE_NAMES, newest, run.today, OVERLAP_DAYS)
+    if not all(_run_months(run, ds, plan.months(months[ds.name], run.today)) for ds in RANGE):
+        return False
+    starts = plan.recent_starts(DAILY_NAMES, newest, run.today, OVERLAP_DAYS)
+    return _run_days(run, plan.days_forward(starts, run.today))
 
 
 def account_first_day(session: Session, today: date) -> date:
@@ -670,32 +636,18 @@ def account_first_day(session: Session, today: date) -> date:
 
 def _backfill_daily(run: _Run, floor: date, can_complete: bool) -> bool:
     cursors = _with_session(run, _cursors)
-    pending: dict[str, date] = {}
-    for ds in DAILY:
-        cur = cursors.get(ds.name)
-        if cur is not None and cur.complete:
-            continue
-        pending[ds.name] = (
-            cur.oldest_day - timedelta(days=1) if cur is not None and cur.oldest_day else run.today
-        )
-    while pending:
-        day = max(pending.values())
-        if day < floor:
-            if can_complete:
+    oldest = {name: c.oldest_day for name, c in cursors.items()}
+    complete = {name for name, c in cursors.items() if c.complete}
+    starts = plan.backfill_starts(DAILY_NAMES, oldest, complete, run.today)
+    if not _run_days(run, plan.days_backward(starts, floor)):
+        return False
+    if can_complete and starts:
 
-                def done(s: Session, names: tuple[str, ...] = tuple(pending)) -> None:
-                    for name in names:
-                        _touch(s, name, complete=True)
+        def done(s: Session, names: tuple[str, ...] = tuple(starts)) -> None:
+            for name in names:
+                _touch(s, name, complete=True)
 
-                _with_session(run, done, commit=True)
-            return True
-        for ds in DAILY:
-            if pending.get(ds.name) != day:
-                continue
-            if run.out_of_time():
-                return False
-            _daily_unit(run, ds, day)
-            pending[ds.name] = day - timedelta(days=1)
+        _with_session(run, done, commit=True)
     return True
 
 
@@ -705,16 +657,9 @@ def _backfill_ranges(run: _Run, floor: date, can_complete: bool) -> bool:
         cur = cursors.get(ds.name)
         if cur is not None and cur.complete:
             continue
-        month = (
-            (cur.oldest_day.replace(day=1) - timedelta(days=1)).replace(day=1)
-            if cur is not None and cur.oldest_day
-            else run.today.replace(day=1)
-        )
-        while month_bounds(month)[1] >= floor:
-            if run.out_of_time():
-                return False
-            _month_unit(run, ds, month)
-            month = (month - timedelta(days=1)).replace(day=1)
+        start = plan.backfill_month_start(cur.oldest_day if cur else None, run.today)
+        if not _run_months(run, ds, plan.months_backward(start, floor)):
+            return False
         if can_complete:
 
             def finished(s: Session, name: str = ds.name) -> None:
@@ -724,7 +669,8 @@ def _backfill_ranges(run: _Run, floor: date, can_complete: bool) -> bool:
     return True
 
 
-def _all_complete(session: Session) -> bool:
+def all_complete(session: Session) -> bool:
+    """Every backfilled dataset has reached the account's first day."""
     cursors = _cursors(session)
     names = [d.name for d in (*STATIC, ACTIVITY, *DAILY, *RANGE)]
     return all((c := cursors.get(n)) is not None and c.complete for n in names)
@@ -733,22 +679,31 @@ def _all_complete(session: Session) -> bool:
 # --- runs -------------------------------------------------------------------------------------
 
 
+def _open_run(session: Session, kind: str) -> int:
+    """Insert a running sync_run row; rows still "running" belong to a dead process.
+
+    Call only while holding run_lock. The caller commits.
+    """
+    session.execute(
+        update(m.SyncRun)
+        .where(m.SyncRun.status == "running")
+        .values(
+            status="error",
+            finished_at=datetime.now(UTC),
+            message="interrupted (the process ended before the run finished)",
+        )
+    )
+    run_id = session.execute(
+        insert(m.SyncRun).values(kind=kind, status="running").returning(m.SyncRun.id)
+    ).scalar_one()
+    return int(run_id)
+
+
 def _start_run(session_factory: SessionFactory, kind: str) -> int:
     with session_factory() as s:
-        s.execute(
-            update(m.SyncRun)
-            .where(m.SyncRun.status == "running")
-            .values(
-                status="error",
-                finished_at=datetime.now(UTC),
-                message="interrupted (the process ended before the run finished)",
-            )
-        )
-        run_id = s.execute(
-            insert(m.SyncRun).values(kind=kind, status="running").returning(m.SyncRun.id)
-        ).scalar_one()
+        run_id = _open_run(s, kind)
         s.commit()
-    return int(run_id)
+    return run_id
 
 
 def _finish_run(run: _Run, status: str, message: str | None) -> None:
@@ -805,11 +760,10 @@ def _execute(
     client: GarminClient,
     *,
     today: date | None,
-    settings: Settings | None,
+    settings: Settings,
     budget_s: float | None,
     body: Callable[[_Run], tuple[str | None, bool]],
 ) -> RunSummary:
-    settings = settings or get_settings()
     with session_factory() as s:
         ensure_not_demo(s)
         today = today or athlete_clock(s, settings.tz).today()
@@ -862,7 +816,7 @@ def incremental(
     client: GarminClient,
     today: date | None = None,
     *,
-    settings: Settings | None = None,
+    settings: Settings,
 ) -> RunSummary:
     """Static datasets, new/changed activities and (newest synced day - 2) .. today."""
 
@@ -893,7 +847,7 @@ def backfill(
     budget_s: float | None = None,
     *,
     today: date | None = None,
-    settings: Settings | None = None,
+    settings: Settings,
 ) -> RunSummary:
     """Walk back from the oldest synced day to the account's first day (or `until`)."""
 
@@ -913,7 +867,7 @@ def backfill(
             _backfill_ranges(run, floor, can_complete) and _backfill_daily(run, floor, can_complete)
         ):
             return "time budget reached", False
-        done = _with_session(run, _all_complete)
+        done = _with_session(run, all_complete)
         return (f"backfill reached {floor.isoformat()}" if not done else "backfill complete"), done
 
     return _execute(
@@ -935,9 +889,7 @@ def reparse(session: Session, *, today: date) -> RunSummary:
     errors_before = session.scalar(select(func.count()).select_from(m.SyncError)) or 0
     last_error_id = session.scalar(select(func.max(m.SyncError.id))) or 0
     with run_lock(bind):
-        run_id = session.execute(
-            insert(m.SyncRun).values(kind="reparse", status="running").returning(m.SyncRun.id)
-        ).scalar_one()
+        run_id = _open_run(session, "reparse")
         index = session.execute(
             select(m.RawPayload.id, m.RawPayload.dataset, m.RawPayload.key)
         ).all()
@@ -1002,99 +954,13 @@ def record_failed_run(session_factory: SessionFactory, kind: str, message: str) 
     return int(run_id)
 
 
-# --- entry points for the worker (no CLI) ---------------------------------------------------
-
-
-def _record_failed_start(session_factory: SessionFactory, kind: str, message: str) -> None:
-    """record_failed_run, unless the latest run of this kind already failed the same way.
-
-    The worker retries every few minutes; one row per distinct failure keeps /status readable.
-    """
-    with session_factory() as s:
-        last = s.execute(
-            select(m.SyncRun.status, m.SyncRun.message)
-            .where(m.SyncRun.kind == kind)
-            .order_by(m.SyncRun.id.desc())
-            .limit(1)
-        ).first()
-    if last is not None and last.status == "error" and last.message == message[:500]:
-        return
-    record_failed_run(session_factory, kind, message)
-
-
-def _prepare(
-    settings: Settings, factory: auth.GarminFactory | None, kind: str
-) -> tuple[SessionFactory, GarminClient] | None:
-    from garminizer.db.session import session_factory as make_factory  # noqa: PLC0415
-
-    what = f"{kind} sync" if kind == "incremental" else kind
-    sf = make_factory(settings.database_url)
-    with sf() as s:
-        if is_demo(s):
-            log.info("%s skipped: the database holds the demo athlete", what)
-            return None
-    if not auth.has_tokens(settings):
-        log.info("%s skipped: not connected to Garmin (no saved tokens)", what)
-        return None
-    try:
-        client = auth.resume(settings, factory)
-    except GarminError as exc:
-        log.warning("%s skipped: %s", what, exc)
-        _record_failed_start(sf, kind, str(exc))  # shown on the Sync page, like API-started runs
-        return None
-    return sf, client
-
-
-def run_incremental(
-    settings: Settings | None = None, *, factory: auth.GarminFactory | None = None
-) -> RunSummary | None:
-    """One incremental sync; None (logged) when not connected, demo DB or already running."""
-    settings = settings or get_settings()
-    prepared = _prepare(settings, factory, "incremental")
-    if prepared is None:
-        return None
-    sf, client = prepared
-    try:
-        return incremental(sf, client, settings=settings)
-    except SyncBusyError as exc:
-        log.info("incremental sync skipped: %s", exc)
-        return None
-
-
-def run_backfill_chunk(
-    settings: Settings | None = None,
-    budget_s: float = 900.0,
-    *,
-    factory: auth.GarminFactory | None = None,
-) -> bool:
-    """A time-boxed backfill chunk; True once the backfill is complete.
-
-    Returns False (logged) when it could not run: not connected, demo DB, busy, or an error.
-    """
-    settings = settings or get_settings()
-    from garminizer.db.session import session_factory as make_factory  # noqa: PLC0415
-
-    with make_factory(settings.database_url)() as s:
-        if not is_demo(s) and _all_complete(s):
-            return True
-    prepared = _prepare(settings, factory, "backfill")
-    if prepared is None:
-        return False
-    sf, client = prepared
-    try:
-        summary = backfill(sf, client, budget_s=budget_s, settings=settings)
-    except SyncBusyError as exc:
-        log.info("backfill skipped: %s", exc)
-        return False
-    return summary.done
-
-
 __all__ = [
     "DEMO_MESSAGE",
     "DemoDatabaseError",
     "RunSummary",
     "SyncBusyError",
     "account_first_day",
+    "all_complete",
     "backfill",
     "describe",
     "ensure_not_demo",
@@ -1104,7 +970,5 @@ __all__ = [
     "parse_payload",
     "record_failed_run",
     "reparse",
-    "run_backfill_chunk",
-    "run_incremental",
     "run_lock",
 ]

@@ -25,12 +25,14 @@ from garminizer.config import Settings
 from garminizer.db import SCHEMA, Base, migrate
 from garminizer.garmin import auth
 from garminizer.garmin.client import GarminClient
-from garminizer.sync import engine, private_values, verify
-from garminizer.sync.datasets import DAILY, DETAIL, RANGE, STATIC
+from garminizer.sync import engine, private_values, service, verify
+from garminizer.sync.datasets import DAILY, DATASETS, DETAIL, RANGE, STATIC
+from garminizer.sync.parsers.common import ParseContext
 from tests.conftest import create_fresh_database
 from tests.garmin_fake import Crash, FakeGarmin, factory_for
 
 TODAY = date(2024, 5, 10)
+KINDS: tuple[service.Kind, ...] = ("incremental", "backfill")
 BOOKKEEPING = {"sync_run", "sync_error", "sync_cursor", "app_setting"}
 NOT_FROM_GARMIN = {"meal", "meal_item"}  # logged by the user (nutrition), never synced
 
@@ -135,6 +137,26 @@ def test_incremental_sync_fills_every_table_and_is_idempotent(
     assert reparsed.status == "ok"
     assert counts(sf) == first
     assert scalar(sf, "SELECT count(*) FROM garmin.sync_run") == 3
+
+
+def test_registry_tables_list_what_each_parser_writes(
+    sf: sessionmaker[Session], settings: Settings
+) -> None:
+    """Dataset.tables is documentation that cannot drift: every parsed op stays inside it."""
+    fake = FakeGarmin(n_activities=3, last_activity_day=TODAY)
+    engine.incremental(sf, client_for(fake), TODAY, settings=settings)
+    seen: dict[str, set[str]] = {}
+    with sf() as s:
+        for row in s.execute(select(m.RawPayload.dataset, m.RawPayload.key, m.RawPayload.payload)):
+            ds = DATASETS[row.dataset]
+            if ds.binary or row.payload is None:
+                continue
+            ops = ds.parser(row.payload, ParseContext(ds.name, row.key))
+            seen.setdefault(ds.name, set()).update(op.model.__tablename__ for op in ops)
+    assert seen, "the fake sync stored no payloads"
+    for name, tables in seen.items():
+        assert tables <= set(DATASETS[name].tables), (name, tables - set(DATASETS[name].tables))
+    assert sum(bool(t) for t in seen.values()) >= 20  # most datasets wrote something
 
 
 def test_typed_tables_are_rebuilt_from_raw_payloads(
@@ -350,20 +372,29 @@ def test_only_one_run_at_a_time_across_processes(
         assert not engine.is_running(s)
 
 
-def test_worker_entry_points_are_no_ops_when_not_possible(
-    sf: sessionmaker[Session], settings: Settings
-) -> None:
-    factory = factory_for()
-    assert engine.run_incremental(settings, factory=factory) is None  # not connected
-    assert engine.run_backfill_chunk(settings, 1.0, factory=factory) is False
+def _connect(settings: Settings) -> None:
     auth.ensure_token_dir(settings)
     auth.token_file(settings).write_text(
         '{"di_token": "a", "di_refresh_token": "b"}', encoding="utf-8"
     )
-    assert engine.run_backfill_chunk(settings, 0.0, factory=factory) is False  # budget
+
+
+def test_service_outcomes_when_a_sync_is_not_possible(
+    sf: sessionmaker[Session], settings: Settings
+) -> None:
+    deps = service.SyncDeps(sf, settings, factory_for())
+    for kind in KINDS:
+        outcome = service.start(kind, deps)
+        assert isinstance(outcome, service.Skipped) and outcome.reason == "not_connected"
+    _connect(settings)
+    outcome = service.start("backfill", deps, budget_s=0.0)  # budget used up at once
+    assert isinstance(outcome, service.Ran)
+    assert (outcome.summary.kind, outcome.summary.status, outcome.summary.done) == (
+        "backfill",
+        "ok",
+        False,
+    )
     with sf() as s:
-        run = s.scalar(select(m.SyncRun).order_by(m.SyncRun.id.desc()))
-        assert run is not None and run.kind == "backfill" and run.status == "ok"
         s.execute(
             text(
                 "INSERT INTO garmin.athlete (id, is_demo) VALUES (1, true) "
@@ -371,31 +402,47 @@ def test_worker_entry_points_are_no_ops_when_not_possible(
             )
         )
         s.commit()
-    assert engine.run_incremental(settings, factory=factory) is None  # demo DB
-    assert engine.run_backfill_chunk(settings, 1.0, factory=factory) is False
+    for kind in KINDS:
+        outcome = service.start(kind, deps)
+        assert isinstance(outcome, service.Skipped) and outcome.reason == "demo"
 
 
-def test_worker_records_rejected_tokens_once(sf: sessionmaker[Session], settings: Settings) -> None:
+def test_service_records_rejected_tokens_once(
+    sf: sessionmaker[Session], settings: Settings
+) -> None:
     """Scheduled runs with expired tokens show up in sync_run like API-started ones."""
 
     class Rejecting(FakeGarmin):
         def login(self, tokenstore: str | None = None) -> tuple[str | None, Any]:
             raise GarminConnectAuthenticationError("token refresh failed")
 
-    auth.ensure_token_dir(settings)
-    auth.token_file(settings).write_text(
-        '{"di_token": "a", "di_refresh_token": "b"}', encoding="utf-8"
-    )
+    _connect(settings)
+    deps = service.SyncDeps(sf, settings, Rejecting)
     for _ in range(3):  # the worker retries; one row per distinct failure
-        assert engine.run_incremental(settings, factory=Rejecting) is None
-        assert engine.run_backfill_chunk(settings, 1.0, factory=Rejecting) is False
+        for kind in KINDS:
+            outcome = service.start(kind, deps)
+            assert isinstance(outcome, service.Failed)
+            assert "rejected or expired" in outcome.message
     with sf() as s:
         runs = s.execute(select(m.SyncRun.kind, m.SyncRun.status, m.SyncRun.message)).all()
     assert sorted((r.kind, r.status) for r in runs) == [
         ("backfill", "error"),
         ("incremental", "error"),
     ]
-    assert all("rejected or expired" in (r.message or "") for r in runs)
+
+
+def test_service_skips_a_complete_backfill_only_when_asked(
+    sf: sessionmaker[Session], settings: Settings
+) -> None:
+    fake = FakeGarmin(n_activities=2, last_activity_day=TODAY, first_day=TODAY - timedelta(days=3))
+    _connect(settings)
+    deps = service.SyncDeps(sf, settings, factory_for(n_activities=2, last_activity_day=TODAY))
+    summary = engine.backfill(sf, client_for(fake), today=TODAY, settings=settings)
+    assert summary.done
+    skipped = service.start("backfill", deps, today=TODAY, skip_if_complete=True)
+    assert isinstance(skipped, service.Skipped) and skipped.reason == "complete"
+    again = service.start("backfill", deps, today=TODAY)  # manual: still refreshes recent days
+    assert isinstance(again, service.Ran) and again.summary.done
 
 
 def test_reparse_attributes_its_own_errors_only(

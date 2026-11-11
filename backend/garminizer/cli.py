@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
 import typer
 
@@ -185,11 +185,12 @@ def _fail(message: str, code: int = 1) -> NoReturn:
 
 
 def _garmin_client() -> GarminClient:
+    from garminizer.config import get_settings  # noqa: PLC0415
     from garminizer.garmin import auth  # noqa: PLC0415 - keep CLI start-up light
     from garminizer.garmin.client import GarminError  # noqa: PLC0415
 
     try:
-        return auth.resume()
+        return auth.resume(get_settings())
     except GarminError as exc:
         _fail(f"Garmin: {exc}", 2)
 
@@ -204,22 +205,25 @@ def _print_summary(summary: RunSummary) -> None:
         raise typer.Exit(1)
 
 
-def _run_sync(kind: str, **kwargs: Any) -> None:
+def _run_sync(kind: Literal["incremental", "backfill"], **kwargs: Any) -> None:
+    from garminizer.config import get_settings  # noqa: PLC0415
     from garminizer.db import session_factory  # noqa: PLC0415
-    from garminizer.sync import engine  # noqa: PLC0415
+    from garminizer.sync import service  # noqa: PLC0415
 
     migrate.upgrade()
-    client = _garmin_client()
-    try:
-        if kind == "incremental":
-            summary = engine.incremental(session_factory(), client, **kwargs)
-        else:
-            summary = engine.backfill(session_factory(), client, **kwargs)
-    except engine.DemoDatabaseError as exc:
-        _fail(f"refused: {exc}", 2)
-    except engine.SyncBusyError as exc:
-        _fail(f"busy: {exc}", 3)
-    _print_summary(summary)
+    settings = get_settings()
+    outcome = service.start(kind, service.SyncDeps(session_factory(), settings), **kwargs)
+    match outcome:
+        case service.Ran(summary):
+            _print_summary(summary)
+        case service.Skipped("demo", message):
+            _fail(f"refused: {message}", 2)
+        case service.Skipped("not_connected", _) | service.Failed(_):
+            _fail(f"Garmin: {service.describe_outcome(kind, outcome)}", 2)
+        case service.Skipped(_, message):
+            typer.echo(f"{kind}: {message}")
+        case service.Busy(message):
+            _fail(f"busy: {message}", 3)
 
 
 @app.command()
@@ -251,9 +255,12 @@ def login() -> None:
 @app.command()
 def logout() -> None:
     """Delete the local Garmin tokens (the Garmin account itself is not touched)."""
+    from garminizer.config import get_settings  # noqa: PLC0415
     from garminizer.garmin import auth  # noqa: PLC0415
 
-    typer.echo("Garmin tokens deleted." if auth.disconnect() else "No Garmin tokens found.")
+    typer.echo(
+        "Garmin tokens deleted." if auth.disconnect(get_settings()) else "No Garmin tokens found."
+    )
 
 
 @app.command()

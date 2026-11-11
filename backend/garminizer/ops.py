@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from garminizer import backup
+from garminizer.config import get_settings
 
 ops_app = typer.Typer(help="Backups.", no_args_is_help=True)
 
@@ -18,7 +19,7 @@ def backup_create(
 ) -> None:
     """Write a pg_dump of the whole database to data/backups."""
     try:
-        made = backup.create_backup(keep=keep)
+        made = backup.create_backup(get_settings(), keep=keep)
     except backup.BackupError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -28,7 +29,7 @@ def backup_create(
 @ops_app.command("list")
 def backup_list() -> None:
     """List existing backups, newest first."""
-    for b in backup.list_backups():
+    for b in backup.list_backups(get_settings()):
         typer.echo(f"{b.created_at:%Y-%m-%d %H:%M}  {b.size_bytes / 1e6:8.1f} MB  {b.path.name}")
 
 
@@ -42,7 +43,7 @@ def backup_restore(
         typer.echo("Restoring replaces all current data. Re-run with --yes to confirm.", err=True)
         raise typer.Exit(2)
     try:
-        backup.restore_backup(file)
+        backup.restore_backup(file, get_settings())
     except backup.BackupError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
