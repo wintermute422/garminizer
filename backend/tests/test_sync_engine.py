@@ -14,12 +14,13 @@ from random import Random
 from typing import Any
 
 import pytest
-from garminconnect import GarminConnectConnectionError
+from garminconnect import GarminConnectAuthenticationError, GarminConnectConnectionError
 from sqlalchemy import Engine, create_engine, func, select, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from garminizer import models as m
+from garminizer.analytics import pipeline
 from garminizer.config import Settings
 from garminizer.db import SCHEMA, Base, migrate
 from garminizer.garmin import auth
@@ -372,6 +373,49 @@ def test_worker_entry_points_are_no_ops_when_not_possible(
         s.commit()
     assert engine.run_incremental(settings, factory=factory) is None  # demo DB
     assert engine.run_backfill_chunk(settings, 1.0, factory=factory) is False
+
+
+def test_worker_records_rejected_tokens_once(sf: sessionmaker[Session], settings: Settings) -> None:
+    """Scheduled runs with expired tokens show up in sync_run like API-started ones."""
+
+    class Rejecting(FakeGarmin):
+        def login(self, tokenstore: str | None = None) -> tuple[str | None, Any]:
+            raise GarminConnectAuthenticationError("token refresh failed")
+
+    auth.ensure_token_dir(settings)
+    auth.token_file(settings).write_text(
+        '{"di_token": "a", "di_refresh_token": "b"}', encoding="utf-8"
+    )
+    for _ in range(3):  # the worker retries; one row per distinct failure
+        assert engine.run_incremental(settings, factory=Rejecting) is None
+        assert engine.run_backfill_chunk(settings, 1.0, factory=Rejecting) is False
+    with sf() as s:
+        runs = s.execute(select(m.SyncRun.kind, m.SyncRun.status, m.SyncRun.message)).all()
+    assert sorted((r.kind, r.status) for r in runs) == [
+        ("backfill", "error"),
+        ("incremental", "error"),
+    ]
+    assert all("rejected or expired" in (r.message or "") for r in runs)
+
+
+def test_reparse_attributes_its_own_errors_only(
+    sf: sessionmaker[Session], settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine.incremental(sf, client_for(FakeGarmin(n_activities=1)), TODAY, settings=settings)
+    with sf() as s:
+        s.add(m.SyncError(run_id=None, dataset="older", key=None, error="from before"))
+        s.commit()
+
+    def boom(*_a: Any, **_k: Any) -> None:
+        raise RuntimeError("analytics broke")
+
+    monkeypatch.setattr(pipeline, "run", boom)
+    with sf() as s:
+        summary = engine.reparse(s, today=TODAY)
+    assert summary.errors == 1
+    with sf() as s:
+        errors = {e.dataset: e.run_id for e in s.scalars(select(m.SyncError))}
+    assert errors == {"older": None, "analytics": summary.run_id}
 
 
 # --- verify and probe ----------------------------------------------------------------------
