@@ -14,6 +14,7 @@ import {
   dayPoint,
   dayTitle,
   dayTooltip,
+  dayX,
   GRID,
   line,
   refLine,
@@ -208,7 +209,7 @@ function weeklyOption(
   );
   if (weeks.length < 2) return null;
   // Weeks are placed on their Monday, which can fall before the range starts.
-  const ext = { min: Math.min(range.min, dayPoint(weeks[0]!.week, 0)[0] - DAY_MS), max: range.max };
+  const ext = { min: Math.min(range.min, dayX(weeks[0]!.week) - DAY_MS), max: range.max };
   const d = DIVERGING[mode];
   const c = MEASURE_COLORS[mode];
   return {
@@ -216,7 +217,7 @@ function weeklyOption(
     tooltip: axisTooltip<Tip>((arr) => {
       const v = arr[0]?.value;
       if (!v || v[1] == null) return "";
-      const w = weeks.find((x) => dayPoint(x.week, 0)[0] === v[0]);
+      const w = weeks.find((x) => dayX(x.week) === v[0]);
       const title = tooltipTitle(`Week of ${fmtDate(w?.week ?? null)}`);
       return kind === "balance"
         ? title +
