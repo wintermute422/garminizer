@@ -151,3 +151,12 @@ progress.md's "Next step".
   the page cannot scroll past the chart. Zoom via `<Chart zoom>` (slider + own ctrl+wheel handler).
 - ECharts 6 axis labels hang below `grid.bottom` down to `grid.outerBounds`: to reserve space
   under a chart (slider), raise both, or the labels overlap it.
+- In a git worktree `.git` is a file pointing at `<main>/.git/worktrees/<name>` (a host path), so a
+  Docker tool that mounts only the work tree sees no repository: gitleaks logged "0 commits
+  scanned … no leaks found" and check.sh passed. `scripts/gitleaks.sh` mounts the common git dir
+  and sets `GIT_DIR`, and fails when a scan covers 0 commits (staged: 0 bytes) with work to do.
+  A scanner that reports success must also prove it scanned something.
+- A fresh worktree has no `.venv`. Create one with `uv venv .venv` and install with
+  `uv pip install --python .venv/Scripts/python.exe -e ".[dev]"`: run through the main venv's
+  `python -m uv`, `uv pip` ignored `VIRTUAL_ENV` and re-pointed the main checkout's editable install
+  at the worktree.
