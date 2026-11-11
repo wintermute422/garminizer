@@ -1,6 +1,7 @@
 """Calendar: active days with totals, streaks, active weeks and a weekday x hour punchcard.
 
-Days and hours come from the activity's local start time.
+Days and hours come from the activity's local start time; time is moving time (elapsed when an
+activity has none), as everywhere else.
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter
+from pydantic import Field
 
 from garminizer.analytics.stats import streaks
 from garminizer.api.deps import RangeDep, SessionDep, SportDep, rows
@@ -21,7 +23,7 @@ ONE_WEEK = timedelta(days=7)
 class CalendarDay(Model):
     day: date
     activities: int
-    duration_s: float
+    duration_s: float = Field(description="Moving time (elapsed when an activity has none)")
     distance_m: float
     training_load: float
     sport_groups: list[str]
@@ -51,7 +53,7 @@ class CalendarPunchcardCell(Model):
     weekday: int
     hour: int
     activities: int
-    duration_s: float
+    duration_s: float = Field(description="Moving time (elapsed when an activity has none)")
 
 
 def weeks_in_row(days: list[date], end: date) -> int:
@@ -81,7 +83,7 @@ def calendar(session: SessionDep, rng: RangeDep, sport: SportDep) -> CalendarOve
         session,
         f"""
         SELECT start_time_local::date AS day, count(*) AS activities,
-               coalesce(sum(duration_s), 0)::float8 AS duration_s,
+               coalesce(sum(coalesce(moving_s, duration_s)), 0)::float8 AS duration_s,
                coalesce(sum(distance_m), 0)::float8 AS distance_m,
                coalesce(sum(training_load), 0)::float8 AS training_load,
                array_agg(DISTINCT sport_group ORDER BY sport_group) AS sport_groups
@@ -115,7 +117,8 @@ def punchcard(session: SessionDep, rng: RangeDep, sport: SportDep) -> list[Calen
         f"""
         SELECT extract(isodow FROM start_time_local)::int - 1 AS weekday,
                extract(hour FROM start_time_local)::int AS hour,
-               count(*) AS activities, coalesce(sum(duration_s), 0)::float8 AS duration_s
+               count(*) AS activities,
+               coalesce(sum(coalesce(moving_s, duration_s)), 0)::float8 AS duration_s
         FROM garmin.activity WHERE {where}
         GROUP BY 1, 2 ORDER BY 1, 2
         """,  # noqa: S608 - fixed fragments

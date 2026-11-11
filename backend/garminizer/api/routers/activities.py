@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 
 import numpy as np
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import Field
 
 from garminizer.analytics.series import lttb
 from garminizer.api.deps import RangeDep, SessionDep, SportDep, one, rows
@@ -41,8 +42,8 @@ class SportTotals(Model):
     sport_group: str
     activities: int
     distance_m: float | None
-    duration_s: float | None
-    moving_s: float | None
+    duration_s: float | None = Field(description="Elapsed time")
+    moving_s: float | None = Field(description="Moving time (elapsed when an activity has none)")
     elevation_gain_m: float | None
     training_load: float | None
     calories: float | None
@@ -217,7 +218,7 @@ def totals(session: SessionDep, rng: RangeDep) -> list[SportTotals]:
         session,
         """
         SELECT sport_group, count(*) AS activities, sum(distance_m) AS distance_m,
-               sum(duration_s) AS duration_s, sum(moving_s) AS moving_s,
+               sum(duration_s) AS duration_s, sum(coalesce(moving_s, duration_s)) AS moving_s,
                sum(elevation_gain_m) AS elevation_gain_m, sum(training_load) AS training_load,
                sum(calories) AS calories
         FROM garmin.activity
