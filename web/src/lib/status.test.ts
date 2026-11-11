@@ -5,6 +5,8 @@ import {
   pressureStatus,
   readinessState,
   sleepState,
+  stressLabel,
+  todaysCall,
   trainingKey,
   trainingState,
 } from "./status";
@@ -84,5 +86,91 @@ describe("blood pressure categories", () => {
     ["UNKNOWN", null],
   ])("%s → %s", (category, status) => {
     expect(pressureStatus(category)).toBe(status);
+  });
+});
+
+describe("stress bands", () => {
+  it.each([
+    [null, "No data"],
+    [0, "Resting"],
+    [25, "Resting"],
+    [26, "Low"],
+    [50, "Low"],
+    [75, "Medium"],
+    [76, "High"],
+  ])("%s → %s", (v, label) => {
+    expect(stressLabel(v)).toBe(label);
+  });
+});
+
+describe("todaysCall", () => {
+  const good = {
+    readiness: { score: 85, level: "HIGH", recovery_time_min: 60 },
+    hrv: { status: "BALANCED" },
+    sleep: { duration_s: 8 * 3600, score: 88 },
+    tsb: 2,
+    acwrStatus: "OPTIMAL",
+    batteryAtWake: 80,
+  };
+
+  it("says nothing without readiness, HRV and sleep", () => {
+    expect(todaysCall({ ...good, readiness: null, hrv: { status: null }, sleep: null })).toBeNull();
+  });
+
+  it("green light needs good readiness and no flags", () => {
+    expect(todaysCall(good)).toEqual({
+      tone: "go",
+      status: "good",
+      headline: "Green light for a hard session",
+      reasons: ["readiness 85 (high)", "HRV balanced", "form +2"],
+    });
+    // Without fresh form it mentions the sleep instead.
+    expect(todaysCall({ ...good, tsb: -8 })!.reasons).toEqual([
+      "readiness 85 (high)",
+      "HRV balanced",
+      "slept 8h 00m",
+    ]);
+  });
+
+  it("amber flags keep it steady", () => {
+    const call = todaysCall({
+      ...good,
+      readiness: { score: 62, level: "MODERATE", recovery_time_min: 8 * 60 },
+      sleep: { duration_s: 6.5 * 3600, score: 70 },
+      tsb: -25,
+    })!;
+    expect(call.tone).toBe("steady");
+    expect(call.status).toBe("warning");
+    // At most three reasons, in rule order.
+    expect(call.reasons).toEqual(["readiness 62", "sleep 6h 30m", "8h recovery left"]);
+  });
+
+  it("no readiness score today is steady, not green", () => {
+    const call = todaysCall({ ...good, readiness: null })!;
+    expect(call.tone).toBe("steady");
+    expect(call.reasons).toEqual(["no readiness score for today"]);
+  });
+
+  it("any red flag wins over amber ones and lists the red ones first", () => {
+    const call = todaysCall({
+      ...good,
+      hrv: { status: "UNBALANCED" },
+      acwrStatus: "VERY_HIGH",
+      batteryAtWake: 20,
+    })!;
+    expect(call).toMatchObject({ tone: "easy", status: "serious", headline: "Take it easy today" });
+    expect(call.reasons).toEqual([
+      "acute load very high",
+      "body battery 20 at wake",
+      "HRV unbalanced",
+    ]);
+    expect(
+      todaysCall({ ...good, readiness: { score: 30, level: "POOR", recovery_time_min: 0 } })!
+        .reasons,
+    ).toEqual(["readiness 30"]);
+    expect(
+      todaysCall({ ...good, readiness: { score: 80, level: null, recovery_time_min: 1800 } })!
+        .reasons,
+    ).toEqual(["30h recovery left"]);
   });
 });
