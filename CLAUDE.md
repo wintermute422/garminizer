@@ -159,4 +159,6 @@ progress.md's "Next step".
 - A fresh worktree has no `.venv`. Create one with `uv venv .venv` and install with
   `uv pip install --python .venv/Scripts/python.exe -e ".[dev]"`: run through the main venv's
   `python -m uv`, `uv pip` ignored `VIRTUAL_ENV` and re-pointed the main checkout's editable install
-  at the worktree.
+  at the worktree. Never symlink a worktree's `.venv` to the main one: its editable install still
+  points at the main checkout, so subprocess tests (`garminizer.cli mcp`) ran main's code and failed
+  on the worktree's new migration, and reinstalling there re-points the main venv.
