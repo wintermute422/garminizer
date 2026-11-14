@@ -19,6 +19,7 @@ export const PAGES: { name: string; path: string }[] = [
   { name: "sleep", path: "/sleep?preset=90d" },
   { name: "body", path: "/body?preset=365d" },
   { name: "nutrition", path: "/nutrition?preset=90d" },
+  { name: "goal", path: "/goal" },
   { name: "calendar", path: "/calendar?preset=365d" },
   { name: "map", path: "/map?preset=all" },
   { name: "insights", path: "/insights?preset=365d" },
