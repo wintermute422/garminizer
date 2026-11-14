@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, NoReturn
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn
 
 import typer
 
@@ -205,7 +205,7 @@ def _print_summary(summary: RunSummary) -> None:
         raise typer.Exit(1)
 
 
-def _run_sync(kind: Literal["incremental", "backfill"], **kwargs: Any) -> None:
+def _run_sync(kind: Literal["incremental", "quick", "backfill"], **kwargs: Any) -> None:
     from garminizer.config import get_settings  # noqa: PLC0415
     from garminizer.db import session_factory  # noqa: PLC0415
     from garminizer.sync import service  # noqa: PLC0415
@@ -264,9 +264,13 @@ def logout() -> None:
 
 
 @app.command()
-def sync() -> None:
+def sync(
+    quick: Annotated[
+        bool, typer.Option("--quick", help="Only new activities and weigh-ins (hourly job)")
+    ] = False,
+) -> None:
     """Incremental sync: profile, new/changed activities and the last days of wellness data."""
-    _run_sync("incremental")
+    _run_sync("quick" if quick else "incremental")
 
 
 @app.command()

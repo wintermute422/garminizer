@@ -139,6 +139,28 @@ def test_incremental_sync_fills_every_table_and_is_idempotent(
     assert scalar(sf, "SELECT count(*) FROM garmin.sync_run") == 3
 
 
+def test_quick_sync_fetches_only_activities_and_weigh_ins(
+    sf: sessionmaker[Session], settings: Settings
+) -> None:
+    fake = FakeGarmin(n_activities=3, last_activity_day=TODAY, first_day=TODAY - timedelta(days=30))
+    summary = engine.quick(sf, client_for(fake), TODAY, settings=settings)
+    assert (summary.kind, summary.status, summary.errors) == ("quick", "ok", 0), summary
+    allowed = {DATASETS["activity"].method, DATASETS["body_composition"].method} | {
+        d.method for d in DETAIL
+    }
+    called = {name for name, _ in fake.calls}
+    assert DATASETS["body_composition"].method in called
+    assert "get_activities" in called
+    assert called <= allowed, called - allowed
+    with sf() as s:
+        assert s.scalar(select(func.count()).select_from(m.Activity)) == 3
+        assert s.scalar(select(func.count()).select_from(m.DailySummary)) == 0
+        assert s.scalar(select(m.SyncRun.kind)) == "quick"
+    again = engine.quick(sf, client_for(fake), TODAY, settings=settings)
+    assert again.status == "ok"
+    assert counts(sf)["activity"] == 3  # idempotent
+
+
 def test_registry_tables_list_what_each_parser_writes(
     sf: sessionmaker[Session], settings: Settings
 ) -> None:

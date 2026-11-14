@@ -25,7 +25,7 @@ from garminizer.sync.engine import RunSummary, SessionFactory
 
 log = logging.getLogger(__name__)
 
-Kind = Literal["incremental", "backfill"]
+Kind = Literal["incremental", "quick", "backfill"]
 
 
 @dataclass(frozen=True)
@@ -76,7 +76,8 @@ def start(
     today: date | None = None,
     skip_if_complete: bool = False,
 ) -> Outcome:
-    """Run one incremental sync or one (budgeted) backfill chunk.
+    """Run one incremental sync, one quick sync (activities + weigh-ins) or one (budgeted)
+    backfill chunk.
 
     ``skip_if_complete`` (the worker's backfill job): do nothing once every dataset is
     backfilled; a manual backfill still refreshes recent days and missing details.
@@ -98,6 +99,8 @@ def start(
             summary = engine.incremental(
                 deps.session_factory, client, today, settings=deps.settings
             )
+        elif kind == "quick":
+            summary = engine.quick(deps.session_factory, client, today, settings=deps.settings)
         else:
             summary = engine.backfill(
                 deps.session_factory,

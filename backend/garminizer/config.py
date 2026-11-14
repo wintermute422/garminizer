@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     backup_keep: int = 14
 
     sync_interval_hours: float = 2.0
+    quick_sync_minutes: float = 60.0  # activities + weigh-ins only; 0 turns it off
     sync_request_delay_s: float = 1.0
     tz: str = "UTC"
 

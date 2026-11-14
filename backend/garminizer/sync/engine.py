@@ -840,6 +840,32 @@ def incremental(
     )
 
 
+WEIGH_INS = DATASETS["body_composition"]
+
+
+def quick(
+    session_factory: SessionFactory,
+    client: GarminClient,
+    today: date | None = None,
+    *,
+    settings: Settings,
+) -> RunSummary:
+    """New/changed activities and the weigh-ins of the last days only (the hourly worker job
+    behind the weight goal); the full incremental sync covers everything else."""
+
+    def body(run: _Run) -> tuple[str | None, bool]:
+        newest = _newest(_with_session(run, _cursors))
+        start = plan.incremental_starts((WEIGH_INS.name,), newest, run.today, OVERLAP_DAYS)
+        ok = _sync_activities_incremental(run) and _run_months(
+            run, WEIGH_INS, plan.months(start[WEIGH_INS.name], run.today)
+        )
+        return (None if ok else "time budget reached"), False
+
+    return _execute(
+        "quick", session_factory, client, today=today, settings=settings, budget_s=None, body=body
+    )
+
+
 def backfill(
     session_factory: SessionFactory,
     client: GarminClient,
