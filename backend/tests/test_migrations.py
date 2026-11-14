@@ -72,6 +72,41 @@ def test_0004_clears_zero_body_composition_readings() -> None:
     ]
 
 
+def test_0005_fills_activity_bmr_calories_from_raw_payloads() -> None:
+    url = create_fresh_database("_migrations_0005")
+    migrate.upgrade(url, "0004")
+    engine = create_engine(url, poolclass=NullPool)
+    act = (
+        f"INSERT INTO {SCHEMA}.activity (activity_id, sport_type, sport_group, start_time_utc, "
+        "start_time_local, calories) VALUES "
+        "(1, 'running', 'run', '2024-05-01T07:00Z', '2024-05-01T09:00', 690), "
+        "(2, 'running', 'run', '2024-05-02T07:00Z', '2024-05-02T09:00', 500), "
+        "(3, 'running', 'run', '2024-05-03T07:00Z', '2024-05-03T09:00', 400)"
+    )
+    raw = (
+        f"INSERT INTO {SCHEMA}.raw_payload (dataset, key, endpoint, sha256, payload) VALUES "
+        "('activity', '1', 'get_activities', 'a', '{\"bmrCalories\": 70.04}'), "
+        "('activity', '2', 'get_activities', 'b', '{\"bmrCalories\": \"n/a\"}'), "
+        "('activity_details', '3', 'get_activity', 'c', '{\"bmrCalories\": 55}')"
+    )
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(act))
+            conn.execute(text(raw))
+        migrate.upgrade(url)
+        with engine.connect() as conn:
+            got = conn.execute(
+                text(f"SELECT activity_id, bmr_calories FROM {SCHEMA}.activity ORDER BY 1")
+            ).all()
+    finally:
+        engine.dispose()
+    assert [(a, None if b is None else round(b, 1)) for a, b in got] == [
+        (1, 70.0),
+        (2, None),  # not a number
+        (3, None),  # only the activity list payload counts
+    ]
+
+
 def test_models_match_migrations(db_url: str) -> None:
     """Autogenerate against the migrated DB must find nothing to change."""
     engine = create_engine(db_url, poolclass=NullPool)

@@ -30,6 +30,8 @@ from garminizer.demo.calendar import Calendar, Workout, build_calendar
 from garminizer.demo.daily import build_daily_rows
 from garminizer.demo.meals import write_demo_meals
 from garminizer.demo.streams import AthleteState, Places, Synth, synthesize
+from garminizer.goal import service as goal_service
+from garminizer.goal.schemas import GoalSettings
 from garminizer.sports import FOOT_GROUPS, sport_group
 
 TZ_NAME = "Europe/Berlin"
@@ -143,6 +145,11 @@ def _te_label(aero: float, anaero: float) -> str:
     return "RECOVERY"
 
 
+def _bmr_kcal(st: AthleteState) -> float:
+    """Resting energy per day (Mifflin-St Jeor, male), as in the demo daily summaries."""
+    return 10 * st.weight_kg + 6.25 * HEIGHT_CM - 5 * st.age + 5
+
+
 def _summarize(
     s: Synth, st: AthleteState, activity_id: int, rng: np.random.Generator
 ) -> dict[str, Any]:
@@ -209,6 +216,7 @@ def _summarize(
         else None,
         "intensity_factor": round(np_w / st.ftp_w, 3) if np_w else None,
         "calories": round(float(np.sum(kcal_per_s)), 0),
+        "bmr_calories": round(_bmr_kcal(st) * duration / 86_400, 0),
         "aerobic_te": round(aero, 1),
         "anaerobic_te": round(anaero, 1),
         "training_effect_label": _te_label(aero, anaero),
@@ -472,6 +480,7 @@ def seed_demo(
     report.rows.update(
         write_demo_meals(session, rows[m.DailySummary], sim.act_rows, weights, tz, seed)
     )
+    _write_demo_goal(session, end, weights)
     _write_profile(session, sim.states, sim.act_rows, sim.best_runs, rng, report)
     session.flush()
     derived = pipeline.run(session, force=True, today=end)
@@ -489,6 +498,26 @@ def seed_demo(
     session.flush()
     report.seconds = round(time.perf_counter() - t_start, 1)
     return report
+
+
+DEMO_GOAL_DAYS = 41  # the demo goal started six weeks before the last day
+DEMO_GOAL_WEEKS = 14
+
+
+def _write_demo_goal(session: Session, end: date, weights: dict[date, float]) -> None:
+    """A weight goal that started six weeks ago, slightly above the weight of that day."""
+    start = end - timedelta(days=DEMO_GOAL_DAYS)
+    if start not in weights:
+        return
+    goal_service.set_settings(
+        session,
+        GoalSettings(
+            start_day=start,
+            start_weight_kg=round(weights[start] + 0.3, 1),
+            rate_kg_per_week=0.25,
+            end_day=start + timedelta(weeks=DEMO_GOAL_WEEKS),
+        ),
+    )
 
 
 def _weather(

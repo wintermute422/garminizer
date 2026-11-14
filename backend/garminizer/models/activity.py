@@ -49,6 +49,9 @@ class Activity(Base):
     training_stress_score: Mapped[Real | None]
     intensity_factor: Mapped[Real | None]
     calories: Mapped[Real | None]
+    bmr_calories: Mapped[Real | None] = mapped_column(
+        comment="Resting calories during the activity (part of calories)"
+    )
     aerobic_te: Mapped[Real | None] = mapped_column(comment="Aerobic training effect 0-5")
     anaerobic_te: Mapped[Real | None] = mapped_column(comment="Anaerobic training effect 0-5")
     training_effect_label: Mapped[str | None]
