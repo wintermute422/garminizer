@@ -133,6 +133,7 @@ One row per recorded activity (summary values).
 | training_stress_score | real | yes |  |
 | intensity_factor | real | yes |  |
 | calories | real | yes |  |
+| bmr_calories | real | yes | Resting calories during the activity (part of calories) |
 | aerobic_te | real | yes | Aerobic training effect 0-5 |
 | anaerobic_te | real | yes | Anaerobic training effect 0-5 |
 | training_effect_label | text | yes |  |
@@ -743,7 +744,7 @@ One row per sync/backfill/reparse run.
 | Column | Type | Null | Description |
 |---|---|---|---|
 | **id** | bigint | no |  |
-| kind | text | no | incremental \| backfill \| reparse \| demo |
+| kind | text | no | incremental \| quick \| backfill \| reparse \| demo |
 | started_at | datetime | no |  |
 | finished_at | datetime | yes |  |
 | status | text | no | running \| ok \| error |

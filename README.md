@@ -44,6 +44,7 @@ computer, and turns it into fast, interactive dashboards.
 | **Sleep** | stages per night, sleep score, bed/wake-time consistency, weekday vs weekend, hypnogram with overnight HR/SpO2/respiration, sleep debt |
 | **Body** | weight with trend line, body fat, muscle mass, blood pressure |
 | **Nutrition** | meals logged through Claude Desktop: eaten vs Garmin's burn per day, energy balance, macros, protein per kg, targets, week-by-week balance next to weight |
+| **Weight goal** | weighted 3-day weight trend against a target line with weekly checkpoints, body-fat trend and regression, daily energy balance (BMR × activity factor + active training calories vs logged food), daily log; weigh-ins and activities sync every hour |
 | **Calendar** | multi-year activity heatmap, streaks, weekday × hour punchcard |
 | **Map** | every route you ever recorded, a heatmap, and explorer tiles with your max square |
 | **Insights** | auto-generated findings, correlation matrix between daily metrics (with lag), scatter explorer, weekday patterns |
