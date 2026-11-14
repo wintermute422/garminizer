@@ -93,6 +93,10 @@ Just talk to Claude; it decides when to call the tools. Examples:
 - *"Yesterday's dinner was a bigger portion, about 150 g more pasta. Fix it."*
 - *"I ran 30 km this morning. How much should I eat for the rest of the day?"*
 - *"Set my targets: 2,700 kcal and 1.8 g protein per kg."*
+- *"Start a weight goal: from today, 0.5 kg per week until the end of the year, I weigh 80 kg."*
+- *"How is my weight goal? Am I on plan for Sunday?"*
+- *"Count last Sunday's checkpoint as reached."*
+- *"What is my energy balance this week?"*
 
 Claude Desktop also offers the prompt **log-meal-from-photo** (the "+" / attachment menu →
 Garminizer) with the estimation procedure built in: attach the photo and pick it.
@@ -110,6 +114,16 @@ Claude asks for permission the first time it uses a tool; you can allow it once 
 | `delete_meal` | Remove a meal logged by mistake |
 | `get_nutrition_targets` / `set_nutrition_targets` | Daily targets: kcal, protein (g or g per kg body weight), carbs, fat, fibre |
 | `get_energy_context` | Garmin's view of a day: calories burned, activities, training load, readiness |
+| `get_energy_balance` | A day's intake against the computed burn (BMR × activity factor + active training calories), the goal's daily target, what is left to eat, and the last 7 completed days. `log_meal` returns it too |
+| `get_weight_goal` | Goal settings, today's trend vs target, checkpoints with verdicts, body-fat trend and slope, recent days of the log |
+| `set_weight_goal` | Create or change the goal (start, start weight, rate per week, end, checkpoint weekday, activity factor, BMR inputs) |
+| `set_checkpoint` | Count a weekly checkpoint as reached although the trend was above the target (or undo it) |
+
+After every meal Claude shows the energy balance as a short table (intake, baseline, training,
+total burn, balance, target). Weigh-ins and activities reach Garminizer by themselves: the
+worker fetches new ones from Garmin every hour (`QUICK_SYNC_MINUTES`), so Claude never needs a
+browser or your Garmin login. The rules behind trend, target line and balance are in
+[metrics](metrics.md#weight-goal).
 
 Times are your local time (the athlete time zone from Garmin, else `TZ`); a meal belongs to the
 local calendar day it was eaten. When the macros do not add up to the calories
@@ -129,7 +143,9 @@ package label, or say "about a fist of rice".
 Meals appear in Garminizer's nutrition views and in the insights correlations
 (`intake_kcal`, `protein_g`, `energy_balance_kcal` in `garmin.v_daily`). The API is under
 `/api/nutrition` (`/daily`, `/summary`, `/day`, `/meals`, `/targets`). Tables: `garmin.meal`,
-`garmin.meal_item` ([data model](data-model.md#nutrition)).
+`garmin.meal_item` ([data model](data-model.md#nutrition)). The weight goal has its own page
+(**Weight goal**) and API (`/api/goal`, `/api/goal/balance`, `/api/goal/settings`,
+`/api/goal/checkpoints/{day}`).
 
 ## Privacy
 
