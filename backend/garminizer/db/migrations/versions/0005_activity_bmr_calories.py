@@ -4,6 +4,7 @@ Garmin's activity ``calories`` are the total burned during the activity, resting
 included. The weight goal's energy balance counts only the active part (calories minus
 bmrCalories) on top of the daily resting + everyday baseline, so rest is not counted twice.
 Rows synced before this column existed are filled from the stored raw activity payloads.
+sync_run.kind gains `quick` (the hourly activities + weigh-ins sync).
 
 Revision ID: 0005
 Revises: 0004
@@ -21,6 +22,9 @@ revision: str = "0005"
 down_revision: str | None = "0004"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+KIND_COMMENT_OLD = "incremental | backfill | reparse | demo"
+KIND_COMMENT_NEW = "incremental | quick | backfill | reparse | demo"  # quick: hourly job
 
 FILL_FROM_RAW = """
     UPDATE garmin.activity a
@@ -46,7 +50,25 @@ def upgrade() -> None:
         schema="garmin",
     )
     op.execute(FILL_FROM_RAW)
+    op.alter_column(
+        "sync_run",
+        "kind",
+        existing_type=sa.Text(),
+        existing_nullable=False,
+        comment=KIND_COMMENT_NEW,
+        existing_comment=KIND_COMMENT_OLD,
+        schema="garmin",
+    )
 
 
 def downgrade() -> None:
+    op.alter_column(
+        "sync_run",
+        "kind",
+        existing_type=sa.Text(),
+        existing_nullable=False,
+        comment=KIND_COMMENT_OLD,
+        existing_comment=KIND_COMMENT_NEW,
+        schema="garmin",
+    )
     op.drop_column("activity", "bmr_calories", schema="garmin")
