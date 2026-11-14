@@ -15,6 +15,7 @@ After changing `.env`, apply it with `docker compose up -d`.
 | `APP_SECRET_KEY` | generated | signs session cookies (stored in the DB when empty) |
 | `GARMIN_EMAIL`, `GARMIN_PASSWORD` | empty | optional, only for unattended re-login when tokens expire |
 | `SYNC_INTERVAL_HOURS` | `2` | incremental sync interval of the worker |
+| `QUICK_SYNC_MINUTES` | `60` | quick sync of new activities and weigh-ins only (weight goal, energy balance); `0` turns it off |
 | `SYNC_REQUEST_DELAY_S` | `1.0` | minimum pause between Garmin requests (be kind; don't lower it much) |
 | `BACKUP_KEEP` | `14` | number of nightly backups kept in `data/backups` |
 | `TZ` | `UTC` | your time zone (backup time; daily boundaries when Garmin has not sent one for your profile) |

@@ -2,6 +2,8 @@
 
 - incremental sync every SYNC_INTERVAL_HOURS, plus once shortly after start (catch-up after the
   PC was off)
+- quick sync (new activities and weigh-ins only) every QUICK_SYNC_MINUTES (default 60; 0 = off)
+  for the weight goal and the energy balance
 - backfill in budgeted chunks every 15 minutes until the whole history is in
 - nightly database backup at 03:30 local time (keeps BACKUP_KEEP files)
 All sync jobs are no-ops until Garmin is connected, and on demo databases.
@@ -35,6 +37,15 @@ def job_incremental(deps: SyncDeps) -> None:
         log.info(service.describe_outcome("incremental", service.start("incremental", deps)))
     except Exception:
         log.exception("incremental sync failed")
+
+
+def job_quick(deps: SyncDeps) -> None:
+    from garminizer.sync import service  # noqa: PLC0415
+
+    try:
+        log.info(service.describe_outcome("quick", service.start("quick", deps)))
+    except Exception:
+        log.exception("quick sync failed")
 
 
 def job_backfill(deps: SyncDeps, scheduler: BlockingScheduler) -> None:
@@ -76,6 +87,17 @@ def build_scheduler(settings: Settings, deps: SyncDeps) -> BlockingScheduler:
         max_instances=1,
         coalesce=True,
     )
+    if settings.quick_sync_minutes > 0:
+        scheduler.add_job(
+            job_quick,
+            "interval",
+            minutes=settings.quick_sync_minutes,
+            next_run_time=now + timedelta(minutes=settings.quick_sync_minutes),
+            args=[deps],
+            id="quick",
+            max_instances=1,
+            coalesce=True,
+        )
     scheduler.add_job(
         job_backfill,
         "interval",
@@ -111,8 +133,9 @@ def run() -> None:
     deps = SyncDeps(session_factory(settings.database_url), settings)
     scheduler = build_scheduler(settings, deps)
     log.info(
-        "worker started: sync every %.1f h, backups at 03:30 %s",
+        "worker started: sync every %.1f h, activities + weigh-ins every %s, backups at 03:30 %s",
         settings.sync_interval_hours,
+        f"{settings.quick_sync_minutes:g} min" if settings.quick_sync_minutes > 0 else "(off)",
         settings.tz,
     )
     scheduler.start()

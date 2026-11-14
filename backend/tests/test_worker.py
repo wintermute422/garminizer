@@ -68,3 +68,29 @@ def test_jobs_survive_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     worker.job_incremental(deps)
     worker.job_backfill(deps, scheduler)
     assert scheduler.removed == []
+
+
+def test_quick_job_runs_the_quick_sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    kinds: list[str] = []
+
+    def fake_start(kind: str, deps: service.SyncDeps, **kwargs: Any) -> service.Outcome:
+        kinds.append(kind)
+        return service.Skipped("not_connected", service.NOT_CONNECTED)
+
+    monkeypatch.setattr(service, "start", fake_start)
+    deps = service.SyncDeps(lambda: None, Settings(data_dir=tmp_path, _env_file=None))  # type: ignore[arg-type, return-value]
+    worker.job_quick(deps)
+    assert kinds == ["quick"]
+
+
+@pytest.mark.parametrize(("minutes", "scheduled"), [(60.0, True), (0.0, False)])
+def test_quick_job_is_scheduled_hourly_unless_turned_off(
+    tmp_path: Path, minutes: float, scheduled: bool
+) -> None:
+    settings = Settings(data_dir=tmp_path, quick_sync_minutes=minutes, tz="UTC", _env_file=None)
+    deps = service.SyncDeps(lambda: None, settings)  # type: ignore[arg-type, return-value]
+    jobs = {j.id: j for j in worker.build_scheduler(settings, deps).get_jobs()}
+    assert {"incremental", "backfill", "backup"} <= set(jobs)
+    assert ("quick" in jobs) is scheduled
+    if scheduled:
+        assert jobs["quick"].trigger.interval.total_seconds() == 3600

@@ -16,7 +16,7 @@ class SyncRun(Base):
     __table_args__ = {"comment": "One row per sync/backfill/reparse run."}
 
     id: Mapped[Big] = mapped_column(primary_key=True, autoincrement=True)
-    kind: Mapped[str] = mapped_column(comment="incremental | backfill | reparse | demo")
+    kind: Mapped[str] = mapped_column(comment="incremental | quick | backfill | reparse | demo")
     started_at: Mapped[TsTz] = mapped_column(server_default=func.now())
     finished_at: Mapped[TsTz | None]
     status: Mapped[str] = mapped_column(server_default="running", comment="running | ok | error")
