@@ -73,6 +73,8 @@ def test_trend_below_target_on_checkpoint_restarts_the_line_lower() -> None:
         (d(6), 69.0, "reached"),
     ]
     assert line.target_on(d(13)) == pytest.approx(68.3)
+    assert line.target_on(d(6)) == pytest.approx(69.4)  # judged against the old line
+    assert line.target_on(d(7)) == pytest.approx(68.9)  # the new week starts from the trend
     cp = line.checkpoints[0]
     assert (cp.day, cp.trend_kg, cp.status) == (d(6), 69.0, "reached")
     assert cp.target_kg == pytest.approx(69.4)
