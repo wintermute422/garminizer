@@ -12,6 +12,7 @@ import {
   Package,
   RefreshCw,
   Scale,
+  Target,
   TrendingUp,
   Trophy,
   Utensils,
@@ -60,6 +61,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
       { to: "/sleep", label: "Sleep", icon: Moon, filters: "range" },
       { to: "/body", label: "Body", icon: Scale, filters: "range", defaultPreset: "365d" },
       { to: "/nutrition", label: "Nutrition", icon: Utensils, filters: "range" },
+      { to: "/goal", label: "Weight goal", icon: Target },
     ],
   },
   {
