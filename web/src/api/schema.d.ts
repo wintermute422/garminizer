@@ -231,6 +231,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/goal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Goal View
+         * @description Settings, status tiles, every day since the start, checkpoints and body-fat trend.
+         */
+        get: operations["goal_view_api_goal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/goal/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Balance
+         * @description Intake vs burn (BMR x activity factor + active training calories) of one day.
+         */
+        get: operations["balance_api_goal_balance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/goal/checkpoints/{day}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Checkpoint
+         * @description Count a checkpoint as reached although the trend was above the target (or undo it).
+         */
+        put: operations["put_checkpoint_api_goal_checkpoints__day__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/goal/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Settings
+         * @description Create or replace the goal.
+         */
+        put: operations["put_settings_api_goal_settings_put"];
+        post?: never;
+        /**
+         * Delete Settings
+         * @description Remove the goal (weigh-ins, meals and activities stay).
+         */
+        delete: operations["delete_settings_api_goal_settings_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1573,6 +1657,498 @@ export interface components {
              * Format: date
              */
             month: string;
+        };
+        /** GoalActivity */
+        GoalActivity: {
+            /**
+             * Active Kcal
+             * @description Calories minus the resting share
+             */
+            active_kcal: number | null;
+            /** Activity Id */
+            activity_id: number;
+            /** Avg Hr */
+            avg_hr: number | null;
+            /**
+             * Calories
+             * @description Garmin's total calories (resting share included)
+             */
+            calories: number | null;
+            /** Distance M */
+            distance_m: number | null;
+            /** Duration S */
+            duration_s: number | null;
+            /** Name */
+            name: string | null;
+            /** Sport Group */
+            sport_group: string;
+            /** Sport Type */
+            sport_type: string;
+            /**
+             * Start Time Local
+             * Format: date-time
+             */
+            start_time_local: string;
+        };
+        /** GoalAnchor */
+        GoalAnchor: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "start" | "reached" | "accepted";
+            /** Weight Kg */
+            weight_kg: number;
+        };
+        /**
+         * GoalBmr
+         * @description Resting energy (kcal/day) of one day and what it was computed from.
+         */
+        GoalBmr: {
+            /** Age Years */
+            age_years: number | null;
+            /** Body Fat Pct */
+            body_fat_pct: number | null;
+            /** Harris Benedict */
+            harris_benedict: number | null;
+            /** Height Cm */
+            height_cm: number | null;
+            /**
+             * Katch Mcardle
+             * @description Needs a body-fat value
+             */
+            katch_mcardle: number | null;
+            /** Kcal */
+            kcal: number;
+            /** Mifflin St Jeor */
+            mifflin_st_jeor: number | null;
+            /**
+             * Missing
+             * @description Inputs that were missing for the formulas
+             */
+            missing: string[];
+            /** Sex */
+            sex: ("male" | "female") | null;
+            /**
+             * Source
+             * @description formulas, or Garmin's BMR when inputs are missing
+             * @enum {string}
+             */
+            source: "formulas" | "garmin";
+            /** Weight Kg */
+            weight_kg: number | null;
+        };
+        /** GoalCheckpoint */
+        GoalCheckpoint: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "reached" | "accepted" | "missed" | "no_weigh_in" | "upcoming";
+            /** Target Kg */
+            target_kg: number;
+            /** Trend Kg */
+            trend_kg: number | null;
+        };
+        /** GoalCheckpointIn */
+        GoalCheckpointIn: {
+            /**
+             * Accepted
+             * @description Count this checkpoint as reached
+             */
+            accepted: boolean;
+        };
+        /** GoalDay */
+        GoalDay: {
+            /** Activities */
+            activities: components["schemas"]["GoalActivity"][];
+            /**
+             * Balance Kcal
+             * @description Intake - burn; null without meals
+             */
+            balance_kcal: number | null;
+            /**
+             * Baseline Kcal
+             * @description BMR x activity factor
+             */
+            baseline_kcal: number | null;
+            /** Body Fat Pct */
+            body_fat_pct: number | null;
+            /** Body Water Pct */
+            body_water_pct: number | null;
+            /**
+             * Burn Kcal
+             * @description Baseline + training
+             */
+            burn_kcal: number | null;
+            /** Carbs G */
+            carbs_g: number | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Delta Kg
+             * @description Trend minus target (positive = above)
+             */
+            delta_kg: number | null;
+            /** Fat G */
+            fat_g: number | null;
+            /**
+             * Garmin Total Kcal
+             * @description Garmin's own total burn (comparison)
+             */
+            garmin_total_kcal: number | null;
+            /**
+             * Intake Kcal
+             * @description Logged food; null without meals
+             */
+            intake_kcal: number | null;
+            /** Meal Names */
+            meal_names: string[];
+            /** Meals */
+            meals: number;
+            /** Muscle Mass Kg */
+            muscle_mass_kg: number | null;
+            /** On Plan */
+            on_plan: boolean | null;
+            /** Protein G */
+            protein_g: number | null;
+            /**
+             * Sport Kcal
+             * @description Garmin calories of all activities (total)
+             */
+            sport_kcal: number | null;
+            /** Target Kg */
+            target_kg: number | null;
+            /**
+             * Training Kcal
+             * @description Active calories of all activities
+             */
+            training_kcal: number | null;
+            /** Trend Kg */
+            trend_kg: number | null;
+            /**
+             * Weight Kg
+             * @description First weigh-in of the day with body composition
+             */
+            weight_kg: number | null;
+        };
+        /**
+         * GoalEnergyBalance
+         * @description One day's energy balance: intake against the computed burn (not Garmin's estimate).
+         */
+        GoalEnergyBalance: {
+            /** Activities */
+            activities: components["schemas"]["GoalActivity"][];
+            /** Activity Factor */
+            activity_factor: number;
+            /**
+             * As Of
+             * @description Local time HH:MM for today
+             */
+            as_of: string | null;
+            /**
+             * Balance Kcal
+             * @description Intake - burn (negative = deficit)
+             */
+            balance_kcal: number | null;
+            /**
+             * Baseline Kcal
+             * @description Rest + everyday life, without training
+             */
+            baseline_kcal: number | null;
+            bmr: components["schemas"]["GoalBmr"] | null;
+            /**
+             * Burn Kcal
+             * @description Baseline + training
+             */
+            burn_kcal: number | null;
+            /** Carbs G */
+            carbs_g: number | null;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Fat G */
+            fat_g: number | null;
+            /**
+             * Garmin Total Kcal
+             * @description Garmin's own estimate (comparison)
+             */
+            garmin_total_kcal: number | null;
+            /** Goal Configured */
+            goal_configured: boolean;
+            /**
+             * Intake Kcal
+             * @description Logged food so far
+             */
+            intake_kcal: number;
+            /** Is Today */
+            is_today: boolean;
+            /**
+             * Left To Target Kcal
+             * @description What can still be eaten today to end on the target balance
+             */
+            left_to_target_kcal: number | null;
+            /** Meals */
+            meals: number;
+            /** Protein G */
+            protein_g: number | null;
+            /**
+             * Target Balance Kcal
+             * @description Daily balance the goal needs
+             */
+            target_balance_kcal: number | null;
+            /**
+             * Training Kcal
+             * @description Active calories of the activities
+             */
+            training_kcal: number;
+            week: components["schemas"]["GoalWeek"];
+        };
+        /** GoalFatPoint */
+        GoalFatPoint: {
+            /** Body Fat Pct */
+            body_fat_pct: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Trend Pct
+             * @description EWMA, half-life 4 days
+             */
+            trend_pct: number;
+        };
+        /** GoalLinePoint */
+        GoalLinePoint: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Target Kg */
+            target_kg: number;
+        };
+        /**
+         * GoalProfile
+         * @description BMR inputs from the Garmin profile (used where the goal settings leave them empty).
+         */
+        GoalProfile: {
+            /** Birth Date */
+            birth_date: string | null;
+            /** Height Cm */
+            height_cm: number | null;
+            /** Sex */
+            sex: ("male" | "female") | null;
+        };
+        /** GoalRegression */
+        GoalRegression: {
+            /**
+             * End Day
+             * Format: date
+             */
+            end_day: string;
+            /** End Pct */
+            end_pct: number;
+            /** Points */
+            points: number;
+            /** Slope Pct Per Week */
+            slope_pct_per_week: number;
+            /**
+             * Start Day
+             * Format: date
+             */
+            start_day: string;
+            /** Start Pct */
+            start_pct: number;
+        };
+        /**
+         * GoalSettings
+         * @description The weight goal (app setting ``weight_goal``).
+         */
+        GoalSettings: {
+            /**
+             * Accepted Checkpoints
+             * @description Checkpoints counted as reached although the trend was above the target
+             */
+            accepted_checkpoints?: string[];
+            /**
+             * Activity Factor
+             * @description Resting energy x this = everyday burn without training (1.2 desk job)
+             * @default 1.25
+             */
+            activity_factor: number;
+            /**
+             * Birth Date
+             * @description For the BMR formulas (age); default: profile
+             */
+            birth_date?: string | null;
+            /**
+             * Checkpoint Weekday
+             * @description Checkpoint weekday: 0 = Monday .. 6 = Sunday
+             * @default 6
+             */
+            checkpoint_weekday: number;
+            /**
+             * End Day
+             * Format: date
+             * @description Last day of the programme
+             */
+            end_day: string;
+            /**
+             * Height Cm
+             * @description For the BMR formulas; default: profile
+             */
+            height_cm?: number | null;
+            /**
+             * Rate Kg Per Week
+             * @description Planned loss per week (kg)
+             */
+            rate_kg_per_week: number;
+            /**
+             * Sex
+             * @description For the BMR formulas; default: profile
+             */
+            sex?: ("male" | "female") | null;
+            /**
+             * Start Day
+             * Format: date
+             * @description First day of the programme
+             */
+            start_day: string;
+            /**
+             * Start Weight Kg
+             * @description Weight on the start day (kg)
+             */
+            start_weight_kg: number;
+            /**
+             * Trend Weights
+             * @description Trend weights for today, yesterday, ... (default 3, 2, 1)
+             */
+            trend_weights?: number[];
+        };
+        /** GoalStatus */
+        GoalStatus: {
+            /**
+             * As Of
+             * @description Latest day with a trend
+             */
+            as_of: string | null;
+            /** Body Fat Day */
+            body_fat_day: string | null;
+            /** Body Fat Pct */
+            body_fat_pct: number | null;
+            /** Body Water Pct */
+            body_water_pct: number | null;
+            /** Days Left */
+            days_left: number;
+            /** Delta Kg */
+            delta_kg: number | null;
+            /** Muscle Mass Kg */
+            muscle_mass_kg: number | null;
+            next_checkpoint: components["schemas"]["GoalCheckpoint"] | null;
+            /** On Plan */
+            on_plan: boolean | null;
+            /**
+             * Since Start Kg
+             * @description Trend minus start weight
+             */
+            since_start_kg: number | null;
+            /**
+             * Target End Kg
+             * @description Target on the last day (current anchors)
+             */
+            target_end_kg: number | null;
+            /**
+             * Target Kg
+             * @description Target on as_of
+             */
+            target_kg: number | null;
+            /** Target Today Kg */
+            target_today_kg: number | null;
+            /** Trend Kg */
+            trend_kg: number | null;
+            week: components["schemas"]["GoalWeek"];
+        };
+        /** GoalView */
+        GoalView: {
+            /** Anchors */
+            anchors: components["schemas"]["GoalAnchor"][];
+            bmr_today: components["schemas"]["GoalBmr"] | null;
+            /** Body Fat */
+            body_fat: components["schemas"]["GoalFatPoint"][];
+            body_fat_regression: components["schemas"]["GoalRegression"] | null;
+            /** Checkpoints */
+            checkpoints: components["schemas"]["GoalCheckpoint"][];
+            /** Configured */
+            configured: boolean;
+            /**
+             * Days
+             * @description Every day from the start up to today, oldest first
+             */
+            days: components["schemas"]["GoalDay"][];
+            profile: components["schemas"]["GoalProfile"];
+            settings: components["schemas"]["GoalSettings"] | null;
+            status: components["schemas"]["GoalStatus"] | null;
+            /**
+             * Target Daily Balance Kcal
+             * @description -rate x 7700 / 7
+             */
+            target_daily_balance_kcal: number | null;
+            /**
+             * Target Line
+             * @description Start and end point of every anchor segment, up to the end day
+             */
+            target_line: components["schemas"]["GoalLinePoint"][];
+            /**
+             * Today
+             * Format: date
+             */
+            today: string;
+        };
+        /**
+         * GoalWeek
+         * @description The 7 days ending on a day: only days with logged meals count.
+         */
+        GoalWeek: {
+            /** Balance Kcal */
+            balance_kcal: number | null;
+            /** Burn Kcal */
+            burn_kcal: number | null;
+            /** Days Logged */
+            days_logged: number;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Intake Kcal */
+            intake_kcal: number | null;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * Target Balance Kcal
+             * @description Daily target x days logged
+             */
+            target_balance_kcal: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4212,6 +4788,144 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    goal_view_api_goal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalView"];
+                };
+            };
+        };
+    };
+    balance_api_goal_balance_get: {
+        parameters: {
+            query?: {
+                /** @description Local day (default today) */
+                day?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalEnergyBalance"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_checkpoint_api_goal_checkpoints__day__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                day: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalCheckpointIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_settings_api_goal_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoalSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_settings_api_goal_settings_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -19,6 +19,7 @@ from garminizer.api.routers import (
     body,
     calendar,
     gear,
+    goal,
     insights,
     maps,
     meta,
@@ -50,6 +51,7 @@ ROUTERS = (
     gear,
     year,
     nutrition,
+    goal,
     sync,
 )
 DEFAULT_WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"

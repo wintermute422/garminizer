@@ -106,6 +106,7 @@ def activity_row(a: dict[str, Any]) -> dict[str, Any]:
         "training_stress_score": rnd(a.get("trainingStressScore"), 1),
         "intensity_factor": rnd(a.get("intensityFactor"), 3),
         "calories": rnd(a.get("calories"), 1),
+        "bmr_calories": rnd(positive(a.get("bmrCalories")), 1),
         "aerobic_te": rnd(a.get("aerobicTrainingEffect"), 1),
         "anaerobic_te": rnd(a.get("anaerobicTrainingEffect"), 1),
         "training_effect_label": text(a.get("trainingEffectLabel")),

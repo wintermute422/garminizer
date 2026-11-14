@@ -145,6 +145,7 @@ def test_activity_list_items() -> None:
     assert run["avg_stride_length_m"] == 1.162
     assert run["avg_vertical_oscillation_cm"] == 8.9
     assert run["training_load"] == 112.0
+    assert (run["calories"], run["bmr_calories"]) == (690.0, 70.0)
     assert (run["start_lat"], run["start_lon"]) == (45.0012, 7.0021)
     assert run["is_manual"] is False
     assert "has_samples" not in run and "trimp" not in run
