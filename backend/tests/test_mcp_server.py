@@ -47,6 +47,10 @@ TOOLS = {
     "get_nutrition_targets",
     "set_nutrition_targets",
     "get_energy_context",
+    "get_energy_balance",
+    "get_weight_goal",
+    "set_weight_goal",
+    "set_checkpoint",
 }
 LUNCH = {
     "name": "Spaghetti with tomato sauce",
@@ -125,7 +129,9 @@ def engine(mcp_url: str) -> Iterator[Engine]:
 def server(engine: Engine) -> MCPServer[Any]:
     with engine.begin() as conn:  # every test starts with an empty food diary
         conn.execute(text("TRUNCATE garmin.meal, garmin.meal_item RESTART IDENTITY"))
-        conn.execute(text("DELETE FROM garmin.app_setting WHERE key = 'nutrition_targets'"))
+        conn.execute(
+            text("DELETE FROM garmin.app_setting WHERE key IN ('nutrition_targets', 'weight_goal')")
+        )
     return build_server(
         sessionmaker(engine, expire_on_commit=False), fallback_tz="UTC", clock=lambda: NOW
     )
@@ -214,6 +220,11 @@ def test_log_meal_lands_in_db_and_returns_the_day(server: MCPServer[Any], engine
     assert day["totals"]["kcal"] == pytest.approx(447.0)
     assert day["garmin"]["total_kcal"] == BURN
     assert day["balance_kcal"] == pytest.approx(447.0 - BURN)
+    balance = out["energy_balance"]
+    assert balance["intake_kcal"] == pytest.approx(447.0)
+    assert balance["bmr"]["source"] == "garmin"  # the test athlete has no sex/height/birth
+    assert balance["baseline_kcal"] == 2500  # Garmin BMR 2000 x 1.25
+    assert balance["goal_configured"] is False
 
     rows = _meals(engine)
     assert len(rows) == 1
@@ -370,6 +381,57 @@ def test_energy_context(server: MCPServer[Any]) -> None:
     assert ctx["intake"]["kcal"] == pytest.approx(447.0)
     assert ctx["balance_kcal"] == pytest.approx(447.0 - BURN)
     assert ctx["demo_data"] is False
+
+
+# --- weight goal -----------------------------------------------------------------------------
+
+
+def test_weight_goal_tools(server: MCPServer[Any]) -> None:
+    assert call(server, "get_weight_goal")["configured"] is False
+    assert "start_day" in call_error(server, "set_weight_goal", {"rate_kg_per_week": 0.5})
+    saved = call(
+        server,
+        "set_weight_goal",
+        {
+            "start_day": (TODAY - timedelta(days=10)).isoformat(),
+            "start_weight_kg": 71.0,
+            "rate_kg_per_week": 0.5,
+            "end_day": (TODAY + timedelta(days=60)).isoformat(),
+            "sex": "Male",
+            "height_cm": 178,
+            "birth_date": "1990-01-01",
+        },
+    )
+    assert saved["saved"] is True and saved["configured"] is True
+    assert saved["settings"]["sex"] == "male"
+    assert saved["target_daily_balance_kcal"] == -550
+    assert saved["bmr_today"]["source"] == "formulas"
+    changed = call(server, "set_weight_goal", {"rate_kg_per_week": 0.25})
+    assert changed["settings"]["start_weight_kg"] == 71.0  # unchanged
+    assert changed["target_daily_balance_kcal"] == -275
+    goal = call(server, "get_weight_goal", {"days": 3})
+    assert len(goal["recent_days"]) == 3
+    assert goal["recent_days"][0]["day"] == TODAY.isoformat()
+    sunday = goal["checkpoints"][0]["day"]
+    accepted = call(server, "set_checkpoint", {"day": sunday})
+    assert accepted["settings"]["accepted_checkpoints"] == [sunday]
+    assert "not a checkpoint" in call_error(
+        server, "set_checkpoint", {"day": (TODAY + timedelta(days=1)).isoformat()}
+    )
+
+
+def test_energy_balance_tool(server: MCPServer[Any]) -> None:
+    call(server, "log_meal", LUNCH)
+    bal = call(server, "get_energy_balance")
+    assert (bal["day"], bal["is_today"], bal["as_of"]) == (TODAY.isoformat(), True, "13:00")
+    assert [a["name"] for a in bal["activities"]] == ["Morning run"]
+    # no bmrCalories stored: the resting share is BMR / 24 h over the hour
+    assert bal["training_kcal"] == round(800 - 2000 / 24)
+    assert bal["burn_kcal"] == bal["baseline_kcal"] + bal["training_kcal"]
+    assert bal["balance_kcal"] == round(447.0 - bal["burn_kcal"])
+    assert bal["garmin_total_kcal"] == BURN
+    yesterday = call(server, "get_energy_balance", {"day": "yesterday"})
+    assert yesterday["is_today"] is False and yesterday["meals"] == 0
 
 
 # --- stdout hygiene and the real stdio transport ---------------------------------------------

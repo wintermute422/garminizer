@@ -30,6 +30,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from garminizer import __version__
 from garminizer.athlete import AthleteClock, athlete_clock
+from garminizer.goal import service as goal_service
+from garminizer.goal.schemas import GoalView
 from garminizer.nutrition import service
 from garminizer.nutrition.schemas import (
     Confidence,
@@ -53,7 +55,15 @@ energy Garmin measured (get_day_nutrition, get_energy_context). Energy is in kca
 grams, times are the athlete's local time. Fix a wrong entry with update_meal instead of
 logging it twice; check list_recent_meals first when the user refers to an earlier meal. The
 numbers are estimates: say so briefly, never invent meals the user did not mention, and give
-no medical advice beyond general sports-nutrition guidance."""
+no medical advice beyond general sports-nutrition guidance.
+
+Weight goal (get_weight_goal): when the user follows one, a weighted 3-day weight trend (not a
+single weigh-in) is compared with a target line that falls by the planned rate, with a weekly
+checkpoint. After every logged meal show the energy balance that log_meal returns
+(energy_balance; other days: get_energy_balance) as a short table: intake, baseline (rest +
+everyday life), training (active calories only), total burn, balance (negative = deficit) and
+the goal's daily target; say so while the day is not over. The week matters more than a single
+day. Weigh-ins and activities arrive from Garmin automatically every hour."""
 
 ESTIMATION_GUIDE = """\
 How to estimate (photo or description):
@@ -84,8 +94,11 @@ Store a meal, snack or drink the user had, with the calories and macros YOU esti
 Returns the stored meal (meal_id, totals, items), warnings (macro_kcal_mismatch when the macros
 do not add up to the kcal: the meal is stored anyway, consider fixing it with update_meal) and
 the day so far: intake against the targets, what is left, Garmin's calories burned so far and
-the energy balance (intake minus burn). Tell the user the totals briefly, mention the main
-assumptions and offer to correct portions with update_meal(meal_id, ...)."""
+the energy balance (intake minus burn). It also returns energy_balance: the day's intake
+against the computed burn (BMR x activity factor + active training calories), the weight
+goal's daily target balance and what is left to eat until that target. Tell the user the
+totals briefly, show the energy balance table, mention the main assumptions and offer to
+correct portions with update_meal(meal_id, ...)."""
 
 GET_DAY = """\
 One day of the food diary: every meal with its items and meal_id, the day's totals (kcal,
@@ -125,6 +138,37 @@ fitness/fatigue/form (CTL/ATL/TSB), training status and readiness, the average b
 days before, and the food logged that day with the balance. Use it to advise on fuelling
 (e.g. more carbohydrate after a long run) and recovery."""
 
+ENERGY_BALANCE = """\
+The energy balance of a day: intake (logged meals) against the burn Garminizer computes:
+baseline = resting energy (mean of Mifflin-St Jeor, Harris-Benedict and, with body fat,
+Katch-McArdle; Garmin's BMR when profile values are missing) x activity factor (everyday life
+without training), plus training = the activities' active calories (Garmin's calories minus
+their resting share, so rest is not counted twice). balance = intake - burn (negative =
+deficit); target_balance_kcal is the daily balance the weight goal needs, left_to_target_kcal
+what can still be eaten to end on it. Also the 7 completed days up to the day (`week`) and
+Garmin's own total burn for comparison. Show it as a short table."""
+
+GET_WEIGHT_GOAL = """\
+The user's weight goal: settings (start, start weight, rate per week, end, checkpoint weekday,
+accepted checkpoints), today's status (trend, target, deviation, on plan, change since start,
+next checkpoint, latest body fat / muscle / water, last 7 days' energy balance), every
+checkpoint with its verdict (reached = trend below target, the line restarts from the trend;
+accepted = counted as reached by the user; missed; no_weigh_in; upcoming), the body-fat trend
+(EWMA, half-life 4 days) and its 21-day regression slope, and the last `days` days of the log
+(weight, trend, target, intake, burn, balance). configured=false when no goal is set."""
+
+SET_WEIGHT_GOAL = """\
+Create or change the weight goal. Only the values you pass change; a new goal needs start_day,
+start_weight_kg, rate_kg_per_week and end_day. checkpoint_weekday: 0 = Monday .. 6 = Sunday
+(default Sunday). activity_factor (default 1.25, desk job with some walking) turns resting
+energy into everyday burn. sex, height_cm and birth_date override the Garmin profile for the
+BMR formulas. Only set what the user asked for or agreed to."""
+
+SET_CHECKPOINT = """\
+Count a weekly checkpoint as reached although the trend was above the target (accepted=true),
+or undo that (accepted=false). The line then restarts from the target of that day (never from
+the higher trend), so it does not move up. Only when the user asks for it."""
+
 PHOTO_PROMPT = f"""\
 Log a meal from the attached photo (or my description) in Garminizer.
 
@@ -132,8 +176,8 @@ Log a meal from the attached photo (or my description) in Garminizer.
 
 Then:
 - Show me a short table of the items (portion in g, kcal, protein, carbs, fat) and the totals.
-- Tell me how the day looks now: intake against my targets, what is left, Garmin's calories
-  burned so far and the balance.
+- Tell me how the day looks now: intake against my targets, what is left, and the energy
+  balance table (intake, baseline, training, total burn, balance, target).
 - If you were unsure about a portion, ask me and correct it with update_meal."""
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
@@ -260,7 +304,7 @@ class _Runtime:
         except service.MealNotFoundError as exc:
             session.rollback()
             raise ToolError(f"{exc}; list_recent_meals shows the meal ids") from None
-        except service.NutritionError as exc:
+        except (service.NutritionError, goal_service.GoalError) as exc:
             session.rollback()
             raise ToolError(str(exc)) from None
         except OperationalError:
@@ -284,10 +328,12 @@ class _Runtime:
         self, session: Session, meal: NutritionMeal, clock: AthleteClock
     ) -> dict[str, Any]:
         day = service.day_summary(session, meal.day, clock=clock)
+        balance = goal_service.energy_balance(session, meal.day, clock=clock)
         return {
             "meal": meal.model_dump(mode="json"),
             "warnings": [w.model_dump(mode="json") for w in meal.warnings],
             "day_summary": day.model_dump(mode="json"),
+            "energy_balance": balance.model_dump(mode="json"),
         }
 
     def targets_view(self, session: Session, targets: NutritionTargets) -> dict[str, Any]:
@@ -301,8 +347,11 @@ def build_server(
     """The Garminizer MCP server; every tool call runs in its own database transaction."""
     server: MCPServer[Any] = MCPServer(
         name="garminizer",
-        title="Garminizer meal log",
-        description="Log meals, calories and macros; compare them with Garmin's energy burn.",
+        title="Garminizer meal log and weight goal",
+        description=(
+            "Log meals, calories and macros; energy balance against Garmin's activities and a "
+            "weight goal with a weighted trend, target line and weekly checkpoints."
+        ),
         instructions=INSTRUCTIONS,
         version=__version__,
     )
@@ -310,6 +359,7 @@ def build_server(
     _register_meal_tools(server, rt)
     _register_day_tools(server, rt)
     _register_target_tools(server, rt)
+    _register_goal_tools(server, rt)
 
     @server.prompt(
         name="log-meal-from-photo",
@@ -554,6 +604,130 @@ def _register_target_tools(server: MCPServer[Any], rt: _Runtime) -> None:
             )
             stored = service.set_targets(s, targets, merge=True, clear=clear or ())
             return {"saved": True, **rt.targets_view(s, stored)}
+
+
+LOG_KEYS = {
+    "day",
+    "weight_kg",
+    "trend_kg",
+    "target_kg",
+    "delta_kg",
+    "on_plan",
+    "body_fat_pct",
+    "intake_kcal",
+    "protein_g",
+    "training_kcal",
+    "burn_kcal",
+    "balance_kcal",
+}
+
+
+def compact_goal(v: GoalView, days: int) -> dict[str, Any]:
+    """The goal view without the bulky parts (activities, the whole log, every fat point)."""
+    out = v.model_dump(
+        mode="json", include={"configured", "today", "settings", "target_daily_balance_kcal"}
+    )
+    out["status"] = v.status.model_dump(mode="json") if v.status else None
+    out["checkpoints"] = [c.model_dump(mode="json") for c in v.checkpoints]
+    last_fat = v.body_fat[-1] if v.body_fat else None
+    reg = v.body_fat_regression
+    out["body_fat"] = {
+        "latest_pct": last_fat.body_fat_pct if last_fat else None,
+        "latest_day": last_fat.day.isoformat() if last_fat else None,
+        "trend_pct": last_fat.trend_pct if last_fat else None,
+        "regression_pct_per_week": reg.slope_pct_per_week if reg else None,
+    }
+    out["bmr_today"] = v.bmr_today.model_dump(mode="json") if v.bmr_today else None
+    out["recent_days"] = [r.model_dump(mode="json", include=LOG_KEYS) for r in v.days[-days:][::-1]]
+    return out
+
+
+def _register_goal_tools(server: MCPServer[Any], rt: _Runtime) -> None:
+    @server.tool(
+        name="get_energy_balance",
+        title="Energy balance",
+        description=ENERGY_BALANCE,
+        annotations=READ_ONLY,
+        structured_output=False,
+    )
+    def get_energy_balance(
+        day: Annotated[
+            str | None, Field(description="'YYYY-MM-DD', 'today' or 'yesterday' (default today)")
+        ] = None,
+    ) -> dict[str, Any]:
+        with rt.transaction() as s:
+            clock = rt.clock(s)
+            d = parse_day(day, clock.zone, clock.now_utc())
+            return goal_service.energy_balance(s, d, clock=clock).model_dump(mode="json")
+
+    @server.tool(
+        name="get_weight_goal",
+        title="Weight goal",
+        description=GET_WEIGHT_GOAL,
+        annotations=READ_ONLY,
+        structured_output=False,
+    )
+    def get_weight_goal(
+        days: Annotated[int, Field(ge=1, le=120, description="Log days to include (1-120)")] = 14,
+    ) -> dict[str, Any]:
+        with rt.transaction() as s:
+            return compact_goal(goal_service.view(s, clock=rt.clock(s)), days)
+
+    @server.tool(
+        name="set_weight_goal",
+        title="Set the weight goal",
+        description=SET_WEIGHT_GOAL,
+        annotations=CHANGES,
+        structured_output=False,
+    )
+    def set_weight_goal(
+        start_day: Annotated[str | None, Field(description="'YYYY-MM-DD'")] = None,
+        start_weight_kg: Annotated[float | None, Field(description="Weight at the start")] = None,
+        rate_kg_per_week: Annotated[
+            float | None, Field(description="Planned loss per week (kg), e.g. 0.5")
+        ] = None,
+        end_day: Annotated[str | None, Field(description="'YYYY-MM-DD'")] = None,
+        checkpoint_weekday: Annotated[
+            int | None, Field(description="0 = Monday .. 6 = Sunday")
+        ] = None,
+        activity_factor: Annotated[
+            float | None, Field(description="Everyday burn = BMR x factor (default 1.25)")
+        ] = None,
+        sex: Annotated[str | None, Field(description="'male' or 'female' (BMR)")] = None,
+        height_cm: Annotated[float | None, Field(description="Height (BMR)")] = None,
+        birth_date: Annotated[str | None, Field(description="'YYYY-MM-DD' (BMR age)")] = None,
+    ) -> dict[str, Any]:
+        values = {
+            "start_day": start_day,
+            "start_weight_kg": start_weight_kg,
+            "rate_kg_per_week": rate_kg_per_week,
+            "end_day": end_day,
+            "checkpoint_weekday": checkpoint_weekday,
+            "activity_factor": activity_factor,
+            "sex": sex.strip().lower() if sex else None,
+            "height_cm": height_cm,
+            "birth_date": birth_date,
+        }
+        with rt.transaction() as s:
+            goal_service.patch_settings(s, values)
+            return {"saved": True, **compact_goal(goal_service.view(s, clock=rt.clock(s)), 7)}
+
+    @server.tool(
+        name="set_checkpoint",
+        title="Accept a checkpoint",
+        description=SET_CHECKPOINT,
+        annotations=CHANGES,
+        structured_output=False,
+    )
+    def set_checkpoint(
+        day: Annotated[str, Field(description="Checkpoint day 'YYYY-MM-DD'")],
+        accepted: Annotated[bool, Field(description="true = count as reached")] = True,
+    ) -> dict[str, Any]:
+        with rt.transaction() as s:
+            clock = rt.clock(s)
+            d = parse_day(day, clock.zone, clock.now_utc())
+            goal_service.set_checkpoint(s, d, accepted=accepted)
+            return {"saved": True, **compact_goal(goal_service.view(s, clock=clock), 7)}
 
 
 def main(env_file: Path | None = None) -> None:
