@@ -89,7 +89,8 @@ class GoalLine:
     checkpoints: tuple[Checkpoint, ...]
 
     def target_on(self, day: date) -> float | None:
-        """The target weight of ``day``; None before the start."""
+        """The target weight of ``day``; None before the start. On a checkpoint day it is the
+        target the trend was judged against; a new anchor counts from the next day."""
         return target_on(day, self.anchors, self.plan.rate_kg_per_week)
 
 
@@ -101,8 +102,8 @@ def target_on(day: date, anchors: Sequence[Anchor], rate_kg_per_week: float) -> 
     if not anchors or day < anchors[0].day:
         return None
     current = anchors[0]
-    for anchor in anchors:
-        if anchor.day <= day:
+    for anchor in anchors[1:]:
+        if anchor.day < day:  # a checkpoint anchor starts the line from the next day on
             current = anchor
     return line_value(current, day, rate_kg_per_week)
 
