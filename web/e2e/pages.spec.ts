@@ -7,6 +7,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { pageOverflow } from "./helpers";
 
 export const PAGES: { name: string; path: string }[] = [
   { name: "overview", path: "/" },
@@ -29,18 +30,6 @@ export const PAGES: { name: string; path: string }[] = [
 ];
 
 const SHOT_DIR = path.resolve(process.cwd(), "..", "artifacts", "screenshots");
-
-/**
- * Content width beyond the configured viewport. Compare with the configured width, not
- * innerWidth: mobile emulation widens the layout viewport to fit oversized content.
- */
-async function pageOverflow(page: Page): Promise<number> {
-  const width = page.viewportSize()?.width ?? 0;
-  const content = await page.evaluate(() =>
-    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-  );
-  return content - width;
-}
 
 test("overflow check detects a too-wide page (self-test)", async ({ page }) => {
   await page.goto("/sync");
