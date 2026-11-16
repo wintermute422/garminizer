@@ -159,6 +159,12 @@ progress.md's "Next step".
   scanned … no leaks found" and check.sh passed. `scripts/gitleaks.sh` mounts the common git dir
   and sets `GIT_DIR`, and fails when a scan covers 0 commits (staged: 0 bytes) with work to do.
   A scanner that reports success must also prove it scanned something.
+- In Playwright, `locator.count()` and `toHaveCount(0)` right after `goto` pass or fail on the
+  not-yet-rendered page (lazy routes): first wait for something that must appear
+  (`expect(locator.first()).toBeVisible()`), then count.
+- Pages that use the server's "today" (weight goal) look stale on the fixed-date e2e database.
+  Take README screenshots and the tour video from a demo database seeded up to today (see
+  docs/development.md), never by changing the shared `garminizer_e2e` database.
 - A fresh worktree has no `.venv`. Create one with `uv venv .venv` and install with
   `uv pip install --python .venv/Scripts/python.exe -e ".[dev]"`: run through the main venv's
   `python -m uv`, `uv pip` ignored `VIRTUAL_ENV` and re-pointed the main checkout's editable install
