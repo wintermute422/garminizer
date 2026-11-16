@@ -44,7 +44,9 @@ pages that depend on today's date (weight goal), seed a separate demo database t
    `git push origin vX.Y.Z`. The pre-push hook only accepts new `v*` tags.
 3. `.github/workflows/release.yml` checks that the tag is on `main` and matches the version,
    builds the image for x86-64 and ARM64, pushes `ghcr.io/<owner>/garminizer:X.Y.Z`, `:X.Y` and
-   `:latest`, and creates the GitHub release from the changelog section.
+   `:latest`, and creates the GitHub release from the changelog section with the Windows
+   installer (`install.cmd`, `install.ps1`) attached.
 
-The first time, make the package public once (GitHub → Packages → garminizer → Package settings →
-Change visibility); new packages start private and `docker compose pull` answers `denied`.
+After a release, check that the image can be pulled without signing in (0.1.0 was public right
+away; if `docker compose pull` answers `denied`, set the package's visibility to public under
+GitHub → Packages → garminizer → Package settings).

@@ -14,6 +14,38 @@ minutes.
   [Stop and uninstall](#stop-and-uninstall) · [Troubleshooting](#troubleshooting)
 
 Just want to look around first? The [demo](#try-the-demo-first) needs no Garmin account.
+On Windows the [installer](#windows-installer) does steps 2 to 4 for you.
+
+## Windows installer
+
+With [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed, open PowerShell
+(Start menu → type "PowerShell") and paste:
+
+```powershell
+irm https://raw.githubusercontent.com/wintermute422/garminizer/main/install.ps1 | iex
+```
+
+Or download
+[`install.cmd`](https://github.com/wintermute422/garminizer/releases/latest/download/install.cmd)
+and double-click it. Windows may warn about a file from the internet: choose *More info* → *Run
+anyway*. Both run the same [script](../install.ps1); it is short enough to read first.
+
+The installer needs no git, no Python and builds nothing. It
+
+1. checks that Docker Desktop is installed and running (and starts it if it is not),
+2. puts the latest release's `compose.yml` and a new `.env` with a random database password into
+   `%LOCALAPPDATA%\Garminizer` (your time zone is taken from Windows),
+3. downloads the ready-made image and starts Garminizer,
+4. adds a **Garminizer** shortcut to the Start menu and opens the dashboard.
+
+Continue with [step 5](#5-connect-your-garmin-account). Everything below (settings, backups,
+commands) applies as well; the "garminizer folder" is `%LOCALAPPDATA%\Garminizer`.
+
+| | |
+|---|---|
+| **Update** | run the installer again. It backs up the database first and keeps your `.env` and data. |
+| **Options** | `-Port 8421` or `-DbPort 55434` when a port is taken, `-Version 0.1.0` for a specific release, `-InstallDir D:\Garminizer` for another folder. To pass them to the one-liner: `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/wintermute422/garminizer/main/install.ps1))) -Port 8421` |
+| **Already installed another way?** | The installer refuses when Garminizer already runs from another folder or an earlier database exists, and changes nothing. Update that installation as described under [Update](#update). |
 
 ## 1. Requirements
 
