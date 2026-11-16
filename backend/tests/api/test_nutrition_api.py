@@ -184,7 +184,8 @@ def test_day_view_matches_sql(client: TestClient, sql: Session) -> None:
     assert body["totals"]["kcal"] == pytest.approx(exp["kcal"], abs=0.5)
     assert body["garmin"]["total_kcal"] == pytest.approx(burn, abs=0.1)
     if exp["n"]:
-        assert body["balance_kcal"] == pytest.approx(exp["kcal"] - burn, abs=0.5)
+        used = body["burn"]["total_kcal"]  # computed (baseline + training), Garmin's as fallback
+        assert body["balance_kcal"] == pytest.approx(exp["kcal"] - used, abs=0.5)
     assert client.get("/api/nutrition/day").status_code == 200  # default: today
 
 

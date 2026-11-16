@@ -103,8 +103,10 @@ correct portions with update_meal(meal_id, ...)."""
 GET_DAY = """\
 One day of the food diary: every meal with its items and meal_id, the day's totals (kcal,
 protein, carbs, fat, fibre, ...), the targets and what is left, Garmin's calories burned
-(total, active, BMR; for today: so far), the energy balance (intake minus Garmin's total burn;
-negative = deficit), body weight and protein per kg."""
+(total, active, BMR; for today: so far), the burn used for the balance (baseline plus the
+activities' active calories, so a workout counts before Garmin's daily total has caught up),
+the energy balance (intake minus that burn; negative = deficit), body weight and protein per
+kg."""
 
 LIST_RECENT = """\
 Meals of the last `days` days (newest first), grouped by day with day totals, each meal with

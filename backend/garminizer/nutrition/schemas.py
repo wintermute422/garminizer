@@ -208,6 +208,16 @@ class NutritionGarminEnergy(_Out):
     bmr_kcal: float | None
 
 
+class NutritionBurn(_Out):
+    """The burn a day's balance uses: baseline (rest + everyday life) plus the activities'
+    active calories, like the weight goal; Garmin's total when no baseline can be computed."""
+
+    source: Literal["computed", "garmin"]
+    total_kcal: float | None
+    baseline_kcal: float | None
+    training_kcal: float | None
+
+
 class NutritionRemaining(_Out):
     """Target minus intake (negative = above the target); null without a target."""
 
@@ -228,8 +238,9 @@ class NutritionDaySummary(_Out):
     )
     remaining: NutritionRemaining
     garmin: NutritionGarminEnergy
+    burn: NutritionBurn
     balance_kcal: float | None = Field(
-        description="Intake minus Garmin total burn; null without meals or Garmin data"
+        description="Intake minus burn.total_kcal; null without meals or a burn"
     )
     weight_kg: float | None = Field(description="Latest weigh-in on or before the day")
     protein_g_per_kg: float | None
@@ -324,6 +335,7 @@ class NutritionEnergyContext(_Out):
     is_today: bool
     demo_data: bool = Field(description="True when the database holds the synthetic demo athlete")
     garmin: NutritionGarminEnergy
+    burn: NutritionBurn
     steps: int | None
     activities: list[NutritionActivity]
     training_load: float | None = Field(description="Garmin training load of the day")
