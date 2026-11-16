@@ -22,12 +22,15 @@ After changing `.env`, apply it with `docker compose up -d`.
 | `GARMINIZER_DATA` | `./data` | host folder for tokens and backups (Docker) |
 | `MAP_STYLE_URL`, `MAP_STYLE_URL_DARK` | OpenFreeMap positron / dark | MapLibre style URLs |
 | `DEMO_PORT` | `8430` | port of the demo stack (`compose.demo.yml`) |
+| `GARMINIZER_VERSION` | `latest` | release that `docker compose pull` downloads; set e.g. `0.1.0` to stay on one ([changelog](../CHANGELOG.md)) |
 
 ## Common tasks
 Run these inside the `garminizer` folder (PowerShell, Terminal or any shell):
 
 ```bash
-docker compose up -d --build              # start / update
+docker compose pull                       # download the latest release
+docker compose up -d                      # start / apply a new image or changed settings
+docker compose up -d --build              # instead of pull: build the image from source
 docker compose logs -f worker             # watch syncing
 docker compose exec worker garminizer sync          # sync now
 docker compose exec worker garminizer verify        # compare DB with Garmin
