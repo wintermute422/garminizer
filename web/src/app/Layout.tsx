@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/api/client";
 import { usePreferences, type ThemeChoice } from "@/lib/preferences";
 import { FilterBar } from "./FilterBar";
+import { FirstRunGate, HistoryBanner } from "./FirstRun";
 import { NAV, isDetailPage, navItemFor } from "./nav";
 
 function Logo() {
@@ -154,6 +155,7 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-page">
       <DemoBanner />
+      <HistoryBanner />
       <div className="mx-auto flex max-w-[1680px]">
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-line px-3 py-5 lg:flex">
           <Logo />
@@ -211,7 +213,9 @@ export function Layout() {
             <Preferences />
           </header>
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-            <Outlet />
+            <FirstRunGate>
+              <Outlet />
+            </FirstRunGate>
           </main>
         </div>
       </div>
