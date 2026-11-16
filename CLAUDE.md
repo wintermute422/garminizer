@@ -178,6 +178,12 @@ progress.md's "Next step".
   redirect it through the environment: the installer test started the real Docker Desktop and
   waited 3 minutes. Give the script an explicit path option and pass that; check `--durations`
   when a new test file makes the suite slower.
+- Windows Defender blocks a batch file that starts `powershell -Command "irm <url> | iex"`
+  (Trojan:Win32/Commando.B!ml, "Access is denied") although the same line typed into PowerShell
+  runs. `install.cmd` therefore downloads with `curl.exe` and runs the file. Run every shipped
+  artifact once the way a user would (downloaded, double-click path) BEFORE publishing it, and
+  read `Get-MpThreatDetection` afterwards: the first `install.cmd` was attached to the release
+  untested and had to be taken down.
 - Pulling a shared tag in a trial (`postgres:17`) moves the tag for every stack: the running real
   database keeps its old image until its next `up`, which then recreates it on the newer patch
   release. Tell the user when that happened.
