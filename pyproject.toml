@@ -83,6 +83,7 @@ files = [
   "scripts/check_utf8.py",
   "scripts/e2e_db.py",
   "scripts/gen_data_model_doc.py",
+  "scripts/release_notes.py",
 ]
 mypy_path = "backend"
 explicit_package_bases = true

@@ -54,6 +54,8 @@ fi
 
 stage "data model doc up to date"
 "$PY" scripts/gen_data_model_doc.py --check
+stage "version and changelog agree"
+"$PY" scripts/release_notes.py --check
 stage "UTF-8 / LF"
 "$PY" scripts/check_utf8.py
 stage "secret scan (working tree)"

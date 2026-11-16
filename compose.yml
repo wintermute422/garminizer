@@ -1,7 +1,7 @@
 # Garminizer stack: PostgreSQL 17 + web app + background worker.
 #   python3 scripts/init_env.py --tz Europe/Berlin    # or: cp .env.example .env, set POSTGRES_PASSWORD
-#   docker compose up -d --build                      # step by step: docs/installation.md
-#   open http://localhost:8420  ->  Sync & settings  ->  Connect Garmin
+#   docker compose pull && docker compose up -d       # or build it: docker compose up -d --build
+#   open http://localhost:8420  ->  Connect Garmin     # step by step: docs/installation.md
 # Data lives in the `pgdata` volume; tokens and backups in ./data (git-ignored).
 name: garminizer
 
@@ -34,7 +34,7 @@ services:
 
   app:
     build: .
-    image: garminizer:local
+    image: ghcr.io/wintermute422/garminizer:${GARMINIZER_VERSION:-latest}
     restart: unless-stopped
     env_file:
       - path: .env
@@ -50,7 +50,7 @@ services:
     command: ["garminizer", "serve"]
 
   worker:
-    image: garminizer:local
+    image: ghcr.io/wintermute422/garminizer:${GARMINIZER_VERSION:-latest}
     restart: unless-stopped
     env_file:
       - path: .env
