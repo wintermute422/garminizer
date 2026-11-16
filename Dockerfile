@@ -2,7 +2,8 @@
 # Garminizer: one image for the web app (API + dashboards) and the background worker.
 
 # ---- web: build the SPA ---------------------------------------------------------------
-FROM node:26-slim AS web
+# Built on the build machine: the output is static files, so no emulation for other platforms.
+FROM --platform=$BUILDPLATFORM node:26-slim AS web
 WORKDIR /src/web
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 # Node 25+ no longer bundles corepack: install the pnpm pinned in package.json (packageManager).
