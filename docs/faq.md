@@ -36,13 +36,16 @@ with all daily metrics.
 `garmin.raw_payload`.
 
 **Can I try it without a Garmin account?**
-Yes: `docker compose -f compose.demo.yml up -d --build` starts a separate demo on
+Yes: `docker compose -f compose.demo.yml pull` and `docker compose -f compose.demo.yml up -d`
+start a separate demo on
 http://localhost:8430 with two years of synthetic data (see [installation](installation.md#try-the-demo-first)).
 It has its own database; Garminizer never mixes demo and real data.
 
 **Does it run on a Raspberry Pi or a NAS?**
-Anything that runs Docker Compose 2.24+ should work. It is tested on x86-64 Windows (Docker
-Desktop) and Linux (CI); reports from macOS and ARM boards are welcome.
+Anything that runs Docker Compose 2.24+ should work. Every release ships one image for x86-64
+and ARM64 (Apple Silicon, Raspberry Pi 4/5 with a 64-bit system). It is tested on x86-64 Windows
+(Docker Desktop) and Linux (CI); the ARM64 image is built by CI but not yet tested on real
+hardware, so reports from macOS and ARM boards are welcome.
 
 **Imperial units?**
 Toggle `km`/`mi` in the top bar (defaults to your Garmin unit setting).

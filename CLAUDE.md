@@ -53,6 +53,9 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `scripts/init_env.py [--tz Zone]` | creates `.env` from `.env.example` with random secrets; never prints them; refuses to overwrite |
 | `scripts/screenshots.sh` | README screenshots from the demo e2e DB only (refuses non-demo), writes MANIFEST.sha256 |
 | `scripts/gen_badges.sh` | README badges from shields.io into `docs/badges/` (by hand, needs network); the README never hot-links shields.io/camo, which privacy filters block |
+| `scripts/release_notes.py --check \| vX.Y.Z` | `pyproject.toml`, `garminizer.__version__` and a dated `CHANGELOG.md` section agree (check.sh, CI); with a tag it prints that section for the GitHub release |
+| `.github/workflows/release.yml` | on a `v*` tag from main: multi-arch image to `ghcr.io/<owner>/garminizer` + GitHub release. Tagging is a release: only with explicit user approval |
+| `scripts/demo_tour.sh` | announcement video from the demo e2e DB only (refuses non-demo) → `artifacts/demo-tour.webm` (+ `.mp4` with ffmpeg) |
 | `scripts/e2e_dev.sh API_PORT WEB_PORT "page x"` | same checks against Vite dev on private ports (parallel page work, no shared build) |
 
 ## Git workflow

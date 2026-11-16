@@ -2,7 +2,7 @@
 
 Garminizer runs as three Docker containers on your own computer: a PostgreSQL 17 database, the
 web app and a background worker that syncs with Garmin Connect. Setting it up takes about ten
-minutes plus the first image build.
+minutes.
 
 - [1. Requirements](#1-requirements)
 - [2. Get the code](#2-get-the-code)
@@ -21,7 +21,8 @@ Just want to look around first? The [demo](#try-the-demo-first) needs no Garmin 
 |---|---|
 | **Docker** | [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Windows 10/11 and macOS, or Docker Engine with the Compose plugin on Linux. Compose **2.24 or newer** (`docker compose version`). On Windows, Docker Desktop sets up WSL 2 for you. |
 | **Git** | to download and update the code ([git-scm.com](https://git-scm.com/downloads)). |
-| **Disk** | about 2 GB for the images and build cache, plus your data: typically well under 1 GB, even for many years of activities with second-by-second samples. |
+| **Disk** | about 1 GB for the images (2 GB if you build the image yourself), plus your data: typically well under 1 GB, even for many years of activities with second-by-second samples. |
+| **Computer** | x86-64, or ARM64 (Apple Silicon, Raspberry Pi 4/5 with a 64-bit system; built for it, [not yet tested on real hardware](faq.md)). |
 | **A Garmin Connect account** | the one your watch syncs to. Two-factor authentication is supported. |
 
 Python is optional: it only makes step 3 a one-liner.
@@ -71,11 +72,13 @@ Everything else can stay as it is; [configuration](configuration.md) explains ev
 ## 4. Start Garminizer
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-The first run builds the image (5–10 minutes, depending on your computer and connection) and then
-starts the database, app and worker. Check that all three are up:
+`pull` downloads the ready-made image of the latest release; `up` starts the database, app and
+worker. To build the image from the source code instead (5–10 minutes), skip `pull` and run
+`docker compose up -d --build`. Check that all three are up:
 
 ```bash
 docker compose ps
@@ -86,9 +89,9 @@ docker compose ps
 
 ## 5. Connect your Garmin account
 
-In the app, open **Sync & settings**, enter your Garmin e-mail and password under **Garmin
-connection** and click **Connect Garmin**. If your account uses two-factor authentication, Garmin
-sends you a code; enter it when the app asks for it.
+A new installation opens on a welcome screen. Enter your Garmin e-mail and password there and
+click **Connect Garmin**. If your account uses two-factor authentication, Garmin sends you a code;
+enter it when the app asks for it. (Later you find the connection under **Sync & settings**.)
 
 Garminizer does not store your password: Garmin hands out login tokens, which are saved in
 `data/tokens` and renewed automatically. Prefer the terminal? This does the same:
@@ -99,10 +102,11 @@ docker compose exec app garminizer login
 
 ## 6. The first sync
 
-The worker starts right after you connect. It fetches the last days first, so the dashboards show
-today's data within minutes, and then works backwards through your whole history in short,
-polite batches. For several years of data this takes a few hours; the dashboards fill up as it
-goes. Progress and history coverage are shown on **Sync & settings**. To watch the log:
+The sync starts right after you connect. It fetches the last days first; the welcome screen shows
+the progress and switches to your dashboards within minutes. Then the worker goes backwards
+through your whole history in short, polite batches. For several years of data this takes a few
+hours; the dashboards fill up as it goes, and a note at the top says how far back the data
+reaches. Progress and history coverage are shown on **Sync & settings**. To watch the log:
 
 ```bash
 docker compose logs -f worker
@@ -126,16 +130,18 @@ worker catches up on start.
 
 ## Update
 
-Back up, pull the new version and rebuild. Database migrations run automatically when the app
-starts.
+Back up, then fetch the new version. Database migrations run automatically when the app starts.
 
 ```bash
 docker compose exec worker garminizer backup create
 git pull
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-Release notes are in the [commit history](https://github.com/wintermute422/garminizer/commits/main).
+If you build the image yourself, replace the last two commands with
+`docker compose up -d --build`. What changed is in the [changelog](../CHANGELOG.md). To stay on
+one release, set `GARMINIZER_VERSION` (for example `0.1.0`) in `.env`.
 
 ## Stop and uninstall
 
@@ -151,7 +157,8 @@ folder. This deletes the database permanently.
 ## Try the demo first
 
 ```bash
-docker compose -f compose.demo.yml up -d --build
+docker compose -f compose.demo.yml pull
+docker compose -f compose.demo.yml up -d
 ```
 
 Open **[http://localhost:8430](http://localhost:8430)**: two years of a simulated athlete (the
@@ -164,6 +171,7 @@ containers and never touches your real data. Remove it with
 | Problem | Fix |
 |---|---|
 | `required variable POSTGRES_PASSWORD is missing` / `set POSTGRES_PASSWORD in .env` | `.env` is missing or has no password; see [step 3](#3-create-your-settings-file). Run the commands inside the `garminizer` folder. |
+| `docker compose pull` answers `denied` or `not found` for the `garminizer` image | The image could not be downloaded (no release for your platform yet, or the registry is unreachable). Build it instead: `docker compose up -d --build`. |
 | An error about `env_file` (`path` / `required` not allowed) | Your Docker Compose is too old; update Docker Desktop or the Compose plugin to 2.24+. |
 | `port is already allocated` / `address already in use` | Another program uses 8420 (app) or 55433 (database). Set `APP_PORT=8421` or `DB_PORT=55434` in `.env` and run `docker compose up -d` again. |
 | `localhost:8420` does not load | `docker compose ps` shows the state; `docker compose logs app` shows why the app is not healthy. |

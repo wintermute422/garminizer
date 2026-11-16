@@ -61,7 +61,8 @@ Dark and light themes, metric and imperial units, works on phones, every view sh
 | ![Health & recovery](docs/screenshots/health-light.png) | ![Sleep](docs/screenshots/sleep-dark.png) |
 | ![Records](docs/screenshots/records-light.png) | ![Map](docs/screenshots/map-dark.png) |
 | ![Insights](docs/screenshots/insights-dark.png) | ![Calendar](docs/screenshots/calendar-light.png) |
-| ![Nutrition](docs/screenshots/nutrition-light.png) | ![Year in review](docs/screenshots/year-dark.png) |
+| ![Nutrition](docs/screenshots/nutrition-light.png) | ![Weight goal](docs/screenshots/goal-dark.png) |
+| ![Performance](docs/screenshots/performance-light.png) | ![Year in review](docs/screenshots/year-dark.png) |
 
 ## Quick start
 You need [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS) or
@@ -71,15 +72,17 @@ Docker Engine with Compose 2.24+ (Linux), and Git. Works the same in PowerShell 
 git clone https://github.com/wintermute422/garminizer.git
 cd garminizer
 python3 scripts/init_env.py --tz Europe/Berlin    # creates .env with random secrets (Windows: py)
-docker compose up -d --build                      # first build: 5–10 minutes
+docker compose pull                               # ready-made image for x86-64 and ARM64
+docker compose up -d
 ```
 
-No Python? `cp .env.example .env` and set `POSTGRES_PASSWORD` and `TZ` in it instead.
+No Python? `cp .env.example .env` and set `POSTGRES_PASSWORD` and `TZ` in it instead. Prefer to
+build the image yourself? Skip the pull and run `docker compose up -d --build` (5–10 minutes).
 
-Open **http://localhost:8420** → **Sync & settings** → **Connect Garmin** and sign in with your
-Garmin account (two-factor codes are supported). The worker syncs the last days first, then
-works back through your whole history while the dashboards fill up. Afterwards it syncs every
-two hours and writes a nightly backup to `data/backups`.
+Open **http://localhost:8420**: the welcome screen asks for your Garmin sign-in (two-factor codes
+are supported) and shows the first sync. The worker syncs the last days first, so your dashboards
+appear within minutes, then works back through your whole history. Afterwards it syncs every two
+hours and writes a nightly backup to `data/backups`.
 
 The **[installation guide](docs/installation.md)** walks through every step, autostart, updates,
 uninstalling and troubleshooting. [Configuration & operations](docs/configuration.md) covers phone
@@ -87,7 +90,8 @@ access on your LAN, backups, restore and all settings.
 
 ## Try the demo (no Garmin account needed)
 ```bash
-docker compose -f compose.demo.yml up -d --build
+docker compose -f compose.demo.yml pull
+docker compose -f compose.demo.yml up -d
 ```
 Open **http://localhost:8430** — two years of a simulated athlete (training plan with races,
 illness and holidays; sleep, HRV and readiness respond to training load). The first start needs a
@@ -147,7 +151,7 @@ GROUP BY 1 ORDER BY 1 DESC LIMIT 12;
 ## Documentation
 | | |
 |---|---|
-| **Use it** | [Installation](docs/installation.md) · [Configuration & operations](docs/configuration.md) · [Claude Desktop meal logging](docs/claude-desktop.md) · [FAQ](docs/faq.md) |
+| **Use it** | [Installation](docs/installation.md) · [Configuration & operations](docs/configuration.md) · [Claude Desktop meal logging](docs/claude-desktop.md) · [FAQ](docs/faq.md) · [Changelog](CHANGELOG.md) |
 | **Understand it** | [Architecture](docs/architecture.md) · [Data model](docs/data-model.md) · [Metrics](docs/metrics.md) |
 | **Build on it** | [Contributing](CONTRIBUTING.md) · [Development harness](docs/development.md) · [Reusable harness template](docs/harness/README.md) · [Security](SECURITY.md) |
 

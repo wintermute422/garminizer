@@ -29,4 +29,22 @@ Enable the git hooks once per clone: `git config core.hooksPath .githooks`.
 
 ## Demo data for screenshots
 Screenshots in the README come from `scripts/e2e.sh` runs on the deterministic demo database
-(`garminizer_e2e`, seed 42) — never from real data.
+(`garminizer_e2e`, seed 42) — never from real data. `scripts/screenshots.sh` writes them with their
+manifest; `scripts/demo_tour.sh` records a one-minute tour video (`artifacts/demo-tour.webm`, plus
+`.mp4` when ffmpeg is installed) the same way. Both refuse a database that is not the demo. For
+pages that depend on today's date (weight goal), seed a separate demo database that ends today:
+`E2E_DATABASE_URL=…/garminizer_shots_e2e E2E_END=$(date +%F) bash scripts/screenshots.sh`.
+
+## Releasing
+1. On a `chore/` branch: set the new version in `pyproject.toml` and
+   `backend/garminizer/__init__.py`, and add a dated `## [X.Y.Z] - YYYY-MM-DD` section to
+   `CHANGELOG.md`. `python scripts/release_notes.py --check` (part of `scripts/check.sh` and CI)
+   fails when the three disagree. Merge the PR.
+2. Tag the merge commit on `main` and push the tag: `git tag vX.Y.Z` and
+   `git push origin vX.Y.Z`. The pre-push hook only accepts new `v*` tags.
+3. `.github/workflows/release.yml` checks that the tag is on `main` and matches the version,
+   builds the image for x86-64 and ARM64, pushes `ghcr.io/<owner>/garminizer:X.Y.Z`, `:X.Y` and
+   `:latest`, and creates the GitHub release from the changelog section.
+
+The first time, make the package public once (GitHub → Packages → garminizer → Package settings →
+Change visibility); new packages start private and `docker compose pull` answers `denied`.
