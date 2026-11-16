@@ -2387,6 +2387,24 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * NutritionBurn
+         * @description The burn a day's balance uses: baseline (rest + everyday life) plus the activities'
+         *     active calories, like the weight goal; Garmin's total when no baseline can be computed.
+         */
+        NutritionBurn: {
+            /** Baseline Kcal */
+            baseline_kcal: number | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "computed" | "garmin";
+            /** Total Kcal */
+            total_kcal: number | null;
+            /** Training Kcal */
+            training_kcal: number | null;
+        };
         /** NutritionDailyPoint */
         NutritionDailyPoint: {
             /**
@@ -2428,9 +2446,10 @@ export interface components {
         NutritionDay: {
             /**
              * Balance Kcal
-             * @description Intake minus Garmin total burn; null without meals or Garmin data
+             * @description Intake minus burn.total_kcal; null without meals or a burn
              */
             balance_kcal: number | null;
+            burn: components["schemas"]["NutritionBurn"];
             /**
              * Day
              * Format: date

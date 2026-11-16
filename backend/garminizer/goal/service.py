@@ -630,6 +630,15 @@ def energy_balance(session: Session, day: date, *, clock: AthleteClock) -> GoalE
     )
 
 
+def day_energy(
+    session: Session, day: date, *, clock: AthleteClock
+) -> tuple[float | None, float, float | None]:
+    """(baseline, training, burn) kcal of ``day``; baseline and burn are None without a BMR."""
+    data = _load(session, clock, get_settings(session), day, day)
+    en = _energy(data, day)
+    return en.baseline, en.training, en.burn
+
+
 def checkpoint_days(settings: GoalSettings) -> list[date]:
     return g.checkpoint_days(_plan(settings))
 
@@ -640,6 +649,7 @@ __all__ = [
     "checkpoint_days",
     "clear_settings",
     "daily_weigh_ins",
+    "day_energy",
     "energy_balance",
     "get_settings",
     "patch_settings",

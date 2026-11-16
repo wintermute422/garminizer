@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from garminizer import models as m
 from garminizer.athlete import AthleteClock, athlete_clock
+from garminizer.goal.schemas import DEFAULT_ACTIVITY_FACTOR
 from garminizer.nutrition import service
 from garminizer.nutrition.schemas import (
     NutritionItemIn,
@@ -321,7 +322,11 @@ def test_day_summary_against_garmin_and_targets(db: Session) -> None:
     assert out.totals.kcal == pytest.approx(567.0)
     assert out.totals.protein_g == pytest.approx(36.8)
     assert out.garmin.total_kcal == 2800
-    assert out.balance_kcal == pytest.approx(567.0 - 2800)
+    # No profile height/birth date: Garmin's BMR (1900) x activity factor, no activities.
+    assert out.burn.source == "computed"
+    assert out.burn.total_kcal is not None
+    assert out.burn.total_kcal == pytest.approx(1900 * DEFAULT_ACTIVITY_FACTOR, abs=1)
+    assert out.balance_kcal == pytest.approx(567.0 - out.burn.total_kcal, abs=0.1)
     assert out.weight_kg == 70.0  # the weigh-in of that day, not the later one
     assert out.protein_target_g == 140  # 2.0 g/kg x 70 kg
     assert out.remaining.kcal == pytest.approx(2700 - 567.0)
@@ -335,6 +340,37 @@ def test_day_summary_against_garmin_and_targets(db: Session) -> None:
     assert empty.totals.kcal == 0
     assert empty.balance_kcal is None
     assert not empty.is_today
+
+
+def test_day_balance_counts_activity_missing_from_garmin_summary(db: Session) -> None:
+    """A workout counts at once, although Garmin's daily summary does not contain it yet."""
+    _athlete(db)
+    day = date(2026, 3, 11)
+    db.add(m.DailySummary(day=day, total_kcal=1500, active_kcal=100, bmr_kcal=1400))
+    service.log_meal(db, _meal(), source="claude", clock=_clock(db))
+    before = service.get_day(db, day, clock=_clock(db))
+    db.add(
+        m.Activity(
+            activity_id=7,
+            name="HIIT",
+            sport_type="hiit",
+            sport_group="cardio",
+            start_time_utc=datetime(2026, 3, 11, 16, 50, tzinfo=UTC),
+            start_time_local=datetime(2026, 3, 11, 17, 50),
+            duration_s=2100,
+            calories=239,
+        )
+    )
+    db.flush()
+    after = service.get_day(db, day, clock=_clock(db))
+    assert after.garmin.total_kcal == 1500  # Garmin's own figure is unchanged
+    assert before.burn.training_kcal == 0
+    assert after.burn.training_kcal is not None
+    assert 100 < after.burn.training_kcal <= 239
+    assert after.burn.total_kcal == pytest.approx(
+        (before.burn.total_kcal or 0) + after.burn.training_kcal, abs=1
+    )
+    assert after.balance_kcal == pytest.approx(447.0 - (after.burn.total_kcal or 0), abs=0.1)
 
 
 def test_daily_series_and_summary(db: Session) -> None:

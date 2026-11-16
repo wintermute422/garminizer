@@ -219,7 +219,8 @@ def test_log_meal_lands_in_db_and_returns_the_day(server: MCPServer[Any], engine
     assert day["is_today"] is True
     assert day["totals"]["kcal"] == pytest.approx(447.0)
     assert day["garmin"]["total_kcal"] == BURN
-    assert day["balance_kcal"] == pytest.approx(447.0 - BURN)
+    assert day["burn"]["source"] == "computed"
+    assert day["balance_kcal"] == pytest.approx(447.0 - day["burn"]["total_kcal"])
     balance = out["energy_balance"]
     assert balance["intake_kcal"] == pytest.approx(447.0)
     assert balance["bmr"]["source"] == "garmin"  # the test athlete has no sex/height/birth
@@ -379,7 +380,7 @@ def test_energy_context(server: MCPServer[Any]) -> None:
     assert [a["name"] for a in ctx["activities"]] == ["Morning run"]
     assert ctx["avg_total_kcal_7d"] == 2500
     assert ctx["intake"]["kcal"] == pytest.approx(447.0)
-    assert ctx["balance_kcal"] == pytest.approx(447.0 - BURN)
+    assert ctx["balance_kcal"] == pytest.approx(447.0 - ctx["burn"]["total_kcal"])
     assert ctx["demo_data"] is False
 
 

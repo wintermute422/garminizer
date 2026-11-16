@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from garminizer import models as m
 from garminizer.athlete import AthleteClock
+from garminizer.goal import service as goal_service
 from garminizer.nutrition.schemas import (
     ITEM_NUTRIENTS,
     MACRO_FIELDS,
@@ -28,6 +29,7 @@ from garminizer.nutrition.schemas import (
     MealSource,
     MealType,
     NutritionActivity,
+    NutritionBurn,
     NutritionDailyPoint,
     NutritionDay,
     NutritionDaySummary,
@@ -471,20 +473,42 @@ def day_totals(meals: Sequence[NutritionMeal]) -> NutritionTotals:
     return NutritionTotals.model_validate({**values, "meals": len(meals)})
 
 
-def _balance(totals: NutritionTotals, garmin: NutritionGarminEnergy) -> float | None:
-    if not totals.meals or garmin.total_kcal is None:
+def _burn(
+    session: Session, day: date, garmin: NutritionGarminEnergy, clock: AthleteClock
+) -> NutritionBurn:
+    """The day's burn like the weight goal: baseline plus the activities' active calories
+    (so a workout counts before Garmin's daily summary has caught up); Garmin's total
+    when no baseline can be computed."""
+    baseline, training, burn = goal_service.day_energy(session, day, clock=clock)
+    if burn is None:
+        return NutritionBurn(
+            source="garmin", total_kcal=garmin.total_kcal, baseline_kcal=None, training_kcal=None
+        )
+    return NutritionBurn(
+        source="computed",
+        total_kcal=_r(burn),
+        baseline_kcal=_r(baseline),
+        training_kcal=_r(training),
+    )
+
+
+def _balance(totals: NutritionTotals, burn: NutritionBurn) -> float | None:
+    if not totals.meals or burn.total_kcal is None:
         return None
-    return round(totals.kcal - garmin.total_kcal, 1)
+    return round(totals.kcal - burn.total_kcal, 1)
 
 
 def _day_summary(
-    session: Session, day: date, tz: ZoneInfo, meals: Sequence[NutritionMeal], now: datetime
+    session: Session, day: date, meals: Sequence[NutritionMeal], clock: AthleteClock
 ) -> dict[str, Any]:
+    tz = clock.zone
+    now = clock.now_utc()
     totals = day_totals(meals)
     targets = get_targets(session)
     weight = weight_on(session, day, tz)
     p_target = protein_target(targets, weight)
     garmin, _ = _garmin(session, day)
+    burn = _burn(session, day, garmin, clock)
     remaining = NutritionRemaining(
         kcal=_minus(targets.kcal, totals.kcal),
         protein_g=_minus(p_target, totals.protein_g),
@@ -501,7 +525,8 @@ def _day_summary(
         "protein_target_g": p_target,
         "remaining": remaining,
         "garmin": garmin,
-        "balance_kcal": _balance(totals, garmin),
+        "burn": burn,
+        "balance_kcal": _balance(totals, burn),
         "weight_kg": weight,
         "protein_g_per_kg": per_kg,
     }
@@ -509,18 +534,14 @@ def _day_summary(
 
 def day_summary(session: Session, day: date, *, clock: AthleteClock) -> NutritionDaySummary:
     """Intake totals, targets, what is left, Garmin's burn and the balance of one day."""
-    tz = clock.zone
-    meals = _meals(session, day, day, tz)
-    return NutritionDaySummary.model_validate(
-        _day_summary(session, day, tz, meals, clock.now_utc())
-    )
+    meals = _meals(session, day, day, clock.zone)
+    return NutritionDaySummary.model_validate(_day_summary(session, day, meals, clock))
 
 
 def get_day(session: Session, day: date, *, clock: AthleteClock) -> NutritionDay:
     """The day summary plus every meal of the day with its items."""
-    tz = clock.zone
-    meals = _meals(session, day, day, tz)
-    summary = _day_summary(session, day, tz, meals, clock.now_utc())
+    meals = _meals(session, day, day, clock.zone)
+    summary = _day_summary(session, day, meals, clock)
     return NutritionDay.model_validate({**summary, "meals": meals})
 
 
@@ -695,6 +716,7 @@ def energy_context(session: Session, day: date, *, clock: AthleteClock) -> Nutri
     tz = clock.zone
     now = clock.now_utc()
     garmin, steps = _garmin(session, day)
+    burn = _burn(session, day, garmin, clock)
     d0 = datetime.combine(day, time())
     acts = [
         NutritionActivity.model_validate(
@@ -716,6 +738,7 @@ def energy_context(session: Session, day: date, *, clock: AthleteClock) -> Nutri
         is_today=day == now.astimezone(tz).date(),
         demo_data=bool(demo),
         garmin=garmin,
+        burn=burn,
         steps=steps,
         activities=acts,
         training_load=_r(load.load) if load else None,
@@ -726,7 +749,7 @@ def energy_context(session: Session, day: date, *, clock: AthleteClock) -> Nutri
         readiness=readiness.score if readiness else None,
         avg_total_kcal_7d=avg_7d,
         intake=totals,
-        balance_kcal=_balance(totals, garmin),
+        balance_kcal=_balance(totals, burn),
     )
 
 

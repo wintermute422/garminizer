@@ -181,8 +181,12 @@ function DayBody({ d }: { d: Day }) {
   const qc = useQueryClient();
   const remove = api.useMutation("delete", "/api/nutrition/meals/{meal_id}");
   const t = d.totals;
-  const burn = d.garmin.total_kcal;
+  const burn = d.burn.total_kcal;
   const balance = d.balance_kcal;
+  const burnDetail =
+    d.burn.source === "computed"
+      ? `${fmtNumber(d.burn.baseline_kcal)} base · ${fmtNumber(d.burn.training_kcal)} training`
+      : d.garmin.active_kcal != null && `${fmtNumber(d.garmin.active_kcal)} active (Garmin)`;
   const tg = d.targets;
   const hasTargets = [tg.kcal, tg.protein_g, tg.carbs_g, tg.fat_g, d.protein_target_g].some(
     (v) => v != null,
@@ -197,11 +201,9 @@ function DayBody({ d }: { d: Day }) {
             <p className="text-xs text-ink-3">kcal</p>
           </div>
           <div>
-            <p className="text-xs text-ink-3">Garmin burn</p>
+            <p className="text-xs text-ink-3">Burn</p>
             <p className="text-xl font-semibold text-ink tabular">{fmtNumber(burn)}</p>
-            <p className="text-xs text-ink-3">
-              kcal{d.garmin.active_kcal != null && ` · ${fmtNumber(d.garmin.active_kcal)} active`}
-            </p>
+            <p className="text-xs text-ink-3">kcal{burnDetail && ` · ${burnDetail}`}</p>
           </div>
           <div>
             <p className="text-xs text-ink-3">Balance</p>
@@ -215,7 +217,7 @@ function DayBody({ d }: { d: Day }) {
         </div>
         {d.is_today && (
           <p className="text-xs text-ink-3">
-            Today is still running: intake and Garmin&apos;s burn both keep growing until midnight.
+            Today is still running: intake and burn both keep growing until midnight.
           </p>
         )}
         <div className="flex flex-col gap-3">
