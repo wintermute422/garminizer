@@ -5,6 +5,12 @@ All notable changes to Garminizer are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Each release is published as a container image
 (`ghcr.io/wintermute422/garminizer:<version>`) for x86-64 and ARM64.
 
+## [Unreleased]
+
+### Added
+- Windows installer (`install.ps1`, or `install.cmd` to double-click): installs or updates the
+  latest release with Docker Desktop, without git, Python or an image build.
+
 ## [0.1.0] - 2026-11-16
 
 First public release.

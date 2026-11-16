@@ -79,6 +79,14 @@ docker compose up -d
 No Python? `cp .env.example .env` and set `POSTGRES_PASSWORD` and `TZ` in it instead. Prefer to
 build the image yourself? Skip the pull and run `docker compose up -d --build` (5–10 minutes).
 
+**Windows, without git or Python:** with Docker Desktop installed, paste this into PowerShell.
+It installs the latest release into `%LOCALAPPDATA%\Garminizer`, adds a Start-menu shortcut and
+opens the dashboard; running it again updates ([details](docs/installation.md#windows-installer)).
+
+```powershell
+irm https://raw.githubusercontent.com/wintermute422/garminizer/main/install.ps1 | iex
+```
+
 Open **http://localhost:8420**: the welcome screen asks for your Garmin sign-in (two-factor codes
 are supported) and shows the first sync. The worker syncs the last days first, so your dashboards
 appear within minutes, then works back through your whole history. Afterwards it syncs every two

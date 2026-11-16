@@ -55,6 +55,7 @@ Self-hosted Garmin Connect data warehouse with dashboards: Garmin Connect (unoff
 | `scripts/gen_badges.sh` | README badges from shields.io into `docs/badges/` (by hand, needs network); the README never hot-links shields.io/camo, which privacy filters block |
 | `scripts/release_notes.py --check \| vX.Y.Z` | `pyproject.toml`, `garminizer.__version__` and a dated `CHANGELOG.md` section agree (check.sh, CI); with a tag it prints that section for the GitHub release |
 | `.github/workflows/release.yml` | on a `v*` tag from main: multi-arch image to `ghcr.io/<owner>/garminizer` + GitHub release. Tagging is a release: only with explicit user approval |
+| `install.ps1`, `install.cmd` | Windows installer/updater (PowerShell 5.1, pure ASCII): release `compose.yml` + generated `.env` into `%LOCALAPPDATA%\Garminizer`, pull, start, shortcut. Refuses when the `garminizer` project runs from another folder or an orphaned `garminizer_pgdata` volume exists. Tested with a fake `docker` in `test_install_ps1.py`; attached to every release |
 | `scripts/demo_tour.sh` | announcement video from the demo e2e DB only (refuses non-demo) → `artifacts/demo-tour.webm` (+ `.mp4` with ffmpeg) |
 | `scripts/e2e_dev.sh API_PORT WEB_PORT "page x"` | same checks against Vite dev on private ports (parallel page work, no shared build) |
 
@@ -165,6 +166,21 @@ progress.md's "Next step".
 - Pages that use the server's "today" (weight goal) look stale on the fixed-date e2e database.
   Take README screenshots and the tour video from a demo database seeded up to today (see
   docs/development.md), never by changing the shared `garminizer_e2e` database.
+- Windows PowerShell 5.1: `@(... | ConvertFrom-Json)` yields ONE item for a JSON list (the whole
+  array), so a `foreach` over it sees all entries at once. Assign to a variable first, then loop.
+  The fake `docker` with a single project passed; the real `docker compose ls` (several projects)
+  exposed it. After testing against a fake, run once against the real tool's output.
+- Never try the installer (or any second stack) under the default Compose project on this
+  computer: project and volume are named `garminizer` whatever the folder, so it would take over
+  the real containers. Set `COMPOSE_PROJECT_NAME=garminizer-<purpose>` and other ports, and check
+  `docker compose config` shows that name before starting anything.
+- Windows resets `ProgramFiles` (and its siblings) for every new process, so a test cannot
+  redirect it through the environment: the installer test started the real Docker Desktop and
+  waited 3 minutes. Give the script an explicit path option and pass that; check `--durations`
+  when a new test file makes the suite slower.
+- Pulling a shared tag in a trial (`postgres:17`) moves the tag for every stack: the running real
+  database keeps its old image until its next `up`, which then recreates it on the newer patch
+  release. Tell the user when that happened.
 - A fresh worktree has no `.venv`. Create one with `uv venv .venv` and install with
   `uv pip install --python .venv/Scripts/python.exe -e ".[dev]"`: run through the main venv's
   `python -m uv`, `uv pip` ignored `VIRTUAL_ENV` and re-pointed the main checkout's editable install
